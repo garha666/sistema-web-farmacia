@@ -8,8 +8,8 @@
 - **Constitución:** `docs/constitution.md` v1.0, vigente (6 principios).
 - **Spec 001 POS:** `specs/001-pos/spec.md` v1.0, **aprobada**, 40 RF y 13 RNF, sin dudas abiertas.
 - **Plan 001 POS:** `specs/001-pos/plan.md`, completo (arquitectura, funciones puras, pseudocódigo, UI, decisiones, tests).
-- **Tareas 001 POS:** `specs/001-pos/tasks.md`, 10 tareas. **T1 a T6 cerradas**; T7 a T10 pendientes.
-- **Código:** Laravel 11.57.1. Dominio `app/Pos/` completo hasta stock. Persistencia: modelo `Product` + migración + `ProductSeeder`. HTTP: `PosController` con rutas `pos.*`. Vista: `layouts/pos` + `pos/index` (Blade + Tailwind compilado con Vite). 93 tests en verde (94 con el Example).
+- **Tareas 001 POS:** `specs/001-pos/tasks.md`, 10 tareas. **T1 a T7 cerradas**; T8 a T10 pendientes.
+- **Código:** Laravel 11.57.1. Dominio `app/Pos/` completo hasta stock. Persistencia: `Product`, `Sale`, `SaleLine`, `Document`, `StockMovement`. Servicios: `CartService`, `CheckoutService`. HTTP: `PosController` (caja, cobro y comprobante). Vistas: `pos/index`, `pos/checkout`, `pos/receipt`. 107 tests en verde (108 con el Example).
 - **Comandos SDD:** instalados en `.opencode/commands/` (9 comandos).
 
 ## Entorno (2026-10-30)
@@ -41,6 +41,11 @@
 - **Búsqueda (T6):** `lower(...) like` sobre nombre, principio activo y código de barras, límite 20 resultados, sólo productos vendibles.
 - **Tailwind (T6):** `tailwindcss@3` + PostCSS + Vite. `npm run build` genera `public/build`; la vista usa `@vite` y cae a CDN sólo si falta el manifest.
 - **Sesiones:** Laravel 11 crea la tabla `sessions` en la migración de `users`; no se agrega una migración propia.
+- **Cobro (T7):** `CheckoutService` hace todo dentro de `DB::transaction`: descuenta stock con `where('stock','>=',qty)`, crea venta, líneas congeladas, documento y movimiento negativo. Si algo falla, rollback y el carrito queda intacto.
+- **Idempotencia (T7):** `sales.token` es UUID único tomado de la sesión (`pos.checkout_token`); un doble envío devuelve la venta existente en vez de crear otra.
+- **Folio (T7):** simulado y por tipo (`receipt` 1–50.000, `invoice` 50.001–100.000); siguiente = máximo + 1 con índice único `(type, folio)`. Si el rango se agota, el documento queda `pending` sin folio.
+- **Comprobante (T7):** siempre muestra "Documento simulado — sin validez tributaria" y el emisor ficticio de `config/pos.php`.
+- **Pendiente de integración:** el cobro aún no exige receta (RF-8) ni aplica convenios desde la caja; ambas políticas existen y se conectan en T8/T10.
 - **Supuestos S-1 a S-6:** emisor ficticio, factura con RUT/razón social/giro/dirección/comuna, receta válida 30 días, libro de controlados como registro + CSV, nota de crédito simulada, RUT de cliente opcional.
 
 ## Pendientes conocidos

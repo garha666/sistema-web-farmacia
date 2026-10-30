@@ -5,11 +5,16 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Models\Product;
+use App\Models\Sale;
 use App\Pos\Calculator\PriceCalculator;
+use App\Pos\Enum\PaymentMethod;
+use App\Pos\Exception\InsufficientStock;
 use App\Pos\Value\Cart;
 use App\Services\Pos\CartService;
+use App\Services\Pos\CheckoutService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rules\Enum;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
@@ -23,6 +28,7 @@ final class PosController extends Controller
     public function __construct(
         private readonly CartService $cartService,
         private readonly PriceCalculator $priceCalculator,
+        private readonly CheckoutService $checkoutService,
     ) {
     }
 
@@ -100,6 +106,87 @@ final class PosController extends Controller
         $this->cartService->persist($cart);
 
         return redirect()->route('pos.index');
+    }
+
+    /**
+     * Pantalla de cobro (RF-20, RF-21).
+     */
+    public function checkout(): View|RedirectResponse
+    {
+        $cart = $this->cartService->load();
+
+        if ($cart->isEmpty()) {
+            return redirect()
+                ->route('pos.index')
+                ->withErrors(['cart' => 'El carrito está vacío.']);
+        }
+
+        return view('pos.checkout', [
+            'cart' => $cart,
+            'totals' => $this->priceCalculator->totals($cart, (int) config('pos.iva_rate')),
+            'methods' => PaymentMethod::cases(),
+        ]);
+    }
+
+    /**
+     * Confirma la venta (RF-22 a RF-26).
+     */
+    public function store(Request $request): RedirectResponse
+    {
+        $cart = $this->cartService->load();
+
+        if ($cart->isEmpty()) {
+            throw ValidationException::withMessages(['cart' => 'El carrito está vacío.']);
+        }
+
+        $data = $request->validate([
+            'payment_method' => ['required', new Enum(PaymentMethod::class)],
+            'received_amount' => ['nullable', 'integer', 'min:0'],
+            'customer_rut' => ['nullable', 'string', 'max:20'],
+        ]);
+
+        $totals = $this->priceCalculator->totals($cart, (int) config('pos.iva_rate'));
+        $method = PaymentMethod::from($data['payment_method']);
+        $received = isset($data['received_amount']) ? (int) $data['received_amount'] : null;
+
+        if ($method->requiresReceivedAmount()) {
+            if ($received === null || $received < $totals->total()->pesos()) {
+                throw ValidationException::withMessages([
+                    'received_amount' => 'El monto recibido es menor que el total a pagar.',
+                ]);
+            }
+        }
+
+        try {
+            $sale = $this->checkoutService->checkout(
+                cart: $cart,
+                method: $method,
+                receivedAmount: $method->requiresReceivedAmount() ? $received : null,
+                customerRut: $data['customer_rut'] ?? null,
+                token: $this->cartService->token(),
+                userId: $request->user()?->id,
+            );
+        } catch (InsufficientStock $exception) {
+            throw ValidationException::withMessages(['cart' => $exception->getMessage()]);
+        }
+
+        $this->cartService->clear();
+
+        return redirect()->route('pos.sales.receipt', $sale);
+    }
+
+    /**
+     * Comprobante reimprimible (RF-25).
+     */
+    public function receipt(Sale $sale): View
+    {
+        $sale->loadMissing('lines', 'document');
+
+        return view('pos.receipt', [
+            'sale' => $sale,
+            'document' => $sale->document,
+            'issuer' => (array) config('pos.issuer'),
+        ]);
     }
 
     /**

@@ -61,7 +61,22 @@ final class CartService
 
     public function clear(): void
     {
-        session()->forget(self::SESSION_KEY);
+        session()->forget([self::SESSION_KEY, 'pos.checkout_token']);
+    }
+
+    /**
+     * Token de idempotencia del carrito (RF-22): un doble envío no crea dos ventas.
+     */
+    public function token(): string
+    {
+        $token = session()->get('pos.checkout_token');
+
+        if (! is_string($token) || $token === '') {
+            $token = (string) \Illuminate\Support\Str::uuid();
+            session()->put('pos.checkout_token', $token);
+        }
+
+        return $token;
     }
 
     public function snapshot(Product $product): ProductSnapshot

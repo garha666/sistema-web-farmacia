@@ -47,9 +47,10 @@
   - *Hecho cuando:* `CartFlowTest` pasa y, en prueba manual, recargar el navegador conserva el carrito con líneas y descuentos.
   - *Cerrada 2026-10-30:* 13 tests nuevos; `php artisan test` → 94 passed, 182 assertions. Assets compilados con Vite + Tailwind.
 
-- [ ] **T7. Cobro transaccional, folio simulado y comprobante.** RF-20, RF-21, RF-22, RF-23, RF-24, RF-25, RF-26
+- [x] **T7. Cobro transaccional, folio simulado y comprobante.** RF-20, RF-21, RF-22, RF-23, RF-24, RF-25, RF-26
   - *Depende de:* T2, T3, T4, T5, T6
   - *Hecho cuando:* `CheckoutFlowTest` pasa: venta confirmada con folio único, stock descontado, comprobante reimprimible y doble envío del mismo carrito no crea dos ventas.
+  - *Cerrada 2026-10-30:* 14 tests nuevos; `php artisan test` → 108 passed, 229 assertions.
 
 - [ ] **T8. Concurrencia real de stock y movimientos.** RF-27, RF-28, RF-29, RF-30, RF-31
   - *Depende de:* T7

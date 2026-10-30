@@ -147,13 +147,13 @@
                 </dl>
             @endif
 
-            <button
-                type="button"
-                class="mt-4 w-full rounded-lg bg-emerald-600 px-4 py-3 text-base font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
-                @disabled($cart->isEmpty())
+            <a
+                href="{{ route('pos.checkout') }}"
+                class="mt-4 block w-full rounded-lg bg-emerald-600 px-4 py-3 text-center text-base font-semibold text-white aria-disabled:pointer-events-none aria-disabled:bg-slate-300"
+                @if ($cart->isEmpty()) aria-disabled="true" tabindex="-1" @endif
             >
                 Cobrar
-            </button>
+            </a>
 
             @if ($cart->isEmpty())
                 <p class="mt-2 text-center text-xs text-slate-500">El carrito está vacío</p>
