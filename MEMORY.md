@@ -8,8 +8,8 @@
 - **Constitución:** `docs/constitution.md` v1.0, vigente (6 principios).
 - **Spec 001 POS:** `specs/001-pos/spec.md` v1.0, **aprobada**, 40 RF y 13 RNF, sin dudas abiertas.
 - **Plan 001 POS:** `specs/001-pos/plan.md`, completo (arquitectura, funciones puras, pseudocódigo, UI, decisiones, tests).
-- **Tareas 001 POS:** `specs/001-pos/tasks.md`, 10 tareas. **T1, T2, T3 y T4 cerradas**; T5 a T10 pendientes.
-- **Código:** Laravel 11.57.1. Dominio `app/Pos/`: Money, Cart, CartLine, ProductSnapshot, Discount, ReceiptTotals, PriceCalculator, ConventionSnapshot, DiscountDecision, DiscountPolicy, PrescriptionInput, PrescriptionResult, PrescriptionPolicy; 66 tests en verde (67 con el Example).
+- **Tareas 001 POS:** `specs/001-pos/tasks.md`, 10 tareas. **T1 a T5 cerradas**; T6 a T10 pendientes.
+- **Código:** Laravel 11.57.1. Dominio `app/Pos/`: Money, Cart, CartLine, ProductSnapshot, Discount, ReceiptTotals, PriceCalculator, ConventionSnapshot, DiscountDecision, DiscountPolicy, PrescriptionInput, PrescriptionResult, PrescriptionPolicy, Shortage, StockPolicy; 80 tests en verde (81 con el Example).
 - **Comandos SDD:** instalados en `.opencode/commands/` (9 comandos).
 
 ## Entorno (2026-10-30)
@@ -35,6 +35,8 @@
 - **Recetas (T4):** vigencia 30 días calendario inclusive (configurable en `config/pos.php`), comparada por día; fecha futura también inválida. Datos obligatorios: número, nombre y RUT del prescriptor y fecha de emisión.
 - **Receta reutilizada (T4):** no bloquea la venta, pero devuelve `requires_supervisor` con código `prescription_already_used`.
 - **Controlados (T4):** exigen registro en el libro (`requiresControlledRegister`); la categoría más restrictiva del carrito manda sobre toda la venta.
+- **Stock (T5):** stock negativo o producto desconocido se tratan como 0; `canSell` exige cantidad ≥ 1 y existencia ≥ cantidad. El faltante es `requested - available` y el carrito se bloquea completo si hay al menos uno.
+- **Cambio de stock (T5):** `changedSinceSnapshot` compara la existencia viva contra la congelada en el carrito; la transacción de cobro (T8) es la que bloquea la fila real.
 - **Supuestos S-1 a S-6:** emisor ficticio, factura con RUT/razón social/giro/dirección/comuna, receta válida 30 días, libro de controlados como registro + CSV, nota de crédito simulada, RUT de cliente opcional.
 
 ## Pendientes conocidos

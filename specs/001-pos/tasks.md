@@ -37,9 +37,10 @@
   - *Hecho cuando:* `PrescriptionPolicyTest` pasa con receta vencida a 31 días (fecha inyectada), datos faltantes, producto controlado y receta reutilizada.
   - *Cerrada 2026-10-30:* 15 tests nuevos; `php artisan test` → 67 passed, 131 assertions.
 
-- [ ] **T5. Política de stock y faltantes.** RF-3, RF-27, RF-29
+- [x] **T5. Política de stock y faltantes.** RF-3, RF-27, RF-29
   - *Depende de:* T1
   - *Hecho cuando:* `StockPolicyTest` pasa y `shortages()` devuelve la diferencia exacta entre solicitado y disponible para cada producto.
+  - *Cerrada 2026-10-30:* 14 tests nuevos; `php artisan test` → 81 passed, 159 assertions.
 
 - [ ] **T6. Pantalla de caja: búsqueda, carrito y totales en vivo.** RF-1, RF-2, RF-3, RF-4, RF-5, RF-6
   - *Depende de:* T1, T2
