@@ -8,8 +8,8 @@
 - **Constitución:** `docs/constitution.md` v1.0, vigente (6 principios).
 - **Spec 001 POS:** `specs/001-pos/spec.md` v1.0, **aprobada**, 40 RF y 13 RNF, sin dudas abiertas.
 - **Plan 001 POS:** `specs/001-pos/plan.md`, completo (arquitectura, funciones puras, pseudocódigo, UI, decisiones, tests).
-- **Tareas 001 POS:** `specs/001-pos/tasks.md`, 10 tareas. **T1 a T5 cerradas**; T6 a T10 pendientes.
-- **Código:** Laravel 11.57.1. Dominio `app/Pos/`: Money, Cart, CartLine, ProductSnapshot, Discount, ReceiptTotals, PriceCalculator, ConventionSnapshot, DiscountDecision, DiscountPolicy, PrescriptionInput, PrescriptionResult, PrescriptionPolicy, Shortage, StockPolicy; 80 tests en verde (81 con el Example).
+- **Tareas 001 POS:** `specs/001-pos/tasks.md`, 10 tareas. **T1 a T6 cerradas**; T7 a T10 pendientes.
+- **Código:** Laravel 11.57.1. Dominio `app/Pos/` completo hasta stock. Persistencia: modelo `Product` + migración + `ProductSeeder`. HTTP: `PosController` con rutas `pos.*`. Vista: `layouts/pos` + `pos/index` (Blade + Tailwind compilado con Vite). 93 tests en verde (94 con el Example).
 - **Comandos SDD:** instalados en `.opencode/commands/` (9 comandos).
 
 ## Entorno (2026-10-30)
@@ -37,6 +37,10 @@
 - **Controlados (T4):** exigen registro en el libro (`requiresControlledRegister`); la categoría más restrictiva del carrito manda sobre toda la venta.
 - **Stock (T5):** stock negativo o producto desconocido se tratan como 0; `canSell` exige cantidad ≥ 1 y existencia ≥ cantidad. El faltante es `requested - available` y el carrito se bloquea completo si hay al menos uno.
 - **Cambio de stock (T5):** `changedSinceSnapshot` compara la existencia viva contra la congelada en el carrito; la transacción de cobro (T8) es la que bloquea la fila real.
+- **Carrito en sesión (T6):** se guarda sólo `id de producto => cantidad`; precio, categoría y stock se releen de la base en cada request. La clave es `pos.cart`.
+- **Búsqueda (T6):** `lower(...) like` sobre nombre, principio activo y código de barras, límite 20 resultados, sólo productos vendibles.
+- **Tailwind (T6):** `tailwindcss@3` + PostCSS + Vite. `npm run build` genera `public/build`; la vista usa `@vite` y cae a CDN sólo si falta el manifest.
+- **Sesiones:** Laravel 11 crea la tabla `sessions` en la migración de `users`; no se agrega una migración propia.
 - **Supuestos S-1 a S-6:** emisor ficticio, factura con RUT/razón social/giro/dirección/comuna, receta válida 30 días, libro de controlados como registro + CSV, nota de crédito simulada, RUT de cliente opcional.
 
 ## Pendientes conocidos

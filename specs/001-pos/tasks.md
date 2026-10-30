@@ -42,9 +42,10 @@
   - *Hecho cuando:* `StockPolicyTest` pasa y `shortages()` devuelve la diferencia exacta entre solicitado y disponible para cada producto.
   - *Cerrada 2026-10-30:* 14 tests nuevos; `php artisan test` → 81 passed, 159 assertions.
 
-- [ ] **T6. Pantalla de caja: búsqueda, carrito y totales en vivo.** RF-1, RF-2, RF-3, RF-4, RF-5, RF-6
+- [x] **T6. Pantalla de caja: búsqueda, carrito y totales en vivo.** RF-1, RF-2, RF-3, RF-4, RF-5, RF-6
   - *Depende de:* T1, T2
   - *Hecho cuando:* `CartFlowTest` pasa y, en prueba manual, recargar el navegador conserva el carrito con líneas y descuentos.
+  - *Cerrada 2026-10-30:* 13 tests nuevos; `php artisan test` → 94 passed, 182 assertions. Assets compilados con Vite + Tailwind.
 
 - [ ] **T7. Cobro transaccional, folio simulado y comprobante.** RF-20, RF-21, RF-22, RF-23, RF-24, RF-25, RF-26
   - *Depende de:* T2, T3, T4, T5, T6
