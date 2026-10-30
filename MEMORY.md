@@ -8,8 +8,8 @@
 - **Constitución:** `docs/constitution.md` v1.0, vigente (6 principios).
 - **Spec 001 POS:** `specs/001-pos/spec.md` v1.0, **aprobada**, 40 RF y 13 RNF, sin dudas abiertas.
 - **Plan 001 POS:** `specs/001-pos/plan.md`, completo (arquitectura, funciones puras, pseudocódigo, UI, decisiones, tests).
-- **Tareas 001 POS:** `specs/001-pos/tasks.md`, 10 tareas. **T1, T2 y T3 cerradas**; T4 a T10 pendientes.
-- **Código:** Laravel 11.57.1. Dominio `app/Pos/`: Money, Cart, CartLine, ProductSnapshot, Discount, ReceiptTotals, PriceCalculator, ConventionSnapshot, DiscountDecision, DiscountPolicy; 51 tests en verde (52 con el Example).
+- **Tareas 001 POS:** `specs/001-pos/tasks.md`, 10 tareas. **T1, T2, T3 y T4 cerradas**; T5 a T10 pendientes.
+- **Código:** Laravel 11.57.1. Dominio `app/Pos/`: Money, Cart, CartLine, ProductSnapshot, Discount, ReceiptTotals, PriceCalculator, ConventionSnapshot, DiscountDecision, DiscountPolicy, PrescriptionInput, PrescriptionResult, PrescriptionPolicy; 66 tests en verde (67 con el Example).
 - **Comandos SDD:** instalados en `.opencode/commands/` (9 comandos).
 
 ## Entorno (2026-10-30)
@@ -32,6 +32,9 @@
 - **Tope 10%:** vigente en `config/pos.php` (`discount.general_cap_percent`). Superarlo devuelve `requires_supervisor`; no se aplica hasta que un Químico autorice.
 - **Convenios (T3):** el porcentaje lo define el administrador y no consume el tope del cajero; convenio inactivo o fuera de vigencia se rechaza con `convention_not_applicable`. El porcentaje del convenio prevalece sobre cualquier descuento manual.
 - **Rechazos de descuento (T3):** códigos `reason_required`, `total_not_positive`, `convention_not_applicable`, `above_cap`. Ningún descuento deja el total en cero o negativo.
+- **Recetas (T4):** vigencia 30 días calendario inclusive (configurable en `config/pos.php`), comparada por día; fecha futura también inválida. Datos obligatorios: número, nombre y RUT del prescriptor y fecha de emisión.
+- **Receta reutilizada (T4):** no bloquea la venta, pero devuelve `requires_supervisor` con código `prescription_already_used`.
+- **Controlados (T4):** exigen registro en el libro (`requiresControlledRegister`); la categoría más restrictiva del carrito manda sobre toda la venta.
 - **Supuestos S-1 a S-6:** emisor ficticio, factura con RUT/razón social/giro/dirección/comuna, receta válida 30 días, libro de controlados como registro + CSV, nota de crédito simulada, RUT de cliente opcional.
 
 ## Pendientes conocidos

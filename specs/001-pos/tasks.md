@@ -32,9 +32,10 @@
   - *Hecho cuando:* `DiscountPolicyTest` pasa: 10% se aplica sin supervisor, 10,01% lo exige, convenio inactivo se rechaza y ningún descuento deja el total en cero o negativo.
   - *Cerrada 2026-10-30:* 16 tests nuevos; `php artisan test` → 52 passed, 99 assertions.
 
-- [ ] **T4. Política de recetas y controlados.** RF-7, RF-8, RF-9, RF-10, RF-11
+- [x] **T4. Política de recetas y controlados.** RF-7, RF-8, RF-9, RF-10, RF-11
   - *Depende de:* T1
   - *Hecho cuando:* `PrescriptionPolicyTest` pasa con receta vencida a 31 días (fecha inyectada), datos faltantes, producto controlado y receta reutilizada.
+  - *Cerrada 2026-10-30:* 15 tests nuevos; `php artisan test` → 67 passed, 131 assertions.
 
 - [ ] **T5. Política de stock y faltantes.** RF-3, RF-27, RF-29
   - *Depende de:* T1
