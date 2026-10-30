@@ -27,9 +27,10 @@
   - *Hecho cuando:* `PriceCalculatorTest` pasa con 5 montos límite y en todos los casos el total es igual a la suma de líneas menos descuentos.
   - *Cerrada 2026-10-30:* 14 tests nuevos; `php artisan test` → 36 passed, 70 assertions.
 
-- [ ] **T3. Política de descuentos y convenios de salud.** RF-13, RF-14, RF-15, RF-16, RF-17, RF-18, RF-39, RF-40
+- [x] **T3. Política de descuentos y convenios de salud.** RF-13, RF-14, RF-15, RF-16, RF-17, RF-18, RF-39, RF-40
   - *Depende de:* T2
   - *Hecho cuando:* `DiscountPolicyTest` pasa: 10% se aplica sin supervisor, 10,01% lo exige, convenio inactivo se rechaza y ningún descuento deja el total en cero o negativo.
+  - *Cerrada 2026-10-30:* 16 tests nuevos; `php artisan test` → 52 passed, 99 assertions.
 
 - [ ] **T4. Política de recetas y controlados.** RF-7, RF-8, RF-9, RF-10, RF-11
   - *Depende de:* T1
