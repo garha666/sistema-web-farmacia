@@ -52,9 +52,10 @@
   - *Hecho cuando:* `CheckoutFlowTest` pasa: venta confirmada con folio único, stock descontado, comprobante reimprimible y doble envío del mismo carrito no crea dos ventas.
   - *Cerrada 2026-10-30:* 14 tests nuevos; `php artisan test` → 108 passed, 229 assertions.
 
-- [ ] **T8. Concurrencia real de stock y movimientos.** RF-27, RF-28, RF-29, RF-30, RF-31
+- [x] **T8. Concurrencia real de stock y movimientos.** RF-27, RF-28, RF-29, RF-30, RF-31
   - *Depende de:* T7
   - *Hecho cuando:* el test de dos conexiones a PostgreSQL deja ganar una sola venta de la última unidad, y la suma de movimientos iguala el stock final.
+  - *Cerrada 2026-10-30:* 7 tests nuevos; `php artisan test` → 115 passed, 251 assertions.
 
 - [ ] **T9. Anulación de venta y auditoría.** RF-32, RF-33, RF-34, RF-35, RF-36
   - *Depende de:* T8

@@ -45,12 +45,19 @@ final class CheckoutService
 
         $totals = $this->calculator->totals($cart, (int) config('pos.iva_rate'));
 
+        // 3 intentos: reintenta si PostgreSQL detecta un deadlock (SQLSTATE 40P01)
+        // o una espera de lock agotada por concurrencia entre cajas (RF-28).
         return DB::transaction(function () use ($cart, $method, $receivedAmount, $customerRut, $token, $userId, $totals): Sale {
             $existing = Sale::query()->where('token', $token)->first();
 
             if ($existing !== null) {
                 return $existing->load('lines', 'document');
             }
+
+            // RF-27/RF-28: bloqueo pesimista de las filas de producto en orden
+            // de id (mismo orden que VoidSaleService) para serializar la venta
+            // de la última unidad y evitar deadlocks.
+            $this->lockProducts($cart);
 
             foreach ($cart->lines() as $line) {
                 $affected = Product::query()
@@ -113,7 +120,30 @@ final class CheckoutService
             ]);
 
             return $sale->load('lines', 'document');
-        });
+        }, 3);
+    }
+
+    /**
+     * Bloquea las filas de producto involucradas en el carrito (RF-27, RF-28).
+     *
+     * El orden por `id` es estable entre cajas: dos carritos con productos
+     * distintos pero cruzados toman los locks en el mismo orden, lo que evita
+     * el deadlock clásico de bloqueos cruzados.
+     */
+    private function lockProducts(Cart $cart): void
+    {
+        $ids = array_map(
+            fn (CartLine $line): int => $line->productId(),
+            $cart->lines(),
+        );
+
+        sort($ids);
+
+        Product::query()
+            ->whereIn('id', $ids)
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get();
     }
 
     /**

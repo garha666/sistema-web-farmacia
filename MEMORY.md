@@ -8,8 +8,8 @@
 - **Constitución:** `docs/constitution.md` v1.0, vigente (6 principios).
 - **Spec 001 POS:** `specs/001-pos/spec.md` v1.0, **aprobada**, 40 RF y 13 RNF, sin dudas abiertas.
 - **Plan 001 POS:** `specs/001-pos/plan.md`, completo (arquitectura, funciones puras, pseudocódigo, UI, decisiones, tests).
-- **Tareas 001 POS:** `specs/001-pos/tasks.md`, 10 tareas. **T1 a T7 cerradas**; T8 a T10 pendientes.
-- **Código:** Laravel 11.57.1. Dominio `app/Pos/` completo hasta stock. Persistencia: `Product`, `Sale`, `SaleLine`, `Document`, `StockMovement`. Servicios: `CartService`, `CheckoutService`. HTTP: `PosController` (caja, cobro y comprobante). Vistas: `pos/index`, `pos/checkout`, `pos/receipt`. 107 tests en verde (108 con el Example).
+- **Tareas 001 POS:** `specs/001-pos/tasks.md`, 10 tareas. **T1 a T8 cerradas**; T9 y T10 pendientes.
+- **Código:** Laravel 11.57.1. Dominio `app/Pos/` completo hasta stock. Persistencia: `Product`, `Sale`, `SaleLine`, `Document`, `StockMovement`. Servicios: `CartService`, `CheckoutService`, `VoidSaleService`. HTTP: `PosController` (caja, cobro y comprobante). Vistas: `pos/index`, `pos/checkout`, `pos/receipt`. 115 tests en verde.
 - **Comandos SDD:** instalados en `.opencode/commands/` (9 comandos).
 
 ## Entorno (2026-10-30)
@@ -36,16 +36,21 @@
 - **Receta reutilizada (T4):** no bloquea la venta, pero devuelve `requires_supervisor` con código `prescription_already_used`.
 - **Controlados (T4):** exigen registro en el libro (`requiresControlledRegister`); la categoría más restrictiva del carrito manda sobre toda la venta.
 - **Stock (T5):** stock negativo o producto desconocido se tratan como 0; `canSell` exige cantidad ≥ 1 y existencia ≥ cantidad. El faltante es `requested - available` y el carrito se bloquea completo si hay al menos uno.
-- **Cambio de stock (T5):** `changedSinceSnapshot` compara la existencia viva contra la congelada en el carrito; la transacción de cobro (T8) es la que bloquea la fila real.
+- **Cambio de stock (T5):** `changedSinceSnapshot` compara la existencia viva contra la congelada en el carrito; la transacción de cobro bloquea la fila real con `lockForUpdate()` (T8).
 - **Carrito en sesión (T6):** se guarda sólo `id de producto => cantidad`; precio, categoría y stock se releen de la base en cada request. La clave es `pos.cart`.
 - **Búsqueda (T6):** `lower(...) like` sobre nombre, principio activo y código de barras, límite 20 resultados, sólo productos vendibles.
 - **Tailwind (T6):** `tailwindcss@3` + PostCSS + Vite. `npm run build` genera `public/build`; la vista usa `@vite` y cae a CDN sólo si falta el manifest.
 - **Sesiones:** Laravel 11 crea la tabla `sessions` en la migración de `users`; no se agrega una migración propia.
 - **Cobro (T7):** `CheckoutService` hace todo dentro de `DB::transaction`: descuenta stock con `where('stock','>=',qty)`, crea venta, líneas congeladas, documento y movimiento negativo. Si algo falla, rollback y el carrito queda intacto.
+- **Bloqueo pesimista (T8):** antes de validar y descontar, `CheckoutService::lockProducts()` ejecuta `SELECT ... FOR UPDATE` (`lockForUpdate()`) sobre los productos del carrito ordenados por `id`. El descuento condicional `where('stock','>=',qty)` queda como segunda barrera contra la sobreventa (RF-27, RF-30).
+- **Aislamiento (T8):** PostgreSQL en su nivel por defecto **READ COMMITTED**; no se sube a `SERIALIZABLE` porque el bloqueo de fila ya serializa la última unidad y evita reintentos masivos por conflictos de serialización.
+- **Deadlocks (T8):** el orden estable por `id` (cobro y anulación usan el mismo) evita bloqueos cruzados; `DB::transaction($cb, 3)` reintenta hasta 3 veces si PostgreSQL reporta deadlock (SQLSTATE 40P01).
+- **Anulación (T8):** `VoidSaleService::void()` bloquea la venta, rechaza una segunda anulación con `DomainException`, bloquea los productos en orden de id, repone el stock y registra **un movimiento `void` por línea** (mismo criterio que el movimiento `sale`). Nota de crédito, autor y motivo llegan en T9.
+- **Consistencia (T8):** el stock final siempre se puede reconstruir como `stock inicial + suma(stock_movements)`; el test de concurrencia lo verifica tras ventas y anulaciones.
 - **Idempotencia (T7):** `sales.token` es UUID único tomado de la sesión (`pos.checkout_token`); un doble envío devuelve la venta existente en vez de crear otra.
 - **Folio (T7):** simulado y por tipo (`receipt` 1–50.000, `invoice` 50.001–100.000); siguiente = máximo + 1 con índice único `(type, folio)`. Si el rango se agota, el documento queda `pending` sin folio.
 - **Comprobante (T7):** siempre muestra "Documento simulado — sin validez tributaria" y el emisor ficticio de `config/pos.php`.
-- **Pendiente de integración:** el cobro aún no exige receta (RF-8) ni aplica convenios desde la caja; ambas políticas existen y se conectan en T8/T10.
+- **Pendiente de integración:** el cobro aún no exige receta (RF-8) ni aplica convenios desde la caja; ambas políticas existen y se conectan en T10.
 - **Supuestos S-1 a S-6:** emisor ficticio, factura con RUT/razón social/giro/dirección/comuna, receta válida 30 días, libro de controlados como registro + CSV, nota de crédito simulada, RUT de cliente opcional.
 
 ## Pendientes conocidos
