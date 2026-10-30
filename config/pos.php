@@ -31,6 +31,8 @@ return [
         'receipt_to' => 50000,
         'invoice_from' => 50001,
         'invoice_to' => 100000,
+        'credit_note_from' => 100001,
+        'credit_note_to' => 150000,
     ],
 
     'issuer' => [

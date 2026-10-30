@@ -57,9 +57,10 @@
   - *Hecho cuando:* el test de dos conexiones a PostgreSQL deja ganar una sola venta de la última unidad, y la suma de movimientos iguala el stock final.
   - *Cerrada 2026-10-30:* 7 tests nuevos; `php artisan test` → 115 passed, 251 assertions.
 
-- [ ] **T9. Anulación de venta y auditoría.** RF-32, RF-33, RF-34, RF-35, RF-36
+- [x] **T9. Anulación de venta y auditoría.** RF-32, RF-33, RF-34, RF-35, RF-36
   - *Depende de:* T8
   - *Hecho cuando:* `VoidSaleTest` pasa: la anulación repone stock, genera la reversa simulada, registra autor y motivo, impide una segunda anulación y deja intacta la venta original.
+  - *Cerrada 2026-10-30:* 13 tests nuevos; `php artisan test` → 128 passed, 295 assertions.
 
 - [ ] **T10. Administración: convenios, historial, documentos y permisos.** RF-26, RF-37, RF-38, RF-39, RF-40
   - *Depende de:* T3, T9

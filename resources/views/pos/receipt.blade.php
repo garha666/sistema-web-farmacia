@@ -18,6 +18,19 @@
                 </p>
                 <p class="text-sm">Folio {{ $document?->folio ?? 'pendiente' }}</p>
                 <p class="text-xs text-slate-500">{{ $sale->sold_at->format('d-m-Y H:i') }}</p>
+                @if ($sale->status->value === 'voided')
+                    <p class="mt-2 inline-block rounded bg-rose-100 px-3 py-1 text-sm font-bold tracking-widest text-rose-700">
+                        ANULADA
+                    </p>
+                    @if ($reversal)
+                        <p class="mt-1 text-xs text-slate-500">
+                            Nota de crédito folio {{ $reversal->folio ?? 'pendiente' }}
+                        </p>
+                    @endif
+                    @if ($voidReason)
+                        <p class="mt-1 text-xs text-rose-600">Motivo: {{ $voidReason }}</p>
+                    @endif
+                @endif
             </header>
 
             <table class="mt-4 w-full text-sm">

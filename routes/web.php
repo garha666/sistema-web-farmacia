@@ -17,4 +17,5 @@ Route::prefix('pos')->name('pos.')->group(function (): void {
     Route::post('/checkout', [PosController::class, 'store'])->name('checkout.store');
 
     Route::get('/sales/{sale}/receipt', [PosController::class, 'receipt'])->name('sales.receipt');
+    Route::post('/sales/{sale}/void', [PosController::class, 'void'])->name('sales.void');
 });

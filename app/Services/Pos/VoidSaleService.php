@@ -4,35 +4,44 @@ declare(strict_types=1);
 
 namespace App\Services\Pos;
 
+use App\Models\Document;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Models\StockMovement;
+use App\Pos\Enum\DocumentStatus;
+use App\Pos\Enum\DocumentType;
 use App\Pos\Enum\SaleStatus;
-use DomainException;
+use App\Pos\Policy\VoidPolicy;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Anula una venta confirmada y repone el stock (RF-31).
+ * Anula una venta confirmada (RF-31 a RF-36).
  *
- * La anulación es atómica: estado de la venta + stock + movimientos en una
- * sola transacción. Bloquea la venta y los productos en orden de id para
- * evitar deadlocks con cobros simultáneos. La nota de crédito, la autorización
- * de supervisor y la auditoría llegan en T9.
+ * La venta original nunca se borra ni se modifica salvo su estado: la
+ * anulación se guarda como un hecho separado en `audit_logs` con autor,
+ * motivo y fecha local. Todo ocurre en una sola transacción: estado, stock,
+ * movimientos, auditoría y nota de crédito simulada.
  */
 final class VoidSaleService
 {
-    public function void(Sale $sale): Sale
+    public function __construct(
+        private readonly VoidPolicy $policy,
+        private readonly AuditService $audit,
+    ) {
+    }
+
+    public function void(Sale $sale, string $reason, ?int $userId = null): Sale
     {
-        return DB::transaction(function () use ($sale): Sale {
+        $reason = trim($reason);
+
+        return DB::transaction(function () use ($sale, $reason, $userId): Sale {
             /** @var Sale $locked */
             $locked = Sale::query()
                 ->whereKey($sale->getKey())
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            if ($locked->status === SaleStatus::voided) {
-                throw new DomainException('La venta ya está anulada.');
-            }
+            $this->policy->assertCanVoid($locked->status, $reason);
 
             $lines = $locked->lines()->get();
 
@@ -60,7 +69,50 @@ final class VoidSaleService
 
             $locked->update(['status' => SaleStatus::voided]);
 
-            return $locked->load('lines', 'document');
+            $this->audit->record('sale.void', $locked, $userId, $reason);
+            $this->createCreditNote($locked);
+
+            return $locked->load('lines', 'document', 'reversal');
         }, 3);
+    }
+
+    /**
+     * Nota de crédito simulada por el documento emitido (RF-34, S-5).
+     */
+    private function createCreditNote(Sale $sale): void
+    {
+        $original = $sale->document;
+
+        if ($original === null || $original->status !== DocumentStatus::issued) {
+            return;
+        }
+
+        $folio = $this->nextCreditNoteFolio();
+
+        $sale->reversal()->create([
+            'reversal_of_id' => $original->id,
+            'type' => DocumentType::creditNote,
+            'folio' => $folio,
+            'status' => $folio === null ? DocumentStatus::pending : DocumentStatus::issued,
+            'issued_at' => $folio === null ? null : now(),
+        ]);
+    }
+
+    /**
+     * Siguiente folio de nota de crédito; null si el rango se agotó (RF-24).
+     */
+    private function nextCreditNoteFolio(): ?int
+    {
+        $from = (int) config('pos.folio.credit_note_from');
+        $to = (int) config('pos.folio.credit_note_to');
+
+        $last = Document::query()
+            ->where('type', DocumentType::creditNote)
+            ->whereNotNull('folio')
+            ->max('folio');
+
+        $next = $last === null ? $from : ((int) $last) + 1;
+
+        return $next > $to ? null : $next;
     }
 }

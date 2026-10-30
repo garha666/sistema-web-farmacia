@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 final class Sale extends Model
 {
@@ -64,11 +65,33 @@ final class Sale extends Model
     }
 
     /**
+     * Documento de venta (boleta o factura); excluye la nota de crédito.
+     *
      * @return HasOne<Document, $this>
      */
     public function document(): HasOne
     {
-        return $this->hasOne(Document::class);
+        return $this->hasOne(Document::class)->whereNull('reversal_of_id');
+    }
+
+    /**
+     * Nota de crédito simulada que revierte el documento (RF-34).
+     *
+     * @return HasOne<Document, $this>
+     */
+    public function reversal(): HasOne
+    {
+        return $this->hasOne(Document::class)->whereNotNull('reversal_of_id');
+    }
+
+    /**
+     * Autorizaciones y anulaciones registradas sobre la venta (RF-36).
+     *
+     * @return MorphMany<AuditLog, $this>
+     */
+    public function auditLogs(): MorphMany
+    {
+        return $this->morphMany(AuditLog::class, 'auditable');
     }
 
     /**

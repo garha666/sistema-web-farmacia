@@ -12,6 +12,8 @@ use App\Pos\Exception\InsufficientStock;
 use App\Pos\Value\Cart;
 use App\Services\Pos\CartService;
 use App\Services\Pos\CheckoutService;
+use App\Services\Pos\VoidSaleService;
+use DomainException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rules\Enum;
@@ -180,13 +182,44 @@ final class PosController extends Controller
      */
     public function receipt(Sale $sale): View
     {
-        $sale->loadMissing('lines', 'document');
+        $sale->loadMissing('lines', 'document', 'reversal');
+
+        $voidReason = $sale->auditLogs()
+            ->where('action', 'sale.void')
+            ->latest()
+            ->first()
+            ?->reason;
 
         return view('pos.receipt', [
             'sale' => $sale,
             'document' => $sale->document,
+            'reversal' => $sale->reversal,
+            'voidReason' => $voidReason,
             'issuer' => (array) config('pos.issuer'),
         ]);
+    }
+
+    /**
+     * Anula una venta confirmada con motivo obligatorio (RF-32 a RF-36).
+     */
+    public function void(Request $request, Sale $sale): RedirectResponse
+    {
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'min:3', 'max:500'],
+        ]);
+
+        try {
+            app(VoidSaleService::class)->void(
+                $sale,
+                $data['reason'],
+                $request->user()?->id,
+            );
+        } catch (DomainException $exception) {
+            throw ValidationException::withMessages(['reason' => $exception->getMessage()]);
+        }
+
+        return redirect()->route('pos.sales.receipt', $sale)
+            ->with('voided', true);
     }
 
     /**

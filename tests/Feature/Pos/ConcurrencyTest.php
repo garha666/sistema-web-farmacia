@@ -177,7 +177,7 @@ final class ConcurrencyTest extends TestCase
         $sale = Sale::query()->firstOrFail();
         $this->assertSame(8, $product->fresh()->stock);
 
-        app(VoidSaleService::class)->void($sale);
+        app(VoidSaleService::class)->void($sale, 'Error de cobro');
 
         $this->assertSame(10, $product->fresh()->stock);
         $this->assertSame(SaleStatus::voided, $sale->fresh()->status);
@@ -195,10 +195,10 @@ final class ConcurrencyTest extends TestCase
         $this->post('/pos/checkout', ['payment_method' => 'debit']);
 
         $sale = Sale::query()->firstOrFail();
-        app(VoidSaleService::class)->void($sale);
+        app(VoidSaleService::class)->void($sale, 'Error de cobro');
 
         $this->expectException(\DomainException::class);
 
-        app(VoidSaleService::class)->void($sale->fresh());
+        app(VoidSaleService::class)->void($sale->fresh(), 'Error de cobro');
     }
 }

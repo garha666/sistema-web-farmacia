@@ -8,8 +8,8 @@
 - **Constitución:** `docs/constitution.md` v1.0, vigente (6 principios).
 - **Spec 001 POS:** `specs/001-pos/spec.md` v1.0, **aprobada**, 40 RF y 13 RNF, sin dudas abiertas.
 - **Plan 001 POS:** `specs/001-pos/plan.md`, completo (arquitectura, funciones puras, pseudocódigo, UI, decisiones, tests).
-- **Tareas 001 POS:** `specs/001-pos/tasks.md`, 10 tareas. **T1 a T8 cerradas**; T9 y T10 pendientes.
-- **Código:** Laravel 11.57.1. Dominio `app/Pos/` completo hasta stock. Persistencia: `Product`, `Sale`, `SaleLine`, `Document`, `StockMovement`. Servicios: `CartService`, `CheckoutService`, `VoidSaleService`. HTTP: `PosController` (caja, cobro y comprobante). Vistas: `pos/index`, `pos/checkout`, `pos/receipt`. 115 tests en verde.
+- **Tareas 001 POS:** `specs/001-pos/tasks.md`, 10 tareas. **T1 a T9 cerradas**; T10 pendiente.
+- **Código:** Laravel 11.57.1. Dominio `app/Pos/` completo hasta stock. Persistencia: `Product`, `Sale`, `SaleLine`, `Document`, `StockMovement`, `AuditLog`. Servicios: `CartService`, `CheckoutService`, `VoidSaleService`, `AuditService`. HTTP: `PosController` (caja, cobro, comprobante y anulación). Vistas: `pos/index`, `pos/checkout`, `pos/receipt`. 128 tests en verde.
 - **Comandos SDD:** instalados en `.opencode/commands/` (9 comandos).
 
 ## Entorno (2026-10-30)
@@ -45,7 +45,9 @@
 - **Bloqueo pesimista (T8):** antes de validar y descontar, `CheckoutService::lockProducts()` ejecuta `SELECT ... FOR UPDATE` (`lockForUpdate()`) sobre los productos del carrito ordenados por `id`. El descuento condicional `where('stock','>=',qty)` queda como segunda barrera contra la sobreventa (RF-27, RF-30).
 - **Aislamiento (T8):** PostgreSQL en su nivel por defecto **READ COMMITTED**; no se sube a `SERIALIZABLE` porque el bloqueo de fila ya serializa la última unidad y evita reintentos masivos por conflictos de serialización.
 - **Deadlocks (T8):** el orden estable por `id` (cobro y anulación usan el mismo) evita bloqueos cruzados; `DB::transaction($cb, 3)` reintenta hasta 3 veces si PostgreSQL reporta deadlock (SQLSTATE 40P01).
-- **Anulación (T8):** `VoidSaleService::void()` bloquea la venta, rechaza una segunda anulación con `DomainException`, bloquea los productos en orden de id, repone el stock y registra **un movimiento `void` por línea** (mismo criterio que el movimiento `sale`). Nota de crédito, autor y motivo llegan en T9.
+- **Anulación (T9):** `VoidSaleService::void()` es atómica: bloquea la venta con `lockForUpdate`, valida con `VoidPolicy` (motivo obligatorio, sin doble anulación → `DomainException`), repone stock con **un movimiento `void` por línea**, registra auditoría (`sale.void`: autor, motivo, timestamp en `America/Santiago`) y genera la nota de crédito simulada si el documento estaba emitido. La venta original no se borra ni se edita; sólo su estado pasa a `voided`.
+- **Nota de crédito (T9):** rango de folios propio (`credit_note_from` 100001–150000); `reversal_of_id` apunta al documento original. Si el documento estaba `pending`, no se crea nota.
+- **Permisos (T10):** la ruta de anulación aún no exige rol; el control de permisos (Técnico 403) llega con T10.
 - **Consistencia (T8):** el stock final siempre se puede reconstruir como `stock inicial + suma(stock_movements)`; el test de concurrencia lo verifica tras ventas y anulaciones.
 - **Idempotencia (T7):** `sales.token` es UUID único tomado de la sesión (`pos.checkout_token`); un doble envío devuelve la venta existente en vez de crear otra.
 - **Folio (T7):** simulado y por tipo (`receipt` 1–50.000, `invoice` 50.001–100.000); siguiente = máximo + 1 con índice único `(type, folio)`. Si el rango se agota, el documento queda `pending` sin folio.
