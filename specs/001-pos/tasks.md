@@ -62,9 +62,10 @@
   - *Hecho cuando:* `VoidSaleTest` pasa: la anulación repone stock, genera la reversa simulada, registra autor y motivo, impide una segunda anulación y deja intacta la venta original.
   - *Cerrada 2026-10-30:* 13 tests nuevos; `php artisan test` → 128 passed, 295 assertions.
 
-- [ ] **T10. Administración: convenios, historial, documentos y permisos.** RF-26, RF-37, RF-38, RF-39, RF-40
+- [x] **T10. Administración: convenios, historial, documentos y permisos.** RF-26, RF-37, RF-38, RF-39, RF-40
   - *Depende de:* T3, T9
   - *Hecho cuando:* `SaleQueryTest`, `ConventionManagementTest`, `DocumentRetryTest` y `PermissionTest` pasan; un usuario Técnico recibe 403 al intentar anular o autorizar.
+  - *Cerrada 2026-10-30:* 23 tests nuevos en `tests/Feature/Admin/AdministrationTest.php` (convenios, historial y filtros, detalle, documentos/reintento y permisos); `php artisan test` → 151 passed, 412 assertions.
 
 ---
 

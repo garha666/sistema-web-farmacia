@@ -9,6 +9,7 @@ use App\Models\Product;
 use App\Models\Sale;
 use App\Models\StockMovement;
 use App\Pos\Calculator\PriceCalculator;
+use App\Pos\Enum\DiscountOrigin;
 use App\Pos\Enum\DocumentStatus;
 use App\Pos\Enum\DocumentType;
 use App\Pos\Enum\PaymentMethod;
@@ -17,6 +18,10 @@ use App\Pos\Exception\EmptyCart;
 use App\Pos\Exception\InsufficientStock;
 use App\Pos\Value\Cart;
 use App\Pos\Value\CartLine;
+use App\Pos\Value\Discount;
+use DateTimeImmutable;
+use DateTimeZone;
+use DomainException;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -27,8 +32,10 @@ use Illuminate\Support\Facades\DB;
  */
 final class CheckoutService
 {
-    public function __construct(private readonly PriceCalculator $calculator)
-    {
+    public function __construct(
+        private readonly PriceCalculator $calculator,
+        private readonly ConventionService $conventions,
+    ) {
     }
 
     public function checkout(
@@ -38,16 +45,37 @@ final class CheckoutService
         ?string $customerRut,
         string $token,
         ?int $userId = null,
+        ?int $conventionId = null,
     ): Sale {
         if ($cart->isEmpty()) {
             throw new EmptyCart('El carrito está vacío.');
         }
 
-        $totals = $this->calculator->totals($cart, (int) config('pos.iva_rate'));
+        // RF-40: el convenio se valida al confirmar, no al armar el carrito.
+        $convention = $conventionId === null
+            ? null
+            : $this->conventions->findApplicable(
+                $conventionId,
+                new DateTimeImmutable('now', new DateTimeZone((string) config('pos.timezone'))),
+            );
+
+        $globalDiscount = $convention === null
+            ? null
+            : Discount::percent(
+                $convention->percent,
+                "Convenio {$convention->name}",
+                DiscountOrigin::convention,
+            );
+
+        $totals = $this->calculator->totals($cart, (int) config('pos.iva_rate'), $globalDiscount);
+
+        if ($convention !== null && $totals->total()->pesos() <= 0) {
+            throw new DomainException('El convenio deja el total en cero o negativo.');
+        }
 
         // 3 intentos: reintenta si PostgreSQL detecta un deadlock (SQLSTATE 40P01)
         // o una espera de lock agotada por concurrencia entre cajas (RF-28).
-        return DB::transaction(function () use ($cart, $method, $receivedAmount, $customerRut, $token, $userId, $totals): Sale {
+        return DB::transaction(function () use ($cart, $method, $receivedAmount, $customerRut, $token, $userId, $convention, $totals): Sale {
             $existing = Sale::query()->where('token', $token)->first();
 
             if ($existing !== null) {
@@ -86,6 +114,9 @@ final class CheckoutService
                 'received_amount' => $receivedAmount,
                 'change_amount' => $changeAmount,
                 'customer_rut' => $customerRut,
+                'convention_id' => $convention?->id,
+                'convention_name' => $convention?->name,
+                'convention_percent' => $convention?->percent,
                 'status' => SaleStatus::confirmed,
                 'sold_at' => now(),
                 'user_id' => $userId,

@@ -43,7 +43,7 @@ final class VoidSaleTest extends TestCase
     public function test_supervisor_voids_a_sale_and_the_stock_returns(): void
     {
         [$product, $sale] = $this->sell();
-        $supervisor = User::factory()->create();
+        $supervisor = User::factory()->create(['role' => 'quimico']);
 
         $response = $this->actingAs($supervisor)->post(route('pos.sales.void', $sale), [
             'reason' => 'Cliente desiste de la compra',
@@ -65,7 +65,8 @@ final class VoidSaleTest extends TestCase
     {
         [$product, $sale] = $this->sell();
 
-        $response = $this->post(route('pos.sales.void', $sale), ['reason' => '']);
+        $response = $this->actingAs(User::factory()->create(['role' => 'quimico']))
+            ->post(route('pos.sales.void', $sale), ['reason' => '']);
 
         $response->assertSessionHasErrors('reason');
 
@@ -77,7 +78,7 @@ final class VoidSaleTest extends TestCase
     public function test_void_registers_author_reason_and_santiago_timestamp(): void
     {
         [, $sale] = $this->sell();
-        $supervisor = User::factory()->create();
+        $supervisor = User::factory()->create(['role' => 'quimico']);
 
         $this->actingAs($supervisor)->post(route('pos.sales.void', $sale), [
             'reason' => 'Producto equivocado',
@@ -148,6 +149,8 @@ final class VoidSaleTest extends TestCase
     {
         [$product, $sale] = $this->sell();
         $payload = ['reason' => 'Cliente desiste de la compra'];
+
+        $this->actingAs(User::factory()->create(['role' => 'quimico']));
 
         $this->post(route('pos.sales.void', $sale), $payload);
         $response = $this->post(route('pos.sales.void', $sale), $payload);

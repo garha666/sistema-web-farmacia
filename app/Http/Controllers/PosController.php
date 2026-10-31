@@ -12,6 +12,7 @@ use App\Pos\Exception\InsufficientStock;
 use App\Pos\Value\Cart;
 use App\Services\Pos\CartService;
 use App\Services\Pos\CheckoutService;
+use App\Services\Pos\ConventionService;
 use App\Services\Pos\VoidSaleService;
 use DomainException;
 use Illuminate\Http\RedirectResponse;
@@ -31,6 +32,7 @@ final class PosController extends Controller
         private readonly CartService $cartService,
         private readonly PriceCalculator $priceCalculator,
         private readonly CheckoutService $checkoutService,
+        private readonly ConventionService $conventionService,
     ) {
     }
 
@@ -127,6 +129,7 @@ final class PosController extends Controller
             'cart' => $cart,
             'totals' => $this->priceCalculator->totals($cart, (int) config('pos.iva_rate')),
             'methods' => PaymentMethod::cases(),
+            'conventions' => $this->conventionService->applicable(),
         ]);
     }
 
@@ -145,6 +148,7 @@ final class PosController extends Controller
             'payment_method' => ['required', new Enum(PaymentMethod::class)],
             'received_amount' => ['nullable', 'integer', 'min:0'],
             'customer_rut' => ['nullable', 'string', 'max:20'],
+            'convention_id' => ['nullable', 'integer'],
         ]);
 
         $totals = $this->priceCalculator->totals($cart, (int) config('pos.iva_rate'));
@@ -167,7 +171,10 @@ final class PosController extends Controller
                 customerRut: $data['customer_rut'] ?? null,
                 token: $this->cartService->token(),
                 userId: $request->user()?->id,
+                conventionId: isset($data['convention_id']) ? (int) $data['convention_id'] : null,
             );
+        } catch (DomainException $exception) {
+            throw ValidationException::withMessages(['convention_id' => $exception->getMessage()]);
         } catch (InsufficientStock $exception) {
             throw ValidationException::withMessages(['cart' => $exception->getMessage()]);
         }

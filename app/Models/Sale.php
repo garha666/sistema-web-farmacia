@@ -10,6 +10,7 @@ use App\Pos\Enum\PaymentMethod;
 use App\Pos\Enum\SaleStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
@@ -31,6 +32,9 @@ final class Sale extends Model
         'received_amount',
         'change_amount',
         'customer_rut',
+        'convention_id',
+        'convention_name',
+        'convention_percent',
         'status',
         'sold_at',
         'user_id',
@@ -51,6 +55,7 @@ final class Sale extends Model
             'received_amount' => 'integer',
             'change_amount' => 'integer',
             'sold_at' => 'datetime',
+            'convention_percent' => 'float',
             'payment_method' => PaymentMethod::class,
             'status' => SaleStatus::class,
         ];
@@ -62,6 +67,26 @@ final class Sale extends Model
     public function lines(): HasMany
     {
         return $this->hasMany(SaleLine::class);
+    }
+
+    /**
+     * Cajero que confirmó la venta (RF-37).
+     *
+     * @return BelongsTo<User, $this>
+     */
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Convenio aplicado en la venta (RF-40).
+     *
+     * @return BelongsTo<Convention, $this>
+     */
+    public function convention(): BelongsTo
+    {
+        return $this->belongsTo(Convention::class);
     }
 
     /**

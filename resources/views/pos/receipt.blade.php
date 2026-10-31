@@ -84,6 +84,13 @@
                     <p>Recibido: {{ $money($sale->received_amount) }}</p>
                     <p>Vuelto: <span class="font-semibold">{{ $money($sale->change_amount ?? 0) }}</span></p>
                 @endif
+                @if ($sale->convention_name !== null)
+                    <p>
+                        Convenio: <span class="font-medium">{{ $sale->convention_name }}</span>
+                        ({{ rtrim(rtrim(number_format($sale->convention_percent ?? 0, 2, ',', '.'), '0'), ',') }}%)
+                    </p>
+                    <p>Ahorro convenio: <span class="font-semibold">{{ $money($sale->global_discount) }}</span></p>
+                @endif
             </div>
 
             <footer class="mt-6 border-t border-dashed border-slate-300 pt-4 text-center text-xs text-slate-500">

@@ -46,6 +46,24 @@
             </fieldset>
 
             <div>
+                <label for="convention_id" class="text-sm font-semibold text-slate-700">
+                    Convenio de salud (opcional)
+                </label>
+                <select
+                    id="convention_id"
+                    name="convention_id"
+                    class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+                >
+                    <option value="">Sin convenio</option>
+                    @foreach ($conventions as $convention)
+                        <option value="{{ $convention->id }}" @selected((string) old('convention_id') === (string) $convention->id)>
+                            {{ $convention->name }} ({{ rtrim(rtrim(number_format($convention->percent, 2, ',', '.'), '0'), ',') }}%)
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div>
                 <label for="received_amount" class="text-sm font-semibold text-slate-700">
                     Monto recibido (efectivo)
                 </label>

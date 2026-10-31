@@ -11,6 +11,12 @@ class User extends Authenticatable
 {
     use HasFactory, Notifiable;
 
+    public const ROLE_TECNICO = 'tecnico';
+
+    public const ROLE_QUIMICO = 'quimico';
+
+    public const ROLE_ADMIN = 'admin';
+
     /**
      * The attributes that are mass assignable.
      *
@@ -20,6 +26,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'role',
     ];
 
     /**
@@ -43,5 +50,30 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    public function isTecnico(): bool
+    {
+        return $this->role === self::ROLE_TECNICO;
+    }
+
+    public function isQuimico(): bool
+    {
+        return $this->role === self::ROLE_QUIMICO;
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->role === self::ROLE_ADMIN;
+    }
+
+    /**
+     * Roles del POS que pueden anular o autorizar (RF-32, RF-35).
+     *
+     * @return array<int, string>
+     */
+    public static function rolesThatCanVoid(): array
+    {
+        return [self::ROLE_QUIMICO, self::ROLE_ADMIN];
     }
 }
