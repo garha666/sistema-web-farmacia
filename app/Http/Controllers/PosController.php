@@ -8,15 +8,21 @@ use App\Models\Product;
 use App\Models\Sale;
 use App\Models\User;
 use App\Pos\Calculator\PriceCalculator;
+use App\Pos\Enum\DiscountType;
 use App\Pos\Enum\PaymentMethod;
+use App\Pos\Exception\DiscountRejected;
 use App\Pos\Exception\InsufficientStock;
 use App\Pos\Exception\PrescriptionRejected;
+use App\Pos\Money;
+use App\Pos\Policy\DiscountPolicy;
 use App\Pos\Policy\PrescriptionPolicy;
 use App\Pos\Value\Cart;
+use App\Pos\Value\Discount;
 use App\Pos\Value\PrescriptionInput;
 use App\Services\Pos\CartService;
 use App\Services\Pos\CheckoutService;
 use App\Services\Pos\ConventionService;
+use App\Services\Pos\ManualDiscountService;
 use App\Services\Pos\VoidSaleService;
 use DateTimeImmutable;
 use DateTimeZone;
@@ -41,21 +47,32 @@ final class PosController extends Controller
         private readonly CheckoutService $checkoutService,
         private readonly ConventionService $conventionService,
         private readonly PrescriptionPolicy $prescriptionPolicy,
+        private readonly DiscountPolicy $discountPolicy,
+        private readonly ManualDiscountService $manualDiscountService,
     ) {
     }
 
     public function index(Request $request): View
     {
         $term = trim((string) $request->query('q', ''));
+        $cart = $this->cartService->load();
+        $manualDiscount = $this->manualDiscountService->load();
+
+        if ($cart->isEmpty() && $manualDiscount !== null) {
+            $this->manualDiscountService->clear();
+            $manualDiscount = null;
+        }
 
         return view('pos.index', [
             'term' => $term,
             'results' => $this->search($term),
-            'cart' => $this->cartService->load(),
+            'cart' => $cart,
             'totals' => $this->priceCalculator->totals(
-                $this->cartService->load(),
+                $cart,
                 (int) config('pos.iva_rate'),
+                $manualDiscount,
             ),
+            'manualDiscount' => $manualDiscount,
         ]);
     }
 
@@ -121,6 +138,88 @@ final class PosController extends Controller
     }
 
     /**
+     * Aplica el descuento manual de la venta en curso (RF-13, RF-16, RF-17).
+     *
+     * Bajo el tope se aplica directo. Sobre el tope no se guarda hasta que
+     * vengan las credenciales de un supervisor; la vista abre el modal.
+     */
+    public function applyDiscount(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'discount_type' => ['required', new Enum(DiscountType::class)],
+            'discount_value' => ['required', 'numeric', 'min:0.01', 'max:99999999'],
+            'discount_reason' => ['required', 'string', 'min:3', 'max:255'],
+            'supervisor_email' => ['nullable', 'email'],
+            'supervisor_password' => ['nullable', 'string'],
+        ]);
+
+        $cart = $this->cartService->load();
+
+        if ($cart->isEmpty()) {
+            throw ValidationException::withMessages([
+                'discount_value' => 'El carrito está vacío.',
+            ]);
+        }
+
+        $type = DiscountType::from($data['discount_type']);
+        $reason = trim((string) $data['discount_reason']);
+
+        $discount = $type === DiscountType::percent
+            ? Discount::percent((float) $data['discount_value'], $reason)
+            : Discount::amount(
+                Money::fromPesos($this->priceCalculator->roundToPeso((float) $data['discount_value'])),
+                $reason,
+            );
+
+        $decision = $this->discountPolicy->evaluate(
+            subtotal: $this->priceCalculator->subtotal($cart)->pesos(),
+            discount: $discount,
+            convention: null,
+            generalCapPercent: (int) config('pos.discount.general_cap_percent'),
+            today: new DateTimeImmutable('now', new DateTimeZone((string) config('pos.timezone'))),
+        );
+
+        if ($decision->isRejected()) {
+            $field = $decision->reason() === 'reason_required' ? 'discount_reason' : 'discount_value';
+
+            throw ValidationException::withMessages([
+                $field => $field === 'discount_reason'
+                    ? 'Todo descuento manual exige un motivo.'
+                    : 'El descuento no puede dejar el total en cero o negativo.',
+            ]);
+        }
+
+        $authorizedBy = $decision->requiresSupervisor() ? $this->supervisorId($data) : null;
+
+        if ($decision->requiresSupervisor() && $authorizedBy === null) {
+            throw ValidationException::withMessages([
+                'discount_supervisor' => 'El descuento supera el tope del '
+                    .(int) config('pos.discount.general_cap_percent')
+                    .'%. Ingresa las credenciales de un supervisor para autorizarlo.',
+            ]);
+        }
+
+        $this->manualDiscountService->store(
+            $type,
+            (float) $data['discount_value'],
+            $reason,
+            $authorizedBy,
+        );
+
+        return redirect()->route('pos.index');
+    }
+
+    /**
+     * Quita el descuento manual de la venta en curso (RF-13).
+     */
+    public function removeDiscount(): RedirectResponse
+    {
+        $this->manualDiscountService->clear();
+
+        return redirect()->route('pos.index');
+    }
+
+    /**
      * Pantalla de cobro (RF-20, RF-21).
      */
     public function checkout(): View|RedirectResponse
@@ -133,9 +232,16 @@ final class PosController extends Controller
                 ->withErrors(['cart' => 'El carrito está vacío.']);
         }
 
+        $manualDiscount = $this->manualDiscountService->load();
+
         return view('pos.checkout', [
             'cart' => $cart,
-            'totals' => $this->priceCalculator->totals($cart, (int) config('pos.iva_rate')),
+            'totals' => $this->priceCalculator->totals(
+                $cart,
+                (int) config('pos.iva_rate'),
+                $manualDiscount,
+            ),
+            'manualDiscount' => $manualDiscount,
             'methods' => PaymentMethod::cases(),
             'conventions' => $this->conventionService->applicable(),
             'requiresPrescription' => $this->prescriptionPolicy->cartRequiresPrescription($cart),
@@ -167,9 +273,25 @@ final class PosController extends Controller
         ]);
 
         $prescription = $this->prescriptionInput($data);
-        $reuseAuthorizedBy = $this->supervisorId($data);
+        $supervisorId = $this->supervisorId($data);
 
-        $totals = $this->priceCalculator->totals($cart, (int) config('pos.iva_rate'));
+        $manualDiscount = $this->manualDiscountService->load();
+        $discountAuthorizedBy = $supervisorId ?? $this->manualDiscountService->authorizedBy();
+        $conventionId = isset($data['convention_id']) ? (int) $data['convention_id'] : null;
+
+        try {
+            $totals = $this->checkoutService->totalsFor(
+                $cart,
+                $conventionId,
+                $manualDiscount,
+                $discountAuthorizedBy,
+            );
+        } catch (DiscountRejected $exception) {
+            throw ValidationException::withMessages([$exception->field() => $exception->getMessage()]);
+        } catch (DomainException $exception) {
+            throw ValidationException::withMessages(['convention_id' => $exception->getMessage()]);
+        }
+
         $method = PaymentMethod::from($data['payment_method']);
         $received = isset($data['received_amount']) ? (int) $data['received_amount'] : null;
 
@@ -189,10 +311,14 @@ final class PosController extends Controller
                 customerRut: $data['customer_rut'] ?? null,
                 token: $this->cartService->token(),
                 userId: $request->user()?->id,
-                conventionId: isset($data['convention_id']) ? (int) $data['convention_id'] : null,
+                conventionId: $conventionId,
                 prescription: $prescription,
-                reuseAuthorizedBy: $reuseAuthorizedBy,
+                reuseAuthorizedBy: $supervisorId,
+                manualDiscount: $manualDiscount,
+                discountAuthorizedBy: $discountAuthorizedBy,
             );
+        } catch (DiscountRejected $exception) {
+            throw ValidationException::withMessages([$exception->field() => $exception->getMessage()]);
         } catch (PrescriptionRejected $exception) {
             if ($exception->requiresSupervisor()) {
                 throw ValidationException::withMessages([
@@ -208,6 +334,7 @@ final class PosController extends Controller
         }
 
         $this->cartService->clear();
+        $this->manualDiscountService->clear();
 
         return redirect()->route('pos.sales.receipt', $sale);
     }
@@ -217,7 +344,7 @@ final class PosController extends Controller
      */
     public function receipt(Sale $sale): View
     {
-        $sale->loadMissing('lines', 'document', 'reversal');
+        $sale->loadMissing('lines', 'document', 'reversal', 'discountAuthorizedBy');
 
         $voidReason = $sale->auditLogs()
             ->where('action', 'sale.void')

@@ -24,6 +24,13 @@
             <span>{{ $money($totals->total()->pesos()) }}</span>
         </div>
 
+        @if ($manualDiscount)
+            <p class="mt-1 text-xs text-slate-500">
+                Descuento manual ({{ $manualDiscount->reason }}):
+                -{{ $money($totals->globalDiscount()->pesos()) }}
+            </p>
+        @endif
+
         <form method="POST" action="{{ route('pos.checkout.store') }}" class="mt-6 space-y-4">
             @csrf
 
@@ -96,10 +103,12 @@
                 </fieldset>
             @endif
 
-            @if ($errors->has('prescription_reuse'))
+            @if ($errors->has('prescription_reuse') || $errors->has('discount_supervisor') || $errors->has('supervisor_email'))
                 <fieldset class="rounded-lg border border-red-300 bg-red-50 p-4">
                     <legend class="px-1 text-sm font-semibold text-red-800">Autorización de supervisor</legend>
-                    <p class="text-xs text-red-800">{{ $errors->first('prescription_reuse') }}</p>
+                    <p class="text-xs text-red-800">
+                        {{ $errors->first('prescription_reuse') ?: $errors->first('discount_supervisor') ?: $errors->first('supervisor_email') }}
+                    </p>
 
                     <div class="mt-3 grid gap-3 sm:grid-cols-2">
                         <div>

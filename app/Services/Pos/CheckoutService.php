@@ -5,29 +5,32 @@ declare(strict_types=1);
 namespace App\Services\Pos;
 
 use App\Models\ControlledRegisterEntry;
+use App\Models\Convention;
 use App\Models\Document;
 use App\Models\Prescription;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Models\StockMovement;
 use App\Pos\Calculator\PriceCalculator;
-use App\Pos\Enum\DiscountOrigin;
 use App\Pos\Enum\DocumentStatus;
 use App\Pos\Enum\DocumentType;
 use App\Pos\Enum\PaymentMethod;
 use App\Pos\Enum\SaleCategory;
 use App\Pos\Enum\SaleStatus;
+use App\Pos\Exception\DiscountRejected;
 use App\Pos\Exception\EmptyCart;
 use App\Pos\Exception\InsufficientStock;
 use App\Pos\Exception\PrescriptionRejected;
+use App\Pos\Policy\DiscountPolicy;
 use App\Pos\Policy\PrescriptionPolicy;
 use App\Pos\Value\Cart;
 use App\Pos\Value\CartLine;
+use App\Pos\Value\ConventionSnapshot;
 use App\Pos\Value\Discount;
 use App\Pos\Value\PrescriptionInput;
+use App\Pos\Value\ReceiptTotals;
 use DateTimeImmutable;
 use DateTimeZone;
-use DomainException;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -42,6 +45,7 @@ final class CheckoutService
         private readonly PriceCalculator $calculator,
         private readonly ConventionService $conventions,
         private readonly PrescriptionPolicy $prescriptions,
+        private readonly DiscountPolicy $discounts,
         private readonly AuditService $audit,
     ) {
     }
@@ -56,6 +60,8 @@ final class CheckoutService
         ?int $conventionId = null,
         ?PrescriptionInput $prescription = null,
         ?int $reuseAuthorizedBy = null,
+        ?Discount $manualDiscount = null,
+        ?int $discountAuthorizedBy = null,
     ): Sale {
         if ($cart->isEmpty()) {
             throw new EmptyCart('El carrito está vacío.');
@@ -91,31 +97,20 @@ final class CheckoutService
             );
         }
 
-        // RF-40: el convenio se valida al confirmar, no al armar el carrito.
-        $convention = $conventionId === null
-            ? null
-            : $this->conventions->findApplicable(
-                $conventionId,
-                new DateTimeImmutable('now', new DateTimeZone((string) config('pos.timezone'))),
-            );
-
-        $globalDiscount = $convention === null
-            ? null
-            : Discount::percent(
-                $convention->percent,
-                "Convenio {$convention->name}",
-                DiscountOrigin::convention,
-            );
+        // RF-16/RF-17/RF-40: el descuento se re-evalúa al confirmar. El convenio
+        // prevalece sobre el descuento manual; sobre el tope exige supervisor.
+        [$convention, $globalDiscount, $discountNeedsSupervisor] = $this->resolveDiscount(
+            $cart,
+            $conventionId,
+            $manualDiscount,
+            $discountAuthorizedBy,
+        );
 
         $totals = $this->calculator->totals($cart, (int) config('pos.iva_rate'), $globalDiscount);
 
-        if ($convention !== null && $totals->total()->pesos() <= 0) {
-            throw new DomainException('El convenio deja el total en cero o negativo.');
-        }
-
         // 3 intentos: reintenta si PostgreSQL detecta un deadlock (SQLSTATE 40P01)
         // o una espera de lock agotada por concurrencia entre cajas (RF-28).
-        return DB::transaction(function () use ($cart, $method, $receivedAmount, $customerRut, $token, $userId, $convention, $totals, $prescription, $reuseAuthorizedBy, $alreadyUsed, $category): Sale {
+        return DB::transaction(function () use ($cart, $method, $receivedAmount, $customerRut, $token, $userId, $convention, $totals, $prescription, $reuseAuthorizedBy, $alreadyUsed, $category, $globalDiscount, $discountAuthorizedBy, $discountNeedsSupervisor): Sale {
             $existing = Sale::query()->where('token', $token)->first();
 
             if ($existing !== null) {
@@ -164,6 +159,9 @@ final class CheckoutService
                 'subtotal' => $totals->subtotal()->pesos(),
                 'line_discounts' => $totals->lineDiscounts()->pesos(),
                 'global_discount' => $totals->globalDiscount()->pesos(),
+                'discount_origin' => $globalDiscount?->origin,
+                'discount_reason' => $globalDiscount?->reason,
+                'discount_authorized_by' => $discountNeedsSupervisor ? $discountAuthorizedBy : null,
                 'net' => $totals->net()->pesos(),
                 'iva' => $totals->iva()->pesos(),
                 'total' => $totals->total()->pesos(),
@@ -240,8 +238,107 @@ final class CheckoutService
                 );
             }
 
+            // RF-16/RF-36: el descuento sobre el tope queda auditado con su autor.
+            if ($discountNeedsSupervisor && $discountAuthorizedBy !== null) {
+                $this->audit->record(
+                    'sale.discount_authorized',
+                    $sale,
+                    $discountAuthorizedBy,
+                    'Descuento manual sobre el tope autorizado por supervisor.',
+                );
+            }
+
             return $sale->load('lines', 'document');
         }, 3);
+    }
+
+    /**
+     * Totales que se cobrarían con el convenio o descuento manual vigentes.
+     *
+     * Lo usa la caja para validar el efectivo recibido antes de confirmar.
+     */
+    public function totalsFor(
+        Cart $cart,
+        ?int $conventionId,
+        ?Discount $manualDiscount = null,
+        ?int $discountAuthorizedBy = null,
+    ): ReceiptTotals {
+        [, $globalDiscount] = $this->resolveDiscount(
+            $cart,
+            $conventionId,
+            $manualDiscount,
+            $discountAuthorizedBy,
+        );
+
+        return $this->calculator->totals($cart, (int) config('pos.iva_rate'), $globalDiscount);
+    }
+
+    /**
+     * Resuelve el descuento que se aplicará a la venta (RF-13 a RF-18, RF-40).
+     *
+     * El convenio prevalece sobre el descuento manual y no consume el tope.
+     * Sobre el tope sólo se aplica si un supervisor lo autorizó.
+     *
+     * @return array{0: ?Convention, 1: ?Discount, 2: bool}
+     */
+    private function resolveDiscount(
+        Cart $cart,
+        ?int $conventionId,
+        ?Discount $manualDiscount,
+        ?int $discountAuthorizedBy,
+    ): array {
+        $today = new DateTimeImmutable('now', new DateTimeZone((string) config('pos.timezone')));
+
+        // RF-40: el convenio se valida al confirmar, no al armar el carrito.
+        $convention = $conventionId === null
+            ? null
+            : $this->conventions->findApplicable($conventionId, $today);
+
+        if ($convention === null && $manualDiscount === null) {
+            return [null, null, false];
+        }
+
+        $snapshot = $convention === null ? null : new ConventionSnapshot(
+            id: $convention->id,
+            name: $convention->name,
+            percent: $convention->percent,
+            active: (bool) $convention->active,
+            validFrom: $convention->valid_from->toDateTimeImmutable(),
+            validUntil: $convention->valid_until->toDateTimeImmutable(),
+        );
+
+        $decision = $this->discounts->evaluate(
+            subtotal: $this->calculator->subtotal($cart)->pesos(),
+            discount: $manualDiscount,
+            convention: $snapshot,
+            generalCapPercent: (int) config('pos.discount.general_cap_percent'),
+            today: $today,
+        );
+
+        if ($decision->isRejected()) {
+            throw match ($decision->reason()) {
+                'reason_required' => new DiscountRejected(
+                    'discount_reason',
+                    'Todo descuento manual exige un motivo.',
+                ),
+                default => new DiscountRejected(
+                    'discount_value',
+                    'El descuento no puede dejar el total en cero o negativo.',
+                ),
+            };
+        }
+
+        // RF-16: sobre el tope se exige autorización de supervisor.
+        if ($decision->requiresSupervisor() && $discountAuthorizedBy === null) {
+            throw new DiscountRejected(
+                'discount_supervisor',
+                'El descuento supera el tope del '
+                    .(int) config('pos.discount.general_cap_percent')
+                    .'%. Ingresa las credenciales de un supervisor para autorizarlo.',
+            );
+        }
+
+        return [$convention, $decision->discount(), $decision->requiresSupervisor()];
     }
 
     /**

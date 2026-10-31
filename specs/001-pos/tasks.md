@@ -117,9 +117,10 @@ Cada tarea agrupa entre 3 y 8 RF. En la práctica, ninguna cabe en 20–30 minut
   - Hecho cuando: existen las migraciones `prescriptions` y `controlled_register`, el modelo `Prescription` y `ControlledRegisterController` con exportación CSV; y un test verifica que el CSV exporta las columnas RUT, folio, fecha, medicamento y cantidad.
   - *Cerrada 2026-10-31:* 3 tests nuevos en `tests/Feature/Admin/ControlledRegisterTest.php`; migraciones `prescriptions` y `controlled_register`, modelos `Prescription`/`ControlledRegisterEntry`, `ControlledRegisterController` (consulta paginada + CSV) y enlace «Controlados» en el admin; `php artisan test` → 157 passed, 435 assertions.
 
-- [ ] **S4. Descuento manual con tope, supervisor y motivo.** RF-13, RF-16, RF-17
+- [x] **S4. Descuento manual con tope, supervisor y motivo.** RF-13, RF-16, RF-17
   - Depende de: T3, T6
   - Hecho cuando: `pos/index.blade.php` tiene input de descuento manual (% o monto) con botón; un descuento sobre el 10% abre un modal de supervisor con credenciales y motivo obligatorio; el descuento queda guardado en la venta y en el comprobante; y un test verifica el tope, la autorización de supervisor y el motivo obligatorio.
+  - *Cerrada 2026-10-31:* 6 tests nuevos en `tests/Feature/Pos/ManualDiscountTest.php`; panel de descuento (% o monto) con motivo obligatorio y modal de supervisor en `pos/index`, `ManualDiscountService` sobre la sesión `pos.manual_discount`, re-evaluación con `DiscountPolicy` al cobrar (`DiscountRejected`), columnas `sales.discount_origin`, `sales.discount_reason` y `sales.discount_authorized_by`, auditoría `sale.discount_authorized` y comprobante con motivo/autorizador; `php artisan test` → 168 passed, 510 assertions.
 
 - [ ] **S5. Aviso de cambio de stock en checkout.** RF-29
   - Depende de: T5, T8

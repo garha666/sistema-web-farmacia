@@ -84,6 +84,16 @@
                     <p>Recibido: {{ $money($sale->received_amount) }}</p>
                     <p>Vuelto: <span class="font-semibold">{{ $money($sale->change_amount ?? 0) }}</span></p>
                 @endif
+                @if ($sale->discount_origin === \App\Pos\Enum\DiscountOrigin::manual)
+                    <p>
+                        Descuento manual:
+                        <span class="font-semibold">{{ $money($sale->global_discount) }}</span>
+                    </p>
+                    <p>Motivo: {{ $sale->discount_reason }}</p>
+                    @if ($sale->discountAuthorizedBy)
+                        <p>Autorizado por: {{ $sale->discountAuthorizedBy->name }}</p>
+                    @endif
+                @endif
                 @if ($sale->convention_name !== null)
                     <p>
                         Convenio: <span class="font-medium">{{ $sale->convention_name }}</span>

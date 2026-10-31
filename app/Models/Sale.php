@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Pos\Enum\DiscountOrigin;
 use App\Pos\Enum\DocumentStatus;
 use App\Pos\Enum\DocumentType;
 use App\Pos\Enum\PaymentMethod;
@@ -25,6 +26,9 @@ final class Sale extends Model
         'subtotal',
         'line_discounts',
         'global_discount',
+        'discount_origin',
+        'discount_reason',
+        'discount_authorized_by',
         'net',
         'iva',
         'total',
@@ -59,6 +63,7 @@ final class Sale extends Model
             'convention_percent' => 'float',
             'payment_method' => PaymentMethod::class,
             'status' => SaleStatus::class,
+            'discount_origin' => DiscountOrigin::class,
         ];
     }
 
@@ -98,6 +103,16 @@ final class Sale extends Model
     public function prescription(): BelongsTo
     {
         return $this->belongsTo(Prescription::class);
+    }
+
+    /**
+     * Supervisor que autorizó un descuento sobre el tope (RF-16).
+     *
+     * @return BelongsTo<User, $this>
+     */
+    public function discountAuthorizedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'discount_authorized_by');
     }
 
     /**

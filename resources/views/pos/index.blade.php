@@ -145,6 +145,82 @@
                         <dd data-testid="cart-total">{{ $money($totals->total()->pesos()) }}</dd>
                     </div>
                 </dl>
+
+                <div class="mt-4 rounded-lg border border-slate-200 p-3">
+                    <h3 class="text-sm font-semibold text-slate-700">Descuento manual</h3>
+
+                    @if ($manualDiscount)
+                        <p class="mt-2 text-sm text-slate-600">
+                            @if ($manualDiscount->type === \App\Pos\Enum\DiscountType::percent)
+                                {{ rtrim(rtrim(number_format($manualDiscount->value, 2, ',', '.'), '0'), ',') }}%
+                            @else
+                                {{ $money((int) $manualDiscount->value) }}
+                            @endif
+                            · Motivo: <span class="font-medium">{{ $manualDiscount->reason }}</span>
+                        </p>
+
+                        <form method="POST" action="{{ route('pos.discount.remove') }}" class="mt-2">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="text-xs font-semibold text-red-600 hover:underline">
+                                Quitar descuento
+                            </button>
+                        </form>
+                    @else
+                        <form method="POST" action="{{ route('pos.discount.apply') }}" class="mt-2 space-y-2">
+                            @csrf
+
+                            <div class="flex gap-2">
+                                <label class="sr-only" for="discount_type">Tipo de descuento</label>
+                                <select
+                                    id="discount_type"
+                                    name="discount_type"
+                                    class="w-20 rounded-lg border border-slate-300 px-2 py-2 text-sm"
+                                >
+                                    <option value="percent" @selected(old('discount_type') === 'percent')>%</option>
+                                    <option value="amount" @selected(old('discount_type') === 'amount')>$</option>
+                                </select>
+
+                                <label class="sr-only" for="discount_value">Valor del descuento</label>
+                                <input
+                                    id="discount_value"
+                                    name="discount_value"
+                                    type="number"
+                                    min="0.01"
+                                    step="0.01"
+                                    value="{{ old('discount_value') }}"
+                                    placeholder="Valor"
+                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                                >
+                            </div>
+
+                            <label class="sr-only" for="discount_reason">Motivo del descuento</label>
+                            <input
+                                id="discount_reason"
+                                name="discount_reason"
+                                type="text"
+                                maxlength="255"
+                                value="{{ old('discount_reason') }}"
+                                placeholder="Motivo del descuento (obligatorio)"
+                                class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                            >
+
+                            @error('discount_reason')
+                                <p class="text-xs text-red-700">{{ $message }}</p>
+                            @enderror
+                            @error('discount_value')
+                                <p class="text-xs text-red-700">{{ $message }}</p>
+                            @enderror
+                            @error('discount_supervisor')
+                                <p class="text-xs text-red-700">{{ $message }}</p>
+                            @enderror
+
+                            <button type="submit" class="w-full rounded-lg bg-slate-700 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800">
+                                Aplicar descuento
+                            </button>
+                        </form>
+                    @endif
+                </div>
             @endif
 
             <a
@@ -160,4 +236,62 @@
             @endif
         </aside>
     </div>
+
+    @if ($errors->has('discount_supervisor'))
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">
+            <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="discount-supervisor-title"
+                class="w-full max-w-md rounded-xl bg-white p-6 shadow-xl"
+            >
+                <h2 id="discount-supervisor-title" class="text-lg font-semibold">Autorización de supervisor</h2>
+                <p class="mt-2 text-sm text-red-700">{{ $errors->first('discount_supervisor') }}</p>
+
+                <form method="POST" action="{{ route('pos.discount.apply') }}" class="mt-4 space-y-3">
+                    @csrf
+                    <input type="hidden" name="discount_type" value="{{ old('discount_type', 'percent') }}">
+                    <input type="hidden" name="discount_value" value="{{ old('discount_value') }}">
+                    <input type="hidden" name="discount_reason" value="{{ old('discount_reason') }}">
+
+                    <div>
+                        <label for="discount_supervisor_email" class="text-sm font-semibold text-slate-700">
+                            Correo del supervisor
+                        </label>
+                        <input
+                            id="discount_supervisor_email"
+                            name="supervisor_email"
+                            type="email"
+                            value="{{ old('supervisor_email') }}"
+                            class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+                        >
+                        @error('supervisor_email')
+                            <p class="mt-1 text-xs text-red-700">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <div>
+                        <label for="discount_supervisor_password" class="text-sm font-semibold text-slate-700">
+                            Contraseña
+                        </label>
+                        <input
+                            id="discount_supervisor_password"
+                            name="supervisor_password"
+                            type="password"
+                            class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+                        >
+                    </div>
+
+                    <div class="flex justify-end gap-2 pt-2">
+                        <a href="{{ route('pos.index') }}" class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">
+                            Cancelar
+                        </a>
+                        <button type="submit" class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
+                            Autorizar y aplicar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    @endif
 @endsection
