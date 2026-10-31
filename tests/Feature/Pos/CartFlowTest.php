@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Pos;
 
 use App\Models\Product;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -15,6 +16,14 @@ use Tests\TestCase;
 final class CartFlowTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // S1 - RF-22: el POS exige sesión.
+        $this->actingAs(User::factory()->create(['role' => 'tecnico']));
+    }
 
     public function test_cash_screen_shows_search_box_and_empty_cart(): void
     {

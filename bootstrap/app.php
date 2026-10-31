@@ -14,6 +14,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role' => \App\Http\Middleware\RoleMiddleware::class,
         ]);
+
+        // La autenticación se asume existente y fuera de esta iteración
+        // (spec §7): evitar RouteNotFoundException cuando falta sesión.
+        // Las peticiones JSON reciben 401; la navegación normal, 302 a /login.
+        $middleware->redirectGuestsTo('/login');
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

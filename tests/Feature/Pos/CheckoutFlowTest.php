@@ -8,6 +8,7 @@ use App\Models\Document;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Models\StockMovement;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -19,6 +20,17 @@ use Tests\TestCase;
 final class CheckoutFlowTest extends TestCase
 {
     use RefreshDatabase;
+
+    private User $cashier;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // S1 - RF-22: el POS exige sesión y la venta guarda al cajero.
+        $this->cashier = User::factory()->create(['role' => 'tecnico']);
+        $this->actingAs($this->cashier);
+    }
 
     public function test_checkout_with_empty_cart_is_rejected(): void
     {
@@ -216,5 +228,6 @@ final class CheckoutFlowTest extends TestCase
 
         $this->assertNotNull($sale->sold_at);
         $this->assertSame('America/Santiago', $sale->sold_at->timezoneName);
+        $this->assertSame($this->cashier->id, $sale->user_id);
     }
 }

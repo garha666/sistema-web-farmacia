@@ -131,4 +131,17 @@ final class Sale extends Model
     {
         return $this->status === SaleStatus::voided;
     }
+
+    /**
+     * RF-22: si el servicio no recibe un cajero explícito, se toma el usuario
+     * autenticado para que ninguna venta quede sin responsable.
+     */
+    protected static function booted(): void
+    {
+        static::creating(function (self $sale): void {
+            if ($sale->user_id === null) {
+                $sale->user_id = auth()->id();
+            }
+        });
+    }
 }

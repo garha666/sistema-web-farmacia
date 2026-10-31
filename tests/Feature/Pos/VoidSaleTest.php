@@ -27,6 +27,14 @@ final class VoidSaleTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // S1 - RF-22: el POS exige sesión.
+        $this->actingAs(User::factory()->create(['role' => 'tecnico']));
+    }
+
     private function sell(int $quantity = 2, int $stock = 10): array
     {
         $product = Product::factory()->create(['stock' => $stock, 'price' => 1000]);

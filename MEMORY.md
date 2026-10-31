@@ -1,15 +1,15 @@
 # MEMORY.md — Estado del proyecto
 
 **Proyecto:** Sistema Web de Gestión y Simulación de Farmacia Privada Comercial (Grupo A) — INACAP
-**Última actualización:** 2026-10-30
+**Última actualización:** 2026-10-31
 
 ## Estado actual
 
 - **Constitución:** `docs/constitution.md` v1.0, vigente (6 principios).
 - **Spec 001 POS:** `specs/001-pos/spec.md` v1.0, **aprobada**, 40 RF y 13 RNF, sin dudas abiertas.
 - **Plan 001 POS:** `specs/001-pos/plan.md`, completo (arquitectura, funciones puras, pseudocódigo, UI, decisiones, tests).
-- **Tareas 001 POS:** `specs/001-pos/tasks.md`, 10 tareas. **T1 a T10 cerradas: módulo 001-pos completo**.
-- **Código:** Laravel 11.57.1. Dominio `app/Pos/` completo. Persistencia: `Product`, `Sale`, `SaleLine`, `Document`, `StockMovement`, `AuditLog`, `Convention`. Servicios: `CartService`, `CheckoutService`, `VoidSaleService`, `AuditService`, `ConventionService`, `DocumentService`. HTTP: `PosController` y `Admin\{ConventionController, SaleController, DocumentController, AuditController}`. Vistas: `pos/index`, `pos/checkout`, `pos/receipt`, `admin/*` (layout `layouts.admin`). 151 tests en verde.
+- **Tareas 001 POS:** `specs/001-pos/tasks.md`, 10 tareas + correcciones Vuelta 1 (S1–S5). **T1 a T10 cerradas; S1 cerrada**; S2–S5 pendientes.
+- **Código:** Laravel 11.57.1. Dominio `app/Pos/` completo. Persistencia: `Product`, `Sale`, `SaleLine`, `Document`, `StockMovement`, `AuditLog`, `Convention`. Servicios: `CartService`, `CheckoutService`, `VoidSaleService`, `AuditService`, `ConventionService`, `DocumentService`. HTTP: `PosController` y `Admin\{ConventionController, SaleController, DocumentController, AuditController}`. Vistas: `pos/index`, `pos/checkout`, `pos/receipt`, `admin/*` (layout `layouts.admin`). 154 tests en verde.
 - **Comandos SDD:** instalados en `.opencode/commands/` (9 comandos).
 
 ## Entorno (2026-10-30)
@@ -57,6 +57,7 @@
 - **Idempotencia (T7):** `sales.token` es UUID único tomado de la sesión (`pos.checkout_token`); un doble envío devuelve la venta existente en vez de crear otra.
 - **Folio (T7):** simulado y por tipo (`receipt` 1–50.000, `invoice` 50.001–100.000, `credit_note` 100.001–150.000); siguiente = máximo + 1 con índice único `(type, folio)`. Si el rango se agota, el documento queda `pending` sin folio.
 - **Comprobante (T7):** siempre muestra "Documento simulado — sin validez tributaria" y el emisor ficticio de `config/pos.php`.
+- **Auth del POS (S1):** todo el grupo `/pos` exige `auth`; las peticiones JSON sin sesión reciben 401 y la navegación normal redirige a `/login` (`redirectGuestsTo`, la pantalla de login queda fuera de alcance según spec §7). `Sale::creating` completa `user_id` con `auth()->id()` si el servicio no lo recibe, de modo que ninguna venta quede sin cajero (RF-22).
 - **Pendiente de integración:** el cobro aún no exige receta (RF-8) aunque `PrescriptionPolicy` existe; los convenios ya se aplican desde la caja (T10).
 - **Supuestos S-1 a S-6:** emisor ficticio, factura con RUT/razón social/giro/dirección/comuna, receta válida 30 días, libro de controlados como registro + CSV, nota de crédito simulada, RUT de cliente opcional.
 
@@ -68,4 +69,4 @@
 
 ## Próximo paso
 
-Módulo `001-pos` completo (T1–T10). Siguiente: redactar la spec del módulo siguiente (p. ej. `specs/002-inventario/` o `specs/004-reportes/`) antes de escribir código.
+Vuelta 1 del módulo `001-pos`: S1 cerrada. Siguiente en el orden acordado: **S3** (registro de controlados) y luego **S2** (flujo de receta en checkout), seguidas de S4 y S5.

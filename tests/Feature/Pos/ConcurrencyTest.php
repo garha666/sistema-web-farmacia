@@ -7,6 +7,7 @@ namespace Tests\Feature\Pos;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Models\StockMovement;
+use App\Models\User;
 use App\Pos\Enum\PaymentMethod;
 use App\Pos\Enum\SaleStatus;
 use App\Pos\Exception\InsufficientStock;
@@ -31,6 +32,14 @@ use Tests\TestCase;
 final class ConcurrencyTest extends TestCase
 {
     use DatabaseMigrations;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // S1 - RF-22: el POS exige sesión.
+        $this->actingAs(User::factory()->create(['role' => 'tecnico']));
+    }
 
     public function test_two_connections_cannot_sell_the_same_last_unit(): void
     {

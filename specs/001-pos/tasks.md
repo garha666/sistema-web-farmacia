@@ -2,7 +2,7 @@
 
 **Spec:** `specs/001-pos/spec.md` v1.0 (aprobada) · **Plan:** `specs/001-pos/plan.md`
 **Metodología:** TDD — test rojo primero, código después, `php artisan test` en verde.
-**Estado:** propuesta, pendiente de aprobación.
+**Estado:** T1–T10 cerradas; correcciones de Vuelta 1 (S1–S5) propuestas, pendientes de aprobación.
 
 > Nota: la skill `sdd` no está instalada; el formato sigue lo acordado en `AGENTS.md` y la constitución.
 
@@ -83,9 +83,42 @@
 | T8 | 27, 28, 29, 30, 31 |
 | T9 | 32, 33, 34, 35, 36 |
 | T10 | 26, 37, 38, 39, 40 |
+| S1 | 22 |
+| S2 | 8, 9, 11 |
+| S3 | 10 |
+| S4 | 13, 16, 17 |
+| S5 | 29 |
 
-RF-1 a RF-40: **cobertura completa**, sin huecos.
+RF-1 a RF-40: **cobertura nominal completa** tras T1–T10. La validación de Vuelta 1 detectó huecos reales (RF-8, RF-9, RF-10, RF-11, RF-13, RF-16, RF-17, RF-22, RF-29) que se corrigen en las sub-tareas S1–S5.
 
 ## Aviso de tamaño
 
 Cada tarea agrupa entre 3 y 8 RF. En la práctica, ninguna cabe en 20–30 minutos. Estimación realista: **2 a 4 horas por tarea**. Si se necesita el límite de 30 minutos, hay que dividir cada una en subtareas `Tn.1`, `Tn.2`, `Tn.3` (por ejemplo T3 → T3.1 tope del 10%, T3.2 convenios, T3.3 autorización de supervisor). No propongo dividir la spec, porque los 40 RF forman un flujo único y coherente.
+
+---
+
+## Correcciones Vuelta 1 (sub-tareas)
+
+> Origen: veredicto `CAMBIOS NECESARIOS` de la validación RF por RF (151 tests en verde, 24 RF completos, 14 parciales y 2 sin cobertura).
+> Orden recomendado de ejecución: **S1 → S3 → S2 → S4 → S5** (S3 aporta el esquema que S2 consume; el resto conserva la numeración).
+
+- [x] **S1. Auth en rutas /pos y user_id en venta.** RF-22
+  - Depende de: T7
+  - Hecho cuando: las rutas `/pos/*` tienen middleware `auth`; `Sale` guarda el `user_id` del cajero autenticado; y un test verifica que una venta anónima se rechaza con 401/403.
+  - *Cerrada 2026-10-31:* 3 tests nuevos en `tests/Feature/Pos/AuthTest.php`; grupo `/pos` con `auth`, `Sale::creating` toma `auth()->id()` y `redirectGuestsTo('/login')` evita el 500 sin sesión; `php artisan test` → 154 passed, 422 assertions.
+
+- [ ] **S2. Flujo de receta en checkout.** RF-8, RF-9, RF-11
+  - Depende de: T4, T7, S3
+  - Hecho cuando: `pos/checkout.blade.php` muestra los campos de receta (número, prescriptor, RUT y fecha); `CheckoutService` valida vigencia de 30 días y el flag `reused`; la venta guarda `prescription_id`; y un test verifica que una venta controlada sin receta es rechazada.
+
+- [ ] **S3. Registro de controlados (modelo, tabla, CSV).** RF-10
+  - Depende de: T4
+  - Hecho cuando: existen las migraciones `prescriptions` y `controlled_register`, el modelo `Prescription` y `ControlledRegisterController` con exportación CSV; y un test verifica que el CSV exporta las columnas RUT, folio, fecha, medicamento y cantidad.
+
+- [ ] **S4. Descuento manual con tope, supervisor y motivo.** RF-13, RF-16, RF-17
+  - Depende de: T3, T6
+  - Hecho cuando: `pos/index.blade.php` tiene input de descuento manual (% o monto) con botón; un descuento sobre el 10% abre un modal de supervisor con credenciales y motivo obligatorio; el descuento queda guardado en la venta y en el comprobante; y un test verifica el tope, la autorización de supervisor y el motivo obligatorio.
+
+- [ ] **S5. Aviso de cambio de stock en checkout.** RF-29
+  - Depende de: T5, T8
+  - Hecho cuando: `PosController::checkout` invoca `StockPolicy::detectChanges`; si hay cambios, la vista muestra «Stock actual: X» y el botón «Ajustar cantidades»; y un test verifica el mensaje y el botón.

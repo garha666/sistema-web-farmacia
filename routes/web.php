@@ -11,7 +11,7 @@ Route::get('/', function () {
     return redirect()->route('pos.index');
 });
 
-Route::prefix('pos')->name('pos.')->group(function (): void {
+Route::prefix('pos')->name('pos.')->middleware('auth')->group(function (): void {
     Route::get('/', [PosController::class, 'index'])->name('index');
     Route::post('/cart', [PosController::class, 'add'])->name('cart.add');
     Route::patch('/cart/{product}', [PosController::class, 'update'])->name('cart.update');

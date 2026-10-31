@@ -96,6 +96,8 @@ final class AdministrationTest extends TestCase
 
     public function test_an_active_convention_applies_its_percentage_and_is_recorded(): void
     {
+        $this->signIn('tecnico');
+
         $convention = Convention::factory()->create([
             'name' => 'Banmédica',
             'percent' => 10,
@@ -126,6 +128,8 @@ final class AdministrationTest extends TestCase
 
     public function test_an_inactive_convention_is_rejected_at_checkout(): void
     {
+        $this->signIn('tecnico');
+
         $convention = Convention::factory()->create(['active' => false]);
         $this->addToCart();
 
@@ -139,6 +143,8 @@ final class AdministrationTest extends TestCase
 
     public function test_a_convention_out_of_its_validity_is_rejected_at_checkout(): void
     {
+        $this->signIn('tecnico');
+
         $convention = Convention::factory()->create([
             'valid_from' => now()->subMonth()->toDateString(),
             'valid_until' => now()->subDay()->toDateString(),
