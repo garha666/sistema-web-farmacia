@@ -21,6 +21,7 @@
             <nav class="flex flex-wrap gap-2 text-sm font-medium" aria-label="Administración">
                 <a href="{{ route('admin.sales.index') }}" class="rounded-lg px-3 py-2 text-slate-600 hover:bg-slate-100">Historial</a>
                 <a href="{{ route('admin.documents.index') }}" class="rounded-lg px-3 py-2 text-slate-600 hover:bg-slate-100">Documentos</a>
+                <a href="{{ route('admin.controlled-register.index') }}" class="rounded-lg px-3 py-2 text-slate-600 hover:bg-slate-100">Controlados</a>
                 <a href="{{ route('admin.conventions.index') }}" class="rounded-lg px-3 py-2 text-slate-600 hover:bg-slate-100">Convenios</a>
                 <a href="{{ route('admin.audit.index') }}" class="rounded-lg px-3 py-2 text-slate-600 hover:bg-slate-100">Auditoría</a>
                 <a href="{{ route('pos.index') }}" class="rounded-lg bg-emerald-600 px-3 py-2 text-white hover:bg-emerald-700">Ir al POS</a>

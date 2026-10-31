@@ -111,9 +111,10 @@ Cada tarea agrupa entre 3 y 8 RF. En la práctica, ninguna cabe en 20–30 minut
   - Depende de: T4, T7, S3
   - Hecho cuando: `pos/checkout.blade.php` muestra los campos de receta (número, prescriptor, RUT y fecha); `CheckoutService` valida vigencia de 30 días y el flag `reused`; la venta guarda `prescription_id`; y un test verifica que una venta controlada sin receta es rechazada.
 
-- [ ] **S3. Registro de controlados (modelo, tabla, CSV).** RF-10
+- [x] **S3. Registro de controlados (modelo, tabla, CSV).** RF-10
   - Depende de: T4
   - Hecho cuando: existen las migraciones `prescriptions` y `controlled_register`, el modelo `Prescription` y `ControlledRegisterController` con exportación CSV; y un test verifica que el CSV exporta las columnas RUT, folio, fecha, medicamento y cantidad.
+  - *Cerrada 2026-10-31:* 3 tests nuevos en `tests/Feature/Admin/ControlledRegisterTest.php`; migraciones `prescriptions` y `controlled_register`, modelos `Prescription`/`ControlledRegisterEntry`, `ControlledRegisterController` (consulta paginada + CSV) y enlace «Controlados» en el admin; `php artisan test` → 157 passed, 435 assertions.
 
 - [ ] **S4. Descuento manual con tope, supervisor y motivo.** RF-13, RF-16, RF-17
   - Depende de: T3, T6

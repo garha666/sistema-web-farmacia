@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AuditController;
+use App\Http\Controllers\Admin\ControlledRegisterController;
 use App\Http\Controllers\Admin\ConventionController;
 use App\Http\Controllers\Admin\DocumentController;
 use App\Http\Controllers\Admin\SaleController;
@@ -48,5 +49,10 @@ Route::prefix('admin')->name('admin.')->middleware('auth')->group(function (): v
 
         Route::get('/documents', [DocumentController::class, 'index'])->name('documents.index');
         Route::post('/documents/{document}/retry', [DocumentController::class, 'retry'])->name('documents.retry');
+
+        Route::get('/controlled-register', [ControlledRegisterController::class, 'index'])
+            ->name('controlled-register.index');
+        Route::get('/controlled-register/export', [ControlledRegisterController::class, 'export'])
+            ->name('controlled-register.export');
     });
 });
