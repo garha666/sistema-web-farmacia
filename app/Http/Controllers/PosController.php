@@ -6,17 +6,24 @@ namespace App\Http\Controllers;
 
 use App\Models\Product;
 use App\Models\Sale;
+use App\Models\User;
 use App\Pos\Calculator\PriceCalculator;
 use App\Pos\Enum\PaymentMethod;
 use App\Pos\Exception\InsufficientStock;
+use App\Pos\Exception\PrescriptionRejected;
+use App\Pos\Policy\PrescriptionPolicy;
 use App\Pos\Value\Cart;
+use App\Pos\Value\PrescriptionInput;
 use App\Services\Pos\CartService;
 use App\Services\Pos\CheckoutService;
 use App\Services\Pos\ConventionService;
 use App\Services\Pos\VoidSaleService;
+use DateTimeImmutable;
+use DateTimeZone;
 use DomainException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Enum;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -33,6 +40,7 @@ final class PosController extends Controller
         private readonly PriceCalculator $priceCalculator,
         private readonly CheckoutService $checkoutService,
         private readonly ConventionService $conventionService,
+        private readonly PrescriptionPolicy $prescriptionPolicy,
     ) {
     }
 
@@ -130,6 +138,7 @@ final class PosController extends Controller
             'totals' => $this->priceCalculator->totals($cart, (int) config('pos.iva_rate')),
             'methods' => PaymentMethod::cases(),
             'conventions' => $this->conventionService->applicable(),
+            'requiresPrescription' => $this->prescriptionPolicy->cartRequiresPrescription($cart),
         ]);
     }
 
@@ -149,7 +158,16 @@ final class PosController extends Controller
             'received_amount' => ['nullable', 'integer', 'min:0'],
             'customer_rut' => ['nullable', 'string', 'max:20'],
             'convention_id' => ['nullable', 'integer'],
+            'prescription_number' => ['nullable', 'string', 'max:50', 'required_with:prescription_prescriber_name,prescription_prescriber_rut,prescription_issued_at'],
+            'prescription_prescriber_name' => ['nullable', 'string', 'max:255', 'required_with:prescription_number,prescription_prescriber_rut,prescription_issued_at'],
+            'prescription_prescriber_rut' => ['nullable', 'string', 'max:20', 'required_with:prescription_number,prescription_prescriber_name,prescription_issued_at'],
+            'prescription_issued_at' => ['nullable', 'date', 'required_with:prescription_number,prescription_prescriber_name,prescription_prescriber_rut'],
+            'supervisor_email' => ['nullable', 'email'],
+            'supervisor_password' => ['nullable', 'string'],
         ]);
+
+        $prescription = $this->prescriptionInput($data);
+        $reuseAuthorizedBy = $this->supervisorId($data);
 
         $totals = $this->priceCalculator->totals($cart, (int) config('pos.iva_rate'));
         $method = PaymentMethod::from($data['payment_method']);
@@ -172,11 +190,21 @@ final class PosController extends Controller
                 token: $this->cartService->token(),
                 userId: $request->user()?->id,
                 conventionId: isset($data['convention_id']) ? (int) $data['convention_id'] : null,
+                prescription: $prescription,
+                reuseAuthorizedBy: $reuseAuthorizedBy,
             );
-        } catch (DomainException $exception) {
-            throw ValidationException::withMessages(['convention_id' => $exception->getMessage()]);
+        } catch (PrescriptionRejected $exception) {
+            if ($exception->requiresSupervisor()) {
+                throw ValidationException::withMessages([
+                    'prescription_reuse' => 'La receta ya fue utilizada en otra venta. Ingresa las credenciales de un supervisor para autorizarla.',
+                ]);
+            }
+
+            throw ValidationException::withMessages($this->prescriptionErrors($exception->errors()));
         } catch (InsufficientStock $exception) {
             throw ValidationException::withMessages(['cart' => $exception->getMessage()]);
+        } catch (DomainException $exception) {
+            throw ValidationException::withMessages(['convention_id' => $exception->getMessage()]);
         }
 
         $this->cartService->clear();
@@ -248,5 +276,96 @@ final class PosController extends Controller
         }
 
         return $query->orderBy('name')->limit(20)->get();
+    }
+
+    /**
+     * Construye la receta sólo si el cajero ingresó algún dato (RF-8).
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function prescriptionInput(array $data): ?PrescriptionInput
+    {
+        $fields = [
+            $data['prescription_number'] ?? null,
+            $data['prescription_prescriber_name'] ?? null,
+            $data['prescription_prescriber_rut'] ?? null,
+            $data['prescription_issued_at'] ?? null,
+        ];
+
+        $filled = array_filter(
+            $fields,
+            static fn (?string $value): bool => $value !== null && trim($value) !== '',
+        );
+
+        if ($filled === []) {
+            return null;
+        }
+
+        return new PrescriptionInput(
+            number: (string) $data['prescription_number'],
+            prescriberName: (string) $data['prescription_prescriber_name'],
+            prescriberRut: (string) $data['prescription_prescriber_rut'],
+            issuedAt: new DateTimeImmutable(
+                (string) $data['prescription_issued_at'].' 00:00:00',
+                new DateTimeZone((string) config('pos.timezone')),
+            ),
+        );
+    }
+
+    /**
+     * Resuelve la autorización de supervisor por credenciales (RF-11, RF-16).
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function supervisorId(array $data): ?int
+    {
+        $email = $data['supervisor_email'] ?? null;
+        $password = $data['supervisor_password'] ?? null;
+
+        if ($email === null && $password === null) {
+            return null;
+        }
+
+        $supervisor = User::query()->where('email', $email)->first();
+
+        if ($supervisor === null
+            || ! in_array($supervisor->role, [User::ROLE_QUIMICO, User::ROLE_ADMIN], true)
+            || ! Hash::check((string) $password, $supervisor->password)) {
+            throw ValidationException::withMessages([
+                'supervisor_email' => 'Credenciales de supervisor inválidas.',
+            ]);
+        }
+
+        return $supervisor->id;
+    }
+
+    /**
+     * Traduce los códigos de la política a mensajes para el cajero (RNF-9).
+     *
+     * @param  array<string, string>  $errors
+     * @return array<string, string>
+     */
+    private function prescriptionErrors(array $errors): array
+    {
+        $fields = [
+            'number' => 'prescription_number',
+            'prescriber_name' => 'prescription_prescriber_name',
+            'prescriber_rut' => 'prescription_prescriber_rut',
+            'issued_at' => 'prescription_issued_at',
+        ];
+
+        $messages = [
+            'required' => 'Este dato es obligatorio para vender medicamentos con receta.',
+            'expired' => 'La receta está vencida: la vigencia máxima es de 30 días desde su emisión.',
+            'issued_in_future' => 'La fecha de emisión de la receta no puede ser futura.',
+        ];
+
+        $mapped = [];
+
+        foreach ($errors as $field => $code) {
+            $mapped[$fields[$field] ?? $field] = $messages[$code] ?? 'Dato de receta inválido.';
+        }
+
+        return $mapped;
     }
 }

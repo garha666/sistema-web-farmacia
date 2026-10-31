@@ -107,9 +107,10 @@ Cada tarea agrupa entre 3 y 8 RF. En la práctica, ninguna cabe en 20–30 minut
   - Hecho cuando: las rutas `/pos/*` tienen middleware `auth`; `Sale` guarda el `user_id` del cajero autenticado; y un test verifica que una venta anónima se rechaza con 401/403.
   - *Cerrada 2026-10-31:* 3 tests nuevos en `tests/Feature/Pos/AuthTest.php`; grupo `/pos` con `auth`, `Sale::creating` toma `auth()->id()` y `redirectGuestsTo('/login')` evita el 500 sin sesión; `php artisan test` → 154 passed, 422 assertions.
 
-- [ ] **S2. Flujo de receta en checkout.** RF-8, RF-9, RF-11
+- [x] **S2. Flujo de receta en checkout.** RF-8, RF-9, RF-11
   - Depende de: T4, T7, S3
   - Hecho cuando: `pos/checkout.blade.php` muestra los campos de receta (número, prescriptor, RUT y fecha); `CheckoutService` valida vigencia de 30 días y el flag `reused`; la venta guarda `prescription_id`; y un test verifica que una venta controlada sin receta es rechazada.
+  - *Cerrada 2026-10-31:* 5 tests nuevos en `tests/Feature/Pos/CheckoutPrescriptionTest.php`; campos de receta en `pos/checkout`, validación de vigencia y reutilización en `CheckoutService` (excepción `PrescriptionRejected`), `sales.prescription_id`, libro de controlados escrito en el cobro y auditoría `sale.prescription_reuse`; `php artisan test` → 162 passed, 459 assertions.
 
 - [x] **S3. Registro de controlados (modelo, tabla, CSV).** RF-10
   - Depende de: T4

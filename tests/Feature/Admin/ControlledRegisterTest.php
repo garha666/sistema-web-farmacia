@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Feature\Admin;
 
 use App\Models\ControlledRegisterEntry;
-use App\Models\Prescription;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Models\User;
@@ -90,28 +89,17 @@ final class ControlledRegisterTest extends TestCase
         $this->post('/pos/checkout', [
             'payment_method' => 'debit',
             'customer_rut' => '12.345.678-9',
+            'prescription_number' => 'REC-001',
+            'prescription_prescriber_name' => 'Dra. Ana Pérez',
+            'prescription_prescriber_rut' => '9.876.543-2',
+            'prescription_issued_at' => now()->subDays(5)->format('Y-m-d'),
         ])->assertSessionHasNoErrors();
 
         $sale = Sale::query()->firstOrFail();
-        $line = $sale->lines()->firstOrFail();
 
-        $prescription = Prescription::query()->create([
-            'number' => 'REC-001',
-            'prescriber_name' => 'Dra. Ana Pérez',
-            'prescriber_rut' => '9.876.543-2',
-            'issued_on' => now()->subDays(5)->toDateString(),
-        ]);
-
-        return ControlledRegisterEntry::query()->create([
-            'prescription_id' => $prescription->id,
-            'sale_id' => $sale->id,
-            'sale_line_id' => $line->id,
-            'medication' => $line->name,
-            'quantity' => $line->quantity,
-            'customer_rut' => $sale->customer_rut,
-            'folio' => $sale->document->folio,
-            'sold_at' => $sale->sold_at,
-        ]);
+        return ControlledRegisterEntry::query()
+            ->where('sale_id', $sale->id)
+            ->firstOrFail();
     }
 
     private function admin(): User

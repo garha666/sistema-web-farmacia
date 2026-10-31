@@ -45,6 +45,82 @@
                 </div>
             </fieldset>
 
+            @if ($requiresPrescription)
+                <fieldset class="rounded-lg border border-amber-300 bg-amber-50 p-4">
+                    <legend class="px-1 text-sm font-semibold text-amber-900">Receta médica</legend>
+                    <p class="text-xs text-amber-900">
+                        El carrito incluye medicamentos que requieren receta. Completa los datos antes de cobrar.
+                    </p>
+
+                    <div class="mt-3 grid gap-3 sm:grid-cols-2">
+                        <div>
+                            <label for="prescription_number" class="text-sm font-semibold text-slate-700">Número de receta</label>
+                            <input id="prescription_number" name="prescription_number" type="text" maxlength="50"
+                                   value="{{ old('prescription_number') }}"
+                                   class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">
+                            @error('prescription_number')
+                                <p class="mt-1 text-xs text-red-700">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        <div>
+                            <label for="prescription_issued_at" class="text-sm font-semibold text-slate-700">Fecha de emisión</label>
+                            <input id="prescription_issued_at" name="prescription_issued_at" type="date"
+                                   value="{{ old('prescription_issued_at') }}"
+                                   class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">
+                            @error('prescription_issued_at')
+                                <p class="mt-1 text-xs text-red-700">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        <div>
+                            <label for="prescription_prescriber_name" class="text-sm font-semibold text-slate-700">Nombre del prescriptor</label>
+                            <input id="prescription_prescriber_name" name="prescription_prescriber_name" type="text" maxlength="255"
+                                   value="{{ old('prescription_prescriber_name') }}"
+                                   class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">
+                            @error('prescription_prescriber_name')
+                                <p class="mt-1 text-xs text-red-700">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        <div>
+                            <label for="prescription_prescriber_rut" class="text-sm font-semibold text-slate-700">RUT del prescriptor</label>
+                            <input id="prescription_prescriber_rut" name="prescription_prescriber_rut" type="text" maxlength="20"
+                                   value="{{ old('prescription_prescriber_rut') }}"
+                                   class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">
+                            @error('prescription_prescriber_rut')
+                                <p class="mt-1 text-xs text-red-700">{{ $message }}</p>
+                            @enderror
+                        </div>
+                    </div>
+                </fieldset>
+            @endif
+
+            @if ($errors->has('prescription_reuse'))
+                <fieldset class="rounded-lg border border-red-300 bg-red-50 p-4">
+                    <legend class="px-1 text-sm font-semibold text-red-800">Autorización de supervisor</legend>
+                    <p class="text-xs text-red-800">{{ $errors->first('prescription_reuse') }}</p>
+
+                    <div class="mt-3 grid gap-3 sm:grid-cols-2">
+                        <div>
+                            <label for="supervisor_email" class="text-sm font-semibold text-slate-700">Correo del supervisor</label>
+                            <input id="supervisor_email" name="supervisor_email" type="email"
+                                   value="{{ old('supervisor_email') }}"
+                                   class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">
+                            @error('supervisor_email')
+                                <p class="mt-1 text-xs text-red-700">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        <div>
+                            <label for="supervisor_password" class="text-sm font-semibold text-slate-700">Contraseña</label>
+                            <input id="supervisor_password" name="supervisor_password" type="password"
+                                   class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">
+                        </div>
+                    </div>
+                </fieldset>
+            @endif
+
             <div>
                 <label for="convention_id" class="text-sm font-semibold text-slate-700">
                     Convenio de salud (opcional)

@@ -35,6 +35,7 @@ final class Sale extends Model
         'convention_id',
         'convention_name',
         'convention_percent',
+        'prescription_id',
         'status',
         'sold_at',
         'user_id',
@@ -87,6 +88,16 @@ final class Sale extends Model
     public function convention(): BelongsTo
     {
         return $this->belongsTo(Convention::class);
+    }
+
+    /**
+     * Receta asociada a la venta (RF-8, RF-11).
+     *
+     * @return BelongsTo<Prescription, $this>
+     */
+    public function prescription(): BelongsTo
+    {
+        return $this->belongsTo(Prescription::class);
     }
 
     /**

@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services\Pos;
 
+use App\Models\ControlledRegisterEntry;
 use App\Models\Document;
+use App\Models\Prescription;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Models\StockMovement;
@@ -13,12 +15,16 @@ use App\Pos\Enum\DiscountOrigin;
 use App\Pos\Enum\DocumentStatus;
 use App\Pos\Enum\DocumentType;
 use App\Pos\Enum\PaymentMethod;
+use App\Pos\Enum\SaleCategory;
 use App\Pos\Enum\SaleStatus;
 use App\Pos\Exception\EmptyCart;
 use App\Pos\Exception\InsufficientStock;
+use App\Pos\Exception\PrescriptionRejected;
+use App\Pos\Policy\PrescriptionPolicy;
 use App\Pos\Value\Cart;
 use App\Pos\Value\CartLine;
 use App\Pos\Value\Discount;
+use App\Pos\Value\PrescriptionInput;
 use DateTimeImmutable;
 use DateTimeZone;
 use DomainException;
@@ -35,6 +41,8 @@ final class CheckoutService
     public function __construct(
         private readonly PriceCalculator $calculator,
         private readonly ConventionService $conventions,
+        private readonly PrescriptionPolicy $prescriptions,
+        private readonly AuditService $audit,
     ) {
     }
 
@@ -46,9 +54,41 @@ final class CheckoutService
         string $token,
         ?int $userId = null,
         ?int $conventionId = null,
+        ?PrescriptionInput $prescription = null,
+        ?int $reuseAuthorizedBy = null,
     ): Sale {
         if ($cart->isEmpty()) {
             throw new EmptyCart('El carrito está vacío.');
+        }
+
+        // RF-8/RF-9: validar la receta antes de tocar stock o dinero.
+        $category = $this->prescriptions->effectiveCategory($cart);
+
+        $alreadyUsed = $prescription !== null
+            && $category->requiresPrescription()
+            && Prescription::query()
+                ->where('number', $prescription->number)
+                ->where('prescriber_rut', $prescription->prescriberRut)
+                ->exists();
+
+        $result = $this->prescriptions->evaluate(
+            $category,
+            $prescription,
+            (int) config('pos.prescription.validity_days'),
+            $alreadyUsed,
+            new DateTimeImmutable('now', new DateTimeZone((string) config('pos.timezone'))),
+        );
+
+        if ($result->isInvalid()) {
+            throw new PrescriptionRejected($result->errors());
+        }
+
+        // RF-11: receta ya usada en otra venta; exige supervisor.
+        if ($result->requiresSupervisor() && $reuseAuthorizedBy === null) {
+            throw new PrescriptionRejected(
+                ['number' => 'prescription_already_used'],
+                requiresSupervisor: true,
+            );
         }
 
         // RF-40: el convenio se valida al confirmar, no al armar el carrito.
@@ -75,7 +115,7 @@ final class CheckoutService
 
         // 3 intentos: reintenta si PostgreSQL detecta un deadlock (SQLSTATE 40P01)
         // o una espera de lock agotada por concurrencia entre cajas (RF-28).
-        return DB::transaction(function () use ($cart, $method, $receivedAmount, $customerRut, $token, $userId, $convention, $totals): Sale {
+        return DB::transaction(function () use ($cart, $method, $receivedAmount, $customerRut, $token, $userId, $convention, $totals, $prescription, $reuseAuthorizedBy, $alreadyUsed, $category): Sale {
             $existing = Sale::query()->where('token', $token)->first();
 
             if ($existing !== null) {
@@ -86,6 +126,23 @@ final class CheckoutService
             // de id (mismo orden que VoidSaleService) para serializar la venta
             // de la última unidad y evitar deadlocks.
             $this->lockProducts($cart);
+
+            // RF-11: la receta se guarda una sola vez y se reutiliza la existente
+            // cuando un supervisor autorizó su repetición.
+            $prescriptionModel = null;
+
+            if ($category->requiresPrescription() && $prescription !== null) {
+                $prescriptionModel = Prescription::query()->firstOrCreate(
+                    [
+                        'number' => $prescription->number,
+                        'prescriber_rut' => $prescription->prescriberRut,
+                    ],
+                    [
+                        'prescriber_name' => $prescription->prescriberName,
+                        'issued_on' => $prescription->issuedAt->format('Y-m-d'),
+                    ],
+                );
+            }
 
             foreach ($cart->lines() as $line) {
                 $affected = Product::query()
@@ -117,14 +174,17 @@ final class CheckoutService
                 'convention_id' => $convention?->id,
                 'convention_name' => $convention?->name,
                 'convention_percent' => $convention?->percent,
+                'prescription_id' => $prescriptionModel?->id,
                 'status' => SaleStatus::confirmed,
                 'sold_at' => now(),
                 'user_id' => $userId,
             ]);
 
+            $createdLines = [];
+
             /** @var CartLine $line */
             foreach ($cart->lines() as $line) {
-                $sale->lines()->create([
+                $createdLines[$line->productId()] = $sale->lines()->create([
                     'product_id' => $line->productId(),
                     'name' => $line->name(),
                     'unit_price' => $line->unitPrice()->pesos(),
@@ -149,6 +209,36 @@ final class CheckoutService
                 'status' => $folio === null ? DocumentStatus::pending : DocumentStatus::issued,
                 'issued_at' => $folio === null ? null : now(),
             ]);
+
+            // RF-10: una fila del libro por cada línea controlada de la venta.
+            if ($prescriptionModel !== null && $category === SaleCategory::controlled) {
+                foreach ($cart->lines() as $line) {
+                    if ($line->category() !== SaleCategory::controlled) {
+                        continue;
+                    }
+
+                    ControlledRegisterEntry::query()->create([
+                        'prescription_id' => $prescriptionModel->id,
+                        'sale_id' => $sale->id,
+                        'sale_line_id' => $createdLines[$line->productId()]->id,
+                        'medication' => $line->name(),
+                        'quantity' => $line->quantity(),
+                        'customer_rut' => $customerRut,
+                        'folio' => $folio,
+                        'sold_at' => $sale->sold_at,
+                    ]);
+                }
+            }
+
+            // RF-11/RF-36: la reutilización autorizada queda auditada con su autor.
+            if ($alreadyUsed && $reuseAuthorizedBy !== null && $prescription !== null) {
+                $this->audit->record(
+                    'sale.prescription_reuse',
+                    $sale,
+                    $reuseAuthorizedBy,
+                    "Receta {$prescription->number} reutilizada con autorización de supervisor.",
+                );
+            }
 
             return $sale->load('lines', 'document');
         }, 3);
