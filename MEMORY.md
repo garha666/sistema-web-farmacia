@@ -39,7 +39,7 @@
 - **Cambio de stock (T5/S5):** `StockPolicy::detectChanges` compara la existencia viva contra el stock congelado al agregar o ajustar cada línea. La caja guarda ese stock en la sesión `pos.cart_stock` (junto a `pos.cart`), porque `CartService::load()` relee la base en cada request; `PosController::checkout` detecta los cambios y muestra «Stock actual: X» más el botón «Ajustar cantidades». La transacción de cobro sigue bloqueando la fila real con `lockForUpdate()` (T8).
 - **Carrito en sesión (T6):** se guarda sólo `id de producto => cantidad`; precio, categoría y stock se releen de la base en cada request. La clave es `pos.cart`.
 - **Búsqueda (T6):** `lower(...) like` sobre nombre, principio activo y código de barras, límite 20 resultados, sólo productos vendibles.
-- **Tailwind (T6):** `tailwindcss@3` + PostCSS + Vite. `npm run build` genera `public/build`; la vista usa `@vite` y cae a CDN sólo si falta el manifest.
+- **Tailwind (T6):** `tailwindcss@3` + PostCSS + Vite. `npm run build` genera `public/build`; la vista usa `@vite` y cae a CDN sólo si falta el manifest. `public/build` está en `.gitignore`, así que **tras cada `git pull` hay que ejecutar `npm run build`**: si no, las clases nuevas de las vistas no existen en el CSS compilado y la pantalla sale sin estilos (pasó con `bg-amber-600` del botón «Ajustar cantidades»).
 - **Sesiones:** Laravel 11 crea la tabla `sessions` en la migración de `users`; no se agrega una migración propia.
 - **Cobro (T7):** `CheckoutService` hace todo dentro de `DB::transaction`: descuenta stock con `where('stock','>=',qty)`, crea venta, líneas congeladas, documento y movimiento negativo. Si algo falla, rollback y el carrito queda intacto.
 - **Bloqueo pesimista (T8):** antes de validar y descontar, `CheckoutService::lockProducts()` ejecuta `SELECT ... FOR UPDATE` (`lockForUpdate()`) sobre los productos del carrito ordenados por `id`. El descuento condicional `where('stock','>=',qty)` queda como segunda barrera contra la sobreventa (RF-27, RF-30).
@@ -68,7 +68,20 @@
 
 - La skill `sdd` referenciada por los comandos **no existe**; los comandos la invocan igual.
 - `specs/004-reportes/` (cierre de caja) no ha sido redactada.
+- Los mensajes de validación de Laravel salen en inglés (`The discount type field is required.`): no hay `lang/es`. Hay que decidir si se agregan los archivos de traducción.
+- No existe ruta `/login`; en local se entra con una sesión de desarrollo generada con un script externo al repo.
+
+## Verificación visual (375 px)
+
+Revisada con Chrome DevTools (`viewport 375x812x2,mobile,touch`), servidor `php artisan serve` en `127.0.0.1:8000` y una sesión autenticada de desarrollo (usuario `admin.demo@example.com`, rol admin):
+
+| Pantalla | Resultado |
+| --- | --- |
+| `pos/index` | Correcta. `scrollWidth = 375`, sin desbordes. |
+| `pos/checkout` con aviso de stock | Correcta. Aviso por producto, «Stock actual: 1» y botón «Ajustar cantidades» visibles. |
+| `pos/index` modal de supervisor | Correcta. Modal centrado, campos y botones caben a 375 px. |
+| `pos/receipt` | Correcta. Folio, IVA, vuelto y botones «Nueva venta»/«Imprimir» sin desbordes. |
 
 ## Próximo paso
 
-Vuelta 1 del módulo `001-pos` cerrada: S1 a S5 implementadas y en verde. Siguiente: validación final de la vuelta (suite completa, `php artisan migrate` en local y verificación visual a 375 px si hay navegador disponible).
+Vuelta 1 del módulo `001-pos` cerrada: S1 a S5 implementadas, suite en verde (172 tests), migraciones aplicadas en local y verificación visual a 375 px realizada. Siguiente: redactar `specs/004-reportes/` (cierre de caja) y decidir el login real.
