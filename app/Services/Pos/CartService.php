@@ -19,6 +19,11 @@ final class CartService
 {
     private const SESSION_KEY = 'pos.cart';
 
+    /**
+     * Stock congelado cuando se agregó o ajustó cada línea (RF-29).
+     */
+    private const STOCK_KEY = 'pos.cart_stock';
+
     public function load(): Cart
     {
         $stored = session()->get(self::SESSION_KEY, []);
@@ -50,18 +55,60 @@ final class CartService
     public function persist(Cart $cart): void
     {
         $stored = [];
+        $stock = [];
 
         /** @var CartLine $line */
         foreach ($cart->lines() as $line) {
             $stored[$line->productId()] = $line->quantity();
+            $stock[$line->productId()] = $line->product->availableStock;
         }
 
         session()->put(self::SESSION_KEY, $stored);
+        session()->put(self::STOCK_KEY, $stock);
+    }
+
+    /**
+     * Stock que tenía cada producto la última vez que se tocó el carrito (RF-29).
+     *
+     * @return array<int, int>
+     */
+    public function snapshottedStock(): array
+    {
+        $stored = session()->get(self::STOCK_KEY, []);
+
+        if (! is_array($stored)) {
+            return [];
+        }
+
+        return array_map('intval', $stored);
+    }
+
+    /**
+     * Existencia actual de los productos del carrito; ausente = producto borrado.
+     *
+     * @return array<int, int>
+     */
+    public function liveStock(Cart $cart): array
+    {
+        $ids = array_map(
+            fn (CartLine $line): int => $line->productId(),
+            $cart->lines(),
+        );
+
+        if ($ids === []) {
+            return [];
+        }
+
+        return Product::query()
+            ->whereIn('id', $ids)
+            ->get(['id', 'stock'])
+            ->mapWithKeys(fn (Product $product): array => [$product->id => $product->stock])
+            ->all();
     }
 
     public function clear(): void
     {
-        session()->forget([self::SESSION_KEY, 'pos.checkout_token']);
+        session()->forget([self::SESSION_KEY, self::STOCK_KEY, 'pos.checkout_token']);
     }
 
     /**

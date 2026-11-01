@@ -31,6 +31,29 @@
             </p>
         @endif
 
+        @if ($stockChanges !== [])
+            <div role="alert" class="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-4">
+                <h3 class="text-sm font-semibold text-amber-900">
+                    El stock cambió desde que armaste el carrito
+                </h3>
+                <ul class="mt-2 space-y-1 text-sm text-amber-900">
+                    @foreach ($stockChanges as $change)
+                        <li>
+                            {{ $change['name'] }}: pediste {{ $change['requested'] }} y antes había
+                            {{ $change['previous'] }}.
+                            <span class="font-semibold">Stock actual: {{ $change['available'] }}</span>
+                        </li>
+                    @endforeach
+                </ul>
+                <a
+                    href="{{ route('pos.index') }}"
+                    class="mt-3 inline-block rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700"
+                >
+                    Ajustar cantidades
+                </a>
+            </div>
+        @endif
+
         <form method="POST" action="{{ route('pos.checkout.store') }}" class="mt-6 space-y-4">
             @csrf
 

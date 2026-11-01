@@ -16,6 +16,7 @@ use App\Pos\Exception\PrescriptionRejected;
 use App\Pos\Money;
 use App\Pos\Policy\DiscountPolicy;
 use App\Pos\Policy\PrescriptionPolicy;
+use App\Pos\Policy\StockPolicy;
 use App\Pos\Value\Cart;
 use App\Pos\Value\Discount;
 use App\Pos\Value\PrescriptionInput;
@@ -49,6 +50,7 @@ final class PosController extends Controller
         private readonly PrescriptionPolicy $prescriptionPolicy,
         private readonly DiscountPolicy $discountPolicy,
         private readonly ManualDiscountService $manualDiscountService,
+        private readonly StockPolicy $stockPolicy,
     ) {
     }
 
@@ -234,6 +236,14 @@ final class PosController extends Controller
 
         $manualDiscount = $this->manualDiscountService->load();
 
+        // RF-29: avisar si la existencia cambió mientras el carrito estaba armado.
+        $liveStock = $this->cartService->liveStock($cart);
+        $changedIds = $this->stockPolicy->detectChanges(
+            $cart,
+            $liveStock,
+            $this->cartService->snapshottedStock(),
+        );
+
         return view('pos.checkout', [
             'cart' => $cart,
             'totals' => $this->priceCalculator->totals(
@@ -242,6 +252,7 @@ final class PosController extends Controller
                 $manualDiscount,
             ),
             'manualDiscount' => $manualDiscount,
+            'stockChanges' => $this->stockChanges($cart, $liveStock, $changedIds),
             'methods' => PaymentMethod::cases(),
             'conventions' => $this->conventionService->applicable(),
             'requiresPrescription' => $this->prescriptionPolicy->cartRequiresPrescription($cart),
@@ -382,6 +393,39 @@ final class PosController extends Controller
 
         return redirect()->route('pos.sales.receipt', $sale)
             ->with('voided', true);
+    }
+
+    /**
+     * Filas del aviso de cambio de stock del cobro (RF-29).
+     *
+     * @param  array<int, int>  $liveStock
+     * @param  int[]  $changedIds
+     * @return array<int, array{product_id: int, name: string, requested: int, previous: int, available: int}>
+     */
+    private function stockChanges(Cart $cart, array $liveStock, array $changedIds): array
+    {
+        $snapshotted = $this->cartService->snapshottedStock();
+        $lines = [];
+
+        foreach ($cart->lines() as $line) {
+            $lines[$line->productId()] = $line;
+        }
+
+        $changes = [];
+
+        foreach ($changedIds as $productId) {
+            $line = $lines[$productId];
+
+            $changes[] = [
+                'product_id' => $productId,
+                'name' => $line->name(),
+                'requested' => $line->quantity(),
+                'previous' => $snapshotted[$productId] ?? $line->product->availableStock,
+                'available' => max(0, $liveStock[$productId] ?? 0),
+            ];
+        }
+
+        return $changes;
     }
 
     /**

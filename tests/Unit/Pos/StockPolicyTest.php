@@ -127,7 +127,7 @@ final class StockPolicyTest extends TestCase
             ->add($this->product(1, stock: 10), 1)
             ->add($this->product(2, stock: 10), 1);
 
-        $changed = $this->policy->changedSinceSnapshot($cart, [1 => 7, 2 => 10]);
+        $changed = $this->policy->detectChanges($cart, [1 => 7, 2 => 10]);
 
         $this->assertSame([1], $changed);
     }
@@ -136,7 +136,15 @@ final class StockPolicyTest extends TestCase
     {
         $cart = Cart::empty()->add($this->product(1, stock: 10), 1);
 
-        $this->assertSame([], $this->policy->changedSinceSnapshot($cart, [1 => 10]));
+        $this->assertSame([], $this->policy->detectChanges($cart, [1 => 10]));
+    }
+
+    public function test_detects_changes_against_an_explicit_snapshot(): void
+    {
+        $cart = Cart::empty()->add($this->product(1, stock: 10), 1);
+
+        $this->assertSame([1], $this->policy->detectChanges($cart, [1 => 7], [1 => 10]));
+        $this->assertSame([], $this->policy->detectChanges($cart, [1 => 10], [1 => 10]));
     }
 
     public function test_shortage_exposes_the_line_product_id_as_int(): void

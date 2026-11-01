@@ -64,18 +64,28 @@ final class StockPolicy
     /**
      * Productos cuyo stock ya no coincide con el que se congeló en el carrito.
      *
-     * @param  array<int, int>  $availableByProductId
+     * La caja guarda el stock de cada línea al agregarla o ajustarla; sin ese
+     * mapa se usa el snapshot de la propia línea (RF-29).
+     *
+     * @param  array<int, int>  $availableByProductId  stock vivo
+     * @param  array<int, int>|null  $snapshotByProductId  stock congelado al armar el carrito
      * @return int[]
      */
-    public function changedSinceSnapshot(Cart $cart, array $availableByProductId): array
-    {
+    public function detectChanges(
+        Cart $cart,
+        array $availableByProductId,
+        ?array $snapshotByProductId = null,
+    ): array {
         $changed = [];
 
         /** @var CartLine $line */
         foreach ($cart->lines() as $line) {
             $available = $availableByProductId[$line->productId()] ?? null;
+            $snapshot = $snapshotByProductId === null
+                ? $line->product->availableStock
+                : ($snapshotByProductId[$line->productId()] ?? null);
 
-            if ($available !== null && $available !== $line->product->availableStock) {
+            if ($available !== null && $snapshot !== null && $available !== $snapshot) {
                 $changed[] = $line->productId();
             }
         }

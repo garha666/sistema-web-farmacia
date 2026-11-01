@@ -122,6 +122,7 @@ Cada tarea agrupa entre 3 y 8 RF. En la práctica, ninguna cabe en 20–30 minut
   - Hecho cuando: `pos/index.blade.php` tiene input de descuento manual (% o monto) con botón; un descuento sobre el 10% abre un modal de supervisor con credenciales y motivo obligatorio; el descuento queda guardado en la venta y en el comprobante; y un test verifica el tope, la autorización de supervisor y el motivo obligatorio.
   - *Cerrada 2026-10-31:* 6 tests nuevos en `tests/Feature/Pos/ManualDiscountTest.php`; panel de descuento (% o monto) con motivo obligatorio y modal de supervisor en `pos/index`, `ManualDiscountService` sobre la sesión `pos.manual_discount`, re-evaluación con `DiscountPolicy` al cobrar (`DiscountRejected`), columnas `sales.discount_origin`, `sales.discount_reason` y `sales.discount_authorized_by`, auditoría `sale.discount_authorized` y comprobante con motivo/autorizador; `php artisan test` → 168 passed, 510 assertions.
 
-- [ ] **S5. Aviso de cambio de stock en checkout.** RF-29
+- [x] **S5. Aviso de cambio de stock en checkout.** RF-29
   - Depende de: T5, T8
   - Hecho cuando: `PosController::checkout` invoca `StockPolicy::detectChanges`; si hay cambios, la vista muestra «Stock actual: X» y el botón «Ajustar cantidades»; y un test verifica el mensaje y el botón.
+  - *Cerrada 2026-11-01:* 3 tests nuevos en `tests/Feature/Pos/StockChangeAlertTest.php` (+1 unitario en `StockPolicyTest`); `StockPolicy::detectChanges` (con snapshot explícito opcional), stock base persistido en `pos.cart_stock` por `CartService`, aviso por producto con «Stock actual: X» y botón «Ajustar cantidades» en `pos/checkout`; `php artisan test` → 172 passed, 523 assertions.
