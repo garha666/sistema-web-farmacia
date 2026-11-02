@@ -1,15 +1,15 @@
 # MEMORY.md — Estado del proyecto
 
 **Proyecto:** Sistema Web de Gestión y Simulación de Farmacia Privada Comercial (Grupo A) — INACAP
-**Última actualización:** 2026-10-31
+**Última actualización:** 2026-11-01
 
 ## Estado actual
 
 - **Constitución:** `docs/constitution.md` v1.0, vigente (6 principios).
 - **Spec 001 POS:** `specs/001-pos/spec.md` v1.0, **aprobada**, 40 RF y 13 RNF, sin dudas abiertas.
 - **Plan 001 POS:** `specs/001-pos/plan.md`, completo (arquitectura, funciones puras, pseudocódigo, UI, decisiones, tests).
-- **Tareas 001 POS:** `specs/001-pos/tasks.md`, 10 tareas + correcciones Vuelta 1 (S1–S5). **T1 a T10 cerradas; S1 a S5 cerradas.**
-- **Código:** Laravel 11.57.1. Dominio `app/Pos/` completo. Persistencia: `Product`, `Sale`, `SaleLine`, `Document`, `StockMovement`, `AuditLog`, `Convention`, `Prescription`, `ControlledRegisterEntry`. Servicios: `CartService`, `CheckoutService`, `VoidSaleService`, `AuditService`, `ConventionService`, `DocumentService`, `ManualDiscountService`. HTTP: `PosController` y `Admin\{ConventionController, SaleController, DocumentController, AuditController, ControlledRegisterController}`. Vistas: `pos/index`, `pos/checkout`, `pos/receipt`, `admin/*` (layout `layouts.admin`). 172 tests en verde.
+- **Tareas 001 POS:** `specs/001-pos/tasks.md`, 10 tareas + correcciones Vuelta 1 (S1–S5) + Vuelta 2 (S6–S14). **T1 a T10 cerradas; S1 a S5 cerradas; S8 cerrada.**
+- **Código:** Laravel 11.57.1. Dominio `app/Pos/` completo. Persistencia: `Product`, `Sale`, `SaleLine`, `Document`, `StockMovement`, `AuditLog`, `Convention`, `Prescription`, `ControlledRegisterEntry`. Servicios: `CartService`, `CheckoutService`, `VoidSaleService`, `AuditService`, `ConventionService`, `DocumentService`, `ManualDiscountService`. HTTP: `PosController` y `Admin\{ConventionController, SaleController, DocumentController, AuditController, ControlledRegisterController}`. Vistas: `pos/index`, `pos/checkout`, `pos/receipt`, `admin/*` (layout `layouts.admin`). Traducciones en `lang/es/`. 178 tests en verde.
 - **Comandos SDD:** instalados en `.opencode/commands/` (9 comandos).
 
 ## Entorno (2026-10-30)
@@ -63,13 +63,14 @@
 - **Descuento manual (S4):** el cajero lo carga en la caja por porcentaje o monto con motivo obligatorio; se guarda en la sesión `pos.manual_discount` y se re-evalúa con `DiscountPolicy` al confirmar el cobro. Hasta el 10% se aplica directo; sobre el tope la vista abre un modal que exige credenciales de Químico/Admin (mismo `Hash::check` + rol que la receta reutilizada) y sólo entonces se guarda. La venta registra `discount_origin`, `discount_reason` y `discount_authorized_by`, y la autorización sobre el tope se audita como `sale.discount_authorized`. El comprobante muestra motivo y autorizador. El convenio sigue prevaleciendo sobre el descuento manual.
 - **Aviso de cambio de stock (S5):** al abrir el cobro, `PosController::checkout` compara el stock vivo con el congelado en `pos.cart_stock` mediante `StockPolicy::detectChanges`. Si cambió, la vista muestra por producto la cantidad pedida, la existencia anterior, «Stock actual: X» y el botón «Ajustar cantidades» (vuelve a la caja); ajustar la cantidad refresca el stock base y apaga el aviso. No bloquea la venta: la validación definitiva sigue en la transacción de cobro.
 - **Supuestos S-1 a S-6:** emisor ficticio, factura con RUT/razón social/giro/dirección/comuna, receta válida 30 días, libro de controlados como registro + CSV, nota de crédito simulada, RUT de cliente opcional.
+- **Idioma (S8):** la interfaz, los mensajes de validación y los estados viven en `lang/es/pos.php` (+ `lang/es/validation.php`); `config/app.php` fija `locale = 'es'` para no depender de `APP_LOCALE` del `.env`. Las vistas Blade y los controladores usan `__('pos.*')`, y los enums `DocumentStatus`, `SaleStatus`, `PaymentMethod` y `DocumentType` exponen `label()` traducido (Pendiente/Emitida/Rechazada, Confirmada/Anulada). Código sigue en inglés; sólo la interfaz está en español.
 
 ## Pendientes conocidos
 
 - La skill `sdd` referenciada por los comandos **no existe**; los comandos la invocan igual.
 - `specs/004-reportes/` (cierre de caja) no ha sido redactada.
-- Los mensajes de validación de Laravel salen en inglés (`The discount type field is required.`): no hay `lang/es`. Hay que decidir si se agregan los archivos de traducción.
 - No existe ruta `/login`; en local se entra con una sesión de desarrollo generada con un script externo al repo.
+- `welcome.blade.php` sigue en inglés (página por defecto de Laravel, fuera del alcance de la spec).
 
 ## Verificación visual (375 px)
 
@@ -82,6 +83,21 @@ Revisada con Chrome DevTools (`viewport 375x812x2,mobile,touch`), servidor `php 
 | `pos/index` modal de supervisor | Correcta. Modal centrado, campos y botones caben a 375 px. |
 | `pos/receipt` | Correcta. Folio, IVA, vuelto y botones «Nueva venta»/«Imprimir» sin desbordes. |
 
+### Vuelta 2 (S8, 2026-11-01)
+
+El MCP `brave-devtools` no conectó (`404` tras el handshake con CDP), así que la revisión se hizo por CDP directo contra Brave headless (`--remote-debugging-port=9222`), mismo motor que usa el MCP: `Emulation.setDeviceMetricsOverride` 375×812, cookie de sesión real y captura de pantalla por página. Servidor en `127.0.0.1:8001` (el 8000 lo ocupa Docker).
+
+| Pantalla | Resultado |
+| --- | --- |
+| `pos/index` con carrito | Correcta. Línea del carrito reacomodada a tarjeta (nombre + total arriba, cantidad/actualizar/quitar abajo) para que no se solapen a 375 px. |
+| `pos/checkout` | Correcta. «Cobro», «Total a pagar», «Medio de pago», «Receta médica», «Confirmar venta»; sin textos en inglés. |
+| `pos/index` descuento sin motivo | Correcta. Muestra «El motivo es obligatorio.» en el resumen y junto al campo. |
+| `pos/receipt` | Correcta. «Boleta electrónica», «Medio de pago», «Documento simulado — sin validez tributaria». |
+| `admin/sales` y `admin/sales/{id}` | Correcta. Estados «Confirmada»/«Emitida»; sin `Pending`/`Issued`. |
+| `admin/documents` | Correcta. Filtro y celdas con «Pendiente/Emitida/Rechazada». |
+
+Sin errores de consola ni excepciones en ninguna página; `scrollWidth = 375` (las tablas de administración quedan dentro de su contenedor con scroll horizontal).
+
 ## Próximo paso
 
-Vuelta 1 del módulo `001-pos` cerrada: S1 a S5 implementadas, suite en verde (172 tests), migraciones aplicadas en local y verificación visual a 375 px realizada. Siguiente: redactar `specs/004-reportes/` (cierre de caja) y decidir el login real.
+S8 (i18n) cerrada con 178 tests en verde. Siguiente: **S6 — factura (RF-23)** con los campos del supuesto S-2, selector Boleta/Factura en el checkout y comprobante con datos del cliente.

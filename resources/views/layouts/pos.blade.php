@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>@yield('title', 'Punto de Venta')</title>
+    <title>@yield('title', __('pos.cash.title'))</title>
     @if (file_exists(public_path('build/manifest.json')))
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     @else
@@ -14,11 +14,11 @@
     <header class="border-b border-slate-200 bg-white">
         <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
             <div>
-                <p class="text-xs font-semibold uppercase tracking-wide text-emerald-700">Farmacia Grupo A</p>
-                <h1 class="text-lg font-bold">Punto de Venta</h1>
+                <p class="text-xs font-semibold uppercase tracking-wide text-emerald-700">{{ __('pos.app.brand') }}</p>
+                <h1 class="text-lg font-bold">{{ __('pos.app.pos') }}</h1>
             </div>
             <span class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800">
-                Caja 1
+                {{ __('pos.app.register') }}
             </span>
         </div>
     </header>

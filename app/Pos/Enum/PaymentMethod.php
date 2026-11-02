@@ -13,12 +13,7 @@ enum PaymentMethod: string
 
     public function label(): string
     {
-        return match ($this) {
-            self::cash => 'Efectivo',
-            self::debit => 'Débito',
-            self::credit => 'Crédito',
-            self::transfer => 'Transferencia',
-        };
+        return __('pos.payment_method.'.$this->value);
     }
 
     public function requiresReceivedAmount(): bool

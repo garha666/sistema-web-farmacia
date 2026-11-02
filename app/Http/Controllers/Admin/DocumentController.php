@@ -54,6 +54,6 @@ final class DocumentController extends Controller
             return back()->withErrors(['document' => $exception->getMessage()]);
         }
 
-        return back()->with('success', "Documento {$document->folio} reemitido.");
+        return back()->with('success', __('pos.admin.documents.reissued', ['folio' => $document->folio]));
     }
 }

@@ -9,7 +9,7 @@
     @endif
 
     <div>
-        <label for="name" class="text-sm font-semibold text-slate-700">Nombre</label>
+        <label for="name" class="text-sm font-semibold text-slate-700">{{ __('pos.admin.conventions.form_name') }}</label>
         <input
             id="name"
             name="name"
@@ -22,7 +22,7 @@
     </div>
 
     <div>
-        <label for="percent" class="text-sm font-semibold text-slate-700">Descuento (%)</label>
+        <label for="percent" class="text-sm font-semibold text-slate-700">{{ __('pos.admin.conventions.form_percent') }}</label>
         <input
             id="percent"
             name="percent"
@@ -38,7 +38,7 @@
 
     <div class="grid gap-4 sm:grid-cols-2">
         <div>
-            <label for="valid_from" class="text-sm font-semibold text-slate-700">Vigente desde</label>
+            <label for="valid_from" class="text-sm font-semibold text-slate-700">{{ __('pos.admin.conventions.form_valid_from') }}</label>
             <input
                 id="valid_from"
                 name="valid_from"
@@ -50,7 +50,7 @@
         </div>
 
         <div>
-            <label for="valid_until" class="text-sm font-semibold text-slate-700">Vigente hasta</label>
+            <label for="valid_until" class="text-sm font-semibold text-slate-700">{{ __('pos.admin.conventions.form_valid_until') }}</label>
             <input
                 id="valid_until"
                 name="valid_until"
@@ -72,16 +72,16 @@
                 class="rounded border-slate-300 text-emerald-600"
                 @checked(old('active', $convention->active))
             >
-            Convenio activo
+            {{ __('pos.admin.conventions.form_active') }}
         </label>
     @endif
 
     <div class="flex gap-3 pt-2">
         <a href="{{ route('admin.conventions.index') }}" class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">
-            Cancelar
+            {{ __('pos.admin.conventions.form_cancel') }}
         </a>
         <button type="submit" class="flex-1 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
-            Guardar
+            {{ __('pos.admin.conventions.form_save') }}
         </button>
     </div>
 </form>

@@ -42,7 +42,7 @@ final class ConventionController extends Controller
 
         return redirect()
             ->route('admin.conventions.index')
-            ->with('success', "Convenio '{$convention->name}' creado.");
+            ->with('success', __('pos.admin.conventions.created', ['name' => $convention->name]));
     }
 
     public function edit(Convention $convention): View
@@ -60,7 +60,7 @@ final class ConventionController extends Controller
 
         return redirect()
             ->route('admin.conventions.index')
-            ->with('success', "Convenio '{$convention->name}' actualizado.");
+            ->with('success', __('pos.admin.conventions.updated', ['name' => $convention->name]));
     }
 
     public function destroy(Convention $convention): RedirectResponse
@@ -69,7 +69,7 @@ final class ConventionController extends Controller
 
         return redirect()
             ->route('admin.conventions.index')
-            ->with('success', "Convenio '{$convention->name}' desactivado.");
+            ->with('success', __('pos.admin.conventions.deactivated', ['name' => $convention->name]));
     }
 
     /**

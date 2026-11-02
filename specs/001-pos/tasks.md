@@ -1,75 +1,91 @@
 # Tareas 001 — Punto de Venta (POS)
 
-**Spec:** `specs/001-pos/spec.md` v1.0 (aprobada) · **Plan:** `specs/001-pos/plan.md`
-**Metodología:** TDD — test rojo primero, código después, `php artisan test` en verde.
-**Estado:** T1–T10 cerradas; correcciones de Vuelta 1 (S1–S5) propuestas, pendientes de aprobación.
+**Spec:** \specs/001-pos/spec.md\ v1.0 (aprobada) · **Plan:** \specs/001-pos/plan.md\
+**Metodología:** TDD — test rojo primero, código después, \php artisan test\ en verde.
+**Estado:** T1–T10 cerradas; correcciones Vuelta 1 (S1–S5) cerradas; correcciones Vuelta 2 (S6–S14) propuestas, pendientes de aprobación.
 
-> Nota: la skill `sdd` no está instalada; el formato sigue lo acordado en `AGENTS.md` y la constitución.
+> Nota: la skill \sdd\ no está instalada; el formato sigue lo acordado en \AGENTS.md\ y la constitución.
 
 ## Reglas de ejecución
 
 - Una tarea a la vez. No se empieza T(n+1) sin T(n) en verde y marcada.
 - Cada tarea deja la suite completa en verde, no sólo sus tests.
 - Los nombres de tests y código van en inglés; los textos de interfaz en español.
-- **Desviación de entorno aprobada (2026-10-30):** no hay Docker; se usa el PostgreSQL 18 local (`farmacia_pos`, `farmacia_pos_test`) en lugar de PostgreSQL 16 en contenedor. El resto del stack se mantiene.
 
 ---
 
-## Tareas
+## Tareas originales (T1–T10)
 
 - [x] **T1. Esqueleto Laravel 11 + Docker + dominio de dinero y carrito.** RF-2, RF-3, RF-5, RF-19
   - *Depende de:* —
-  - *Hecho cuando:* `docker compose up -d` levanta app y PostgreSQL 16; `CartTest` y `MoneyTest` pasan en verde con cantidad inválida, duplicados, carrito vacío y rechazo de `float`.
-  - *Cerrada 2026-10-30:* Laravel 11.57.1 + PostgreSQL 18 local (sin Docker, desviación aprobada); `php artisan test` → 22 passed, 33 assertions.
+  - *Hecho cuando:* \docker compose up -d\ levanta app y PostgreSQL 16; \CartTest\ y \MoneyTest\ pasan en verde con cantidad inválida, duplicados, carrito vacío y rechazo de \loat\.
 
 - [x] **T2. Cálculo de precios, IVA incluido y redondeo.** RF-4, RF-12, RF-19
   - *Depende de:* T1
-  - *Hecho cuando:* `PriceCalculatorTest` pasa con 5 montos límite y en todos los casos el total es igual a la suma de líneas menos descuentos.
-  - *Cerrada 2026-10-30:* 14 tests nuevos; `php artisan test` → 36 passed, 70 assertions.
+  - *Hecho cuando:* \PriceCalculatorTest\ pasa con 5 montos límite y en todos los casos el total es igual a la suma de líneas menos descuentos.
 
 - [x] **T3. Política de descuentos y convenios de salud.** RF-13, RF-14, RF-15, RF-16, RF-17, RF-18, RF-39, RF-40
   - *Depende de:* T2
-  - *Hecho cuando:* `DiscountPolicyTest` pasa: 10% se aplica sin supervisor, 10,01% lo exige, convenio inactivo se rechaza y ningún descuento deja el total en cero o negativo.
-  - *Cerrada 2026-10-30:* 16 tests nuevos; `php artisan test` → 52 passed, 99 assertions.
+  - *Hecho cuando:* \DiscountPolicyTest\ pasa: 10% se aplica sin supervisor, 10,01% lo exige, convenio inactivo se rechaza y ningún descuento deja el total en cero o negativo.
 
 - [x] **T4. Política de recetas y controlados.** RF-7, RF-8, RF-9, RF-10, RF-11
   - *Depende de:* T1
-  - *Hecho cuando:* `PrescriptionPolicyTest` pasa con receta vencida a 31 días (fecha inyectada), datos faltantes, producto controlado y receta reutilizada.
-  - *Cerrada 2026-10-30:* 15 tests nuevos; `php artisan test` → 67 passed, 131 assertions.
+  - *Hecho cuando:* \PrescriptionPolicyTest\ pasa con receta vencida a 31 días (fecha inyectada), datos faltantes, producto controlado y receta reutilizada.
 
 - [x] **T5. Política de stock y faltantes.** RF-3, RF-27, RF-29
   - *Depende de:* T1
-  - *Hecho cuando:* `StockPolicyTest` pasa y `shortages()` devuelve la diferencia exacta entre solicitado y disponible para cada producto.
-  - *Cerrada 2026-10-30:* 14 tests nuevos; `php artisan test` → 81 passed, 159 assertions.
+  - *Hecho cuando:* \StockPolicyTest\ pasa y \shortages()\ devuelve la diferencia exacta entre solicitado y disponible para cada producto.
 
 - [x] **T6. Pantalla de caja: búsqueda, carrito y totales en vivo.** RF-1, RF-2, RF-3, RF-4, RF-5, RF-6
   - *Depende de:* T1, T2
-  - *Hecho cuando:* `CartFlowTest` pasa y, en prueba manual, recargar el navegador conserva el carrito con líneas y descuentos.
-  - *Cerrada 2026-10-30:* 13 tests nuevos; `php artisan test` → 94 passed, 182 assertions. Assets compilados con Vite + Tailwind.
+  - *Hecho cuando:* \CartFlowTest\ pasa y, en prueba manual, recargar el navegador conserva el carrito con líneas y descuentos.
 
 - [x] **T7. Cobro transaccional, folio simulado y comprobante.** RF-20, RF-21, RF-22, RF-23, RF-24, RF-25, RF-26
   - *Depende de:* T2, T3, T4, T5, T6
-  - *Hecho cuando:* `CheckoutFlowTest` pasa: venta confirmada con folio único, stock descontado, comprobante reimprimible y doble envío del mismo carrito no crea dos ventas.
-  - *Cerrada 2026-10-30:* 14 tests nuevos; `php artisan test` → 108 passed, 229 assertions.
+  - *Hecho cuando:* \CheckoutFlowTest\ pasa: venta confirmada con folio único, stock descontado, comprobante reimprimible y doble envío del mismo carrito no crea dos ventas.
 
 - [x] **T8. Concurrencia real de stock y movimientos.** RF-27, RF-28, RF-29, RF-30, RF-31
   - *Depende de:* T7
   - *Hecho cuando:* el test de dos conexiones a PostgreSQL deja ganar una sola venta de la última unidad, y la suma de movimientos iguala el stock final.
-  - *Cerrada 2026-10-30:* 7 tests nuevos; `php artisan test` → 115 passed, 251 assertions.
 
 - [x] **T9. Anulación de venta y auditoría.** RF-32, RF-33, RF-34, RF-35, RF-36
   - *Depende de:* T8
-  - *Hecho cuando:* `VoidSaleTest` pasa: la anulación repone stock, genera la reversa simulada, registra autor y motivo, impide una segunda anulación y deja intacta la venta original.
-  - *Cerrada 2026-10-30:* 13 tests nuevos; `php artisan test` → 128 passed, 295 assertions.
+  - *Hecho cuando:* \VoidSaleTest\ pasa: la anulación repone stock, genera la reversa simulada, registra autor y motivo, impide una segunda anulación y deja intacta la venta original.
 
 - [x] **T10. Administración: convenios, historial, documentos y permisos.** RF-26, RF-37, RF-38, RF-39, RF-40
   - *Depende de:* T3, T9
-  - *Hecho cuando:* `SaleQueryTest`, `ConventionManagementTest`, `DocumentRetryTest` y `PermissionTest` pasan; un usuario Técnico recibe 403 al intentar anular o autorizar.
-  - *Cerrada 2026-10-30:* 23 tests nuevos en `tests/Feature/Admin/AdministrationTest.php` (convenios, historial y filtros, detalle, documentos/reintento y permisos); `php artisan test` → 151 passed, 412 assertions.
+  - *Hecho cuando:* \SaleQueryTest\, \ConventionManagementTest\, \DocumentRetryTest\ y \PermissionTest\ pasan; un usuario Técnico recibe 403 al intentar anular o autorizar.
 
 ---
 
-## Cobertura RF por tarea
+## Correcciones Vuelta 1 (S1–S5)
+
+> Origen: veredicto \CAMBIOS NECESARIOS\ de la validación RF por RF (151 tests en verde, 24 RF completos, 14 parciales y 2 sin cobertura).
+> Orden recomendado de ejecución: **S1 → S3 → S2 → S4 → S5** (S3 aporta el esquema que S2 consume; el resto conserva la numeración).
+
+- [x] **S1. Auth en rutas /pos y user_id en venta.** RF-22
+  - *Depende de:* T7
+  - *Hecho cuando:* las rutas \/pos/*\ tienen middleware \uth\; \Sale\ guarda el \user_id\ del cajero autenticado; y un test verifica que una venta anónima se rechaza con 401/403.
+
+- [x] **S2. Flujo de receta en checkout.** RF-8, RF-9, RF-11
+  - *Depende de:* T4, T7, S3
+  - *Hecho cuando:* \pos/checkout.blade.php\ muestra los campos de receta (número, prescriptor, RUT y fecha); \CheckoutService\ valida vigencia de 30 días y el flag \eused\; la venta guarda \prescription_id\; y un test verifica que una venta controlada sin receta es rechazada.
+
+- [x] **S3. Registro de controlados (modelo, tabla, CSV).** RF-10
+  - *Depende de:* T4
+  - *Hecho cuando:* existen las migraciones \prescriptions\ y \controlled_register\, el modelo \Prescription\ y \ControlledRegisterController\ con exportación CSV; y un test verifica que el CSV exporta las columnas RUT, folio, fecha, medicamento y cantidad.
+
+- [x] **S4. Descuento manual con tope, supervisor y motivo.** RF-13, RF-16, RF-17
+  - *Depende de:* T3, T6
+  - *Hecho cuando:* \pos/index.blade.php\ tiene input de descuento manual (% o monto) con botón; un descuento sobre el 10% abre un modal de supervisor con credenciales y motivo obligatorio; el descuento queda guardado en la venta y en el comprobante; y un test verifica el tope, la autorización de supervisor y el motivo obligatorio.
+
+- [x] **S5. Aviso de cambio de stock en checkout.** RF-29
+  - *Depende de:* T5, T8
+  - *Hecho cuando:* \PosController::checkout\ invoca \StockPolicy::detectChanges\; si hay cambios, la vista muestra «Stock actual: X» y el botón «Ajustar cantidades»; y un test verifica el mensaje y el botón.
+
+---
+
+## Cobertura RF por tarea (actualizada tras Vuelta 1)
 
 | Tarea | RF |
 |---|---|
@@ -89,40 +105,69 @@
 | S4 | 13, 16, 17 |
 | S5 | 29 |
 
-RF-1 a RF-40: **cobertura nominal completa** tras T1–T10. La validación de Vuelta 1 detectó huecos reales (RF-8, RF-9, RF-10, RF-11, RF-13, RF-16, RF-17, RF-22, RF-29) que se corrigen en las sub-tareas S1–S5.
-
-## Aviso de tamaño
-
-Cada tarea agrupa entre 3 y 8 RF. En la práctica, ninguna cabe en 20–30 minutos. Estimación realista: **2 a 4 horas por tarea**. Si se necesita el límite de 30 minutos, hay que dividir cada una en subtareas `Tn.1`, `Tn.2`, `Tn.3` (por ejemplo T3 → T3.1 tope del 10%, T3.2 convenios, T3.3 autorización de supervisor). No propongo dividir la spec, porque los 40 RF forman un flujo único y coherente.
+RF-1 a RF-40: **cobertura nominal completa**; huecos reales que corrigen S1–S5.
 
 ---
 
-## Correcciones Vuelta 1 (sub-tareas)
+## Correcciones Vuelta 2 (S6–S14)
 
-> Origen: veredicto `CAMBIOS NECESARIOS` de la validación RF por RF (151 tests en verde, 24 RF completos, 14 parciales y 2 sin cobertura).
-> Orden recomendado de ejecución: **S1 → S3 → S2 → S4 → S5** (S3 aporta el esquema que S2 consume; el resto conserva la numeración).
+> Origen: veredicto \CAMBIOS NECESARIOS\ de la validación RF por RF (172 tests en verde, 24 RF completos, 14 parciales, 2 sin cobertura).
+> Prioridad: **Alta** (bloquean aprobación) → **Media** (cobertura parcial) → **Baja** (pulido).
+> Orden recomendado: **S8 → S6 → S7 → S9 → S10 → S11 → S12 → S13 → S14**.
+> S8 (i18n) desbloquea mensajes en español para todo lo demás.
 
-- [x] **S1. Auth en rutas /pos y user_id en venta.** RF-22
-  - Depende de: T7
-  - Hecho cuando: las rutas `/pos/*` tienen middleware `auth`; `Sale` guarda el `user_id` del cajero autenticado; y un test verifica que una venta anónima se rechaza con 401/403.
-  - *Cerrada 2026-10-31:* 3 tests nuevos en `tests/Feature/Pos/AuthTest.php`; grupo `/pos` con `auth`, `Sale::creating` toma `auth()->id()` y `redirectGuestsTo('/login')` evita el 500 sin sesión; `php artisan test` → 154 passed, 422 assertions.
+- [ ] **S6. Factura (RF-23) — implementar tipo factura con campos S-2.**
+  - *Depende de:* T7, S1
+  - *Hecho cuando:* CheckoutService crea DocumentType::invoice con RUT, razón social, giro, dirección, comuna; pos/checkout.blade.php tiene selector Boleta/Factura + campos condicionales; vista de comprobante muestra campos de factura; test cubre factura completa con campos S-2.
 
-- [x] **S2. Flujo de receta en checkout.** RF-8, RF-9, RF-11
-  - Depende de: T4, T7, S3
-  - Hecho cuando: `pos/checkout.blade.php` muestra los campos de receta (número, prescriptor, RUT y fecha); `CheckoutService` valida vigencia de 30 días y el flag `reused`; la venta guarda `prescription_id`; y un test verifica que una venta controlada sin receta es rechazada.
-  - *Cerrada 2026-10-31:* 5 tests nuevos en `tests/Feature/Pos/CheckoutPrescriptionTest.php`; campos de receta en `pos/checkout`, validación de vigencia y reutilización en `CheckoutService` (excepción `PrescriptionRejected`), `sales.prescription_id`, libro de controlados escrito en el cobro y auditoría `sale.prescription_reuse`; `php artisan test` → 162 passed, 459 assertions.
+- [ ] **S7. Detalle de venta muestra receta asociada (RF-38).**
+  - *Depende de:* S2
+  - *Hecho cuando:* admin/sales/show.blade.php muestra sección "Receta asociada" con número, prescriptor, RUT, fecha, vigencia; test verifica que venta #2 (con receta REC-OK-001) la muestra.
 
-- [x] **S3. Registro de controlados (modelo, tabla, CSV).** RF-10
-  - Depende de: T4
-  - Hecho cuando: existen las migraciones `prescriptions` y `controlled_register`, el modelo `Prescription` y `ControlledRegisterController` con exportación CSV; y un test verifica que el CSV exporta las columnas RUT, folio, fecha, medicamento y cantidad.
-  - *Cerrada 2026-10-31:* 3 tests nuevos en `tests/Feature/Admin/ControlledRegisterTest.php`; migraciones `prescriptions` y `controlled_register`, modelos `Prescription`/`ControlledRegisterEntry`, `ControlledRegisterController` (consulta paginada + CSV) y enlace «Controlados» en el admin; `php artisan test` → 157 passed, 435 assertions.
+- [x] **S8. Internacionalización (RNF-4, RNF-9, P6) — lang/es/pos.php y mensajes en español.**
+  - *Depende de:* T6, T10
+  - *Hecho cuando:* existe lang/es/pos.php con todos los textos de validación y UI; config/app.php locale=es; mensajes de validación y estados (Pending/Issued/Rejected) traducidos; no hay texto hardcodeado en vistas; test verifica que /pos/checkout muestra "El motivo es obligatorio" en español.
+  - *Cierre (2026-11-01):* `lang/es/pos.php` + `lang/es/validation.php`, `locale = 'es'`, `label()` traducido en `DocumentStatus`, `SaleStatus`, `PaymentMethod` y `DocumentType`; vistas `pos/*`, `layouts/*` y `admin/*` migradas a `__()`; 6 tests nuevos en `I18nTest` (178 en total).
 
-- [x] **S4. Descuento manual con tope, supervisor y motivo.** RF-13, RF-16, RF-17
-  - Depende de: T3, T6
-  - Hecho cuando: `pos/index.blade.php` tiene input de descuento manual (% o monto) con botón; un descuento sobre el 10% abre un modal de supervisor con credenciales y motivo obligatorio; el descuento queda guardado en la venta y en el comprobante; y un test verifica el tope, la autorización de supervisor y el motivo obligatorio.
-  - *Cerrada 2026-10-31:* 6 tests nuevos en `tests/Feature/Pos/ManualDiscountTest.php`; panel de descuento (% o monto) con motivo obligatorio y modal de supervisor en `pos/index`, `ManualDiscountService` sobre la sesión `pos.manual_discount`, re-evaluación con `DiscountPolicy` al cobrar (`DiscountRejected`), columnas `sales.discount_origin`, `sales.discount_reason` y `sales.discount_authorized_by`, auditoría `sale.discount_authorized` y comprobante con motivo/autorizador; `php artisan test` → 168 passed, 510 assertions.
+- [ ] **S9. Flujo de emisión fallida + comprobante provisorio (RF-24).**
+  - *Depende de:* T7
+  - *Hecho cuando:* CheckoutService simula fallo de emisión (mock DocumentService::emit fails); venta queda en estado pending + Document::pending; pos/checkout.blade.php muestra comprobante provisorio con leyenda "Provisorio"; botón "Reintentar emisión" en admin/sales/index; test cubre fallo → provisorio → reintento → issued sin duplicar folio.
 
-- [x] **S5. Aviso de cambio de stock en checkout.** RF-29
-  - Depende de: T5, T8
-  - Hecho cuando: `PosController::checkout` invoca `StockPolicy::detectChanges`; si hay cambios, la vista muestra «Stock actual: X» y el botón «Ajustar cantidades»; y un test verifica el mensaje y el botón.
-  - *Cerrada 2026-11-01:* 3 tests nuevos en `tests/Feature/Pos/StockChangeAlertTest.php` (+1 unitario en `StockPolicyTest`); `StockPolicy::detectChanges` (con snapshot explícito opcional), stock base persistido en `pos.cart_stock` por `CartService`, aviso por producto con «Stock actual: X» y botón «Ajustar cantidades» en `pos/checkout`; `php artisan test` → 172 passed, 523 assertions.
+- [ ] **S10. Mensaje de concurrencia específico (RF-28).**
+  - *Depende de:* T8
+  - *Hecho cuando:* error de concurrencia muestra "Stock actual: X unidades del producto [nombre]" en lugar de "Sin stock suficiente para el producto 3"; test verifica mensaje exacto.
+
+- [ ] **S11. Columna descuento por línea en carrito (RF-4).**
+  - *Depende de:* S4, T6
+  - *Hecho cuando:* pos/index.blade.php tabla del carrito tiene columna "Descuento" por línea con input %/monto; subtotal de línea = precio × cantidad − descuento; totales recalculan en vivo; test verifica columna, cálculo y recálculo.
+
+- [ ] **S12. Auditoría de autorizaciones de descuento y receta repetida (RF-36).**
+  - *Depende de:* S4, S2
+  - *Hecho cuando:* AuditService registra discount.authorization y prescription.reuse con autor, motivo, timestamp; admin/audit/index muestra estos eventos; test verifica registro en audit_logs.
+
+- [ ] **S13. Test de filtro por convenio en historial (RF-37).**
+  - *Depende de:* T10
+  - *Hecho cuando:* AdministrationTest::test_history_filters_by_convention pasa; admin/sales/index filtra por convenio correctamente.
+
+- [ ] **S14. Detalle de venta completo (RF-38 complemento + RNF-9).**
+  - *Depende de:* S7, S8
+  - *Hecho cuando:* admin/sales/show.blade.php muestra: receta asociada, autorizaciones (descuento/receta), convenio, estado traducido (Emitida/Pendiente/Rechazada/Anulada); estados no en inglés; test verifica campos presentes.
+
+---
+
+## Estado actual del flujo SDD
+
+| Fase | Estado |
+|---|---|
+| Constitución | ✅ v1.0 |
+| Spec 001-pos | ✅ Aprobada |
+| Clarificación | ✅ Cerrada |
+| Plan | ✅ Completo |
+| Tasks | ✅ Aprobada |
+| T1–T10 | ✅ Cerradas |
+| S1–S5 (Vuelta 1) | ✅ Cerradas |
+| **S6–S14 (Vuelta 2)** | ⬜ **Pendientes de aprobación** |
+
+---
+
+*Actualizado: 2026-11-01 tras veredicto de validación Fase 7 (172 tests, 523 assertions).*

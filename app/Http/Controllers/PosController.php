@@ -88,19 +88,19 @@ final class PosController extends Controller
 
         if ($product === null) {
             throw ValidationException::withMessages([
-                'product_id' => 'El producto no existe.',
+                'product_id' => __('pos.errors.product_missing'),
             ]);
         }
 
         if (! $product->sellable) {
             throw ValidationException::withMessages([
-                'product_id' => 'El producto no está disponible para la venta.',
+                'product_id' => __('pos.errors.product_not_sellable'),
             ]);
         }
 
         if ($product->stock < 1) {
             throw ValidationException::withMessages([
-                'product_id' => 'El producto no tiene stock disponible.',
+                'product_id' => __('pos.errors.product_out_of_stock'),
             ]);
         }
 
@@ -118,7 +118,7 @@ final class PosController extends Controller
 
         if ($data['quantity'] > $product->stock) {
             throw ValidationException::withMessages([
-                'quantity' => "Sólo hay {$product->stock} unidades disponibles.",
+                'quantity' => __('pos.errors.quantity_available', ['stock' => $product->stock]),
             ]);
         }
 
@@ -153,13 +153,15 @@ final class PosController extends Controller
             'discount_reason' => ['required', 'string', 'min:3', 'max:255'],
             'supervisor_email' => ['nullable', 'email'],
             'supervisor_password' => ['nullable', 'string'],
+        ], [
+            'discount_reason.required' => __('pos.validation.discount_reason_required'),
         ]);
 
         $cart = $this->cartService->load();
 
         if ($cart->isEmpty()) {
             throw ValidationException::withMessages([
-                'discount_value' => 'El carrito está vacío.',
+                'discount_value' => __('pos.errors.cart_empty'),
             ]);
         }
 
@@ -186,8 +188,8 @@ final class PosController extends Controller
 
             throw ValidationException::withMessages([
                 $field => $field === 'discount_reason'
-                    ? 'Todo descuento manual exige un motivo.'
-                    : 'El descuento no puede dejar el total en cero o negativo.',
+                    ? __('pos.errors.discount_manual_reason')
+                    : __('pos.errors.discount_zero_total'),
             ]);
         }
 
@@ -195,9 +197,9 @@ final class PosController extends Controller
 
         if ($decision->requiresSupervisor() && $authorizedBy === null) {
             throw ValidationException::withMessages([
-                'discount_supervisor' => 'El descuento supera el tope del '
-                    .(int) config('pos.discount.general_cap_percent')
-                    .'%. Ingresa las credenciales de un supervisor para autorizarlo.',
+                'discount_supervisor' => __('pos.errors.discount_above_cap', [
+                    'cap' => (int) config('pos.discount.general_cap_percent'),
+                ]),
             ]);
         }
 
@@ -231,7 +233,7 @@ final class PosController extends Controller
         if ($cart->isEmpty()) {
             return redirect()
                 ->route('pos.index')
-                ->withErrors(['cart' => 'El carrito está vacío.']);
+                ->withErrors(['cart' => __('pos.errors.cart_empty')]);
         }
 
         $manualDiscount = $this->manualDiscountService->load();
@@ -267,7 +269,7 @@ final class PosController extends Controller
         $cart = $this->cartService->load();
 
         if ($cart->isEmpty()) {
-            throw ValidationException::withMessages(['cart' => 'El carrito está vacío.']);
+            throw ValidationException::withMessages(['cart' => __('pos.errors.cart_empty')]);
         }
 
         $data = $request->validate([
@@ -309,7 +311,7 @@ final class PosController extends Controller
         if ($method->requiresReceivedAmount()) {
             if ($received === null || $received < $totals->total()->pesos()) {
                 throw ValidationException::withMessages([
-                    'received_amount' => 'El monto recibido es menor que el total a pagar.',
+                    'received_amount' => __('pos.errors.received_below_total'),
                 ]);
             }
         }
@@ -333,7 +335,7 @@ final class PosController extends Controller
         } catch (PrescriptionRejected $exception) {
             if ($exception->requiresSupervisor()) {
                 throw ValidationException::withMessages([
-                    'prescription_reuse' => 'La receta ya fue utilizada en otra venta. Ingresa las credenciales de un supervisor para autorizarla.',
+                    'prescription_reuse' => __('pos.errors.prescription_reuse'),
                 ]);
             }
 
@@ -503,7 +505,7 @@ final class PosController extends Controller
             || ! in_array($supervisor->role, [User::ROLE_QUIMICO, User::ROLE_ADMIN], true)
             || ! Hash::check((string) $password, $supervisor->password)) {
             throw ValidationException::withMessages([
-                'supervisor_email' => 'Credenciales de supervisor inválidas.',
+                'supervisor_email' => __('pos.errors.supervisor_invalid'),
             ]);
         }
 
@@ -526,15 +528,15 @@ final class PosController extends Controller
         ];
 
         $messages = [
-            'required' => 'Este dato es obligatorio para vender medicamentos con receta.',
-            'expired' => 'La receta está vencida: la vigencia máxima es de 30 días desde su emisión.',
-            'issued_in_future' => 'La fecha de emisión de la receta no puede ser futura.',
+            'required' => __('pos.errors.prescription_required'),
+            'expired' => __('pos.errors.prescription_expired'),
+            'issued_in_future' => __('pos.errors.prescription_future'),
         ];
 
         $mapped = [];
 
         foreach ($errors as $field => $code) {
-            $mapped[$fields[$field] ?? $field] = $messages[$code] ?? 'Dato de receta inválido.';
+            $mapped[$fields[$field] ?? $field] = $messages[$code] ?? __('pos.errors.prescription_invalid');
         }
 
         return $mapped;

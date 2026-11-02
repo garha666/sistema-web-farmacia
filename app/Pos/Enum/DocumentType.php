@@ -12,10 +12,6 @@ enum DocumentType: string
 
     public function label(): string
     {
-        return match ($this) {
-            self::receipt => 'Boleta',
-            self::invoice => 'Factura',
-            self::creditNote => 'Nota de crédito',
-        };
+        return __('pos.document.type.'.$this->value);
     }
 }
