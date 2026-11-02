@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Document;
 use App\Pos\Enum\DocumentStatus;
+use App\Pos\Exception\EmissionFailed;
 use App\Services\Pos\DocumentService;
 use DomainException;
 use Illuminate\Http\RedirectResponse;
@@ -49,7 +50,9 @@ final class DocumentController extends Controller
     public function retry(Document $document): RedirectResponse
     {
         try {
-            $this->documents->retry($document);
+            $document = $this->documents->retry($document);
+        } catch (EmissionFailed) {
+            return back()->withErrors(['document' => __('pos.errors.emission_failed')]);
         } catch (DomainException $exception) {
             return back()->withErrors(['document' => $exception->getMessage()]);
         }

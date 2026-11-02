@@ -20,9 +20,21 @@
                     {{ __('pos.receipt.electronic', ['type' => $document?->type->label() ?? __('pos.document.type.receipt')]) }}
                 </p>
                 <p class="text-sm">
-                    {{ __('pos.receipt.folio', ['folio' => $document?->folio ?? __('pos.common.pending')]) }}
+                    @if ($document?->folio !== null)
+                        {{ __('pos.receipt.folio', ['folio' => $document->folio]) }}
+                    @elseif ($document !== null)
+                        {{ __('pos.receipt.folio_pending') }}
+                    @else
+                        {{ __('pos.receipt.no_folio') }}
+                    @endif
                 </p>
                 <p class="text-xs text-slate-500">{{ $sale->sold_at->format('d-m-Y H:i') }}</p>
+                @if ($document?->status === \App\Pos\Enum\DocumentStatus::pending)
+                    <p class="mt-2 inline-block rounded bg-amber-100 px-3 py-1 text-sm font-bold tracking-widest text-amber-900">
+                        {{ __('pos.receipt.provisional') }}
+                    </p>
+                    <p class="mt-1 text-xs text-amber-800">{{ __('pos.receipt.provisional_notice') }}</p>
+                @endif
                 @if ($sale->status->value === 'voided')
                     <p class="mt-2 inline-block rounded bg-rose-100 px-3 py-1 text-sm font-bold tracking-widest text-rose-700">
                         {{ __('pos.receipt.voided') }}

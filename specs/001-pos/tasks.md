@@ -2,7 +2,7 @@
 
 **Spec:** \specs/001-pos/spec.md\ v1.0 (aprobada) · **Plan:** \specs/001-pos/plan.md\
 **Metodología:** TDD — test rojo primero, código después, \php artisan test\ en verde.
-**Estado:** T1–T10 cerradas; correcciones Vuelta 1 (S1–S5) cerradas; correcciones Vuelta 2 (S6–S14) propuestas, pendientes de aprobación.
+**Estado:** T1–T10 cerradas; correcciones Vuelta 1 (S1–S5) cerradas; correcciones Vuelta 2 (S6–S9) cerradas, S10–S14 pendientes.
 
 > Nota: la skill \sdd\ no está instalada; el formato sigue lo acordado en \AGENTS.md\ y la constitución.
 
@@ -131,9 +131,10 @@ RF-1 a RF-40: **cobertura nominal completa**; huecos reales que corrigen S1–S5
   - *Hecho cuando:* existe lang/es/pos.php con todos los textos de validación y UI; config/app.php locale=es; mensajes de validación y estados (Pending/Issued/Rejected) traducidos; no hay texto hardcodeado en vistas; test verifica que /pos/checkout muestra "El motivo es obligatorio" en español.
   - *Cierre (2026-11-01):* `lang/es/pos.php` + `lang/es/validation.php`, `locale = 'es'`, `label()` traducido en `DocumentStatus`, `SaleStatus`, `PaymentMethod` y `DocumentType`; vistas `pos/*`, `layouts/*` y `admin/*` migradas a `__()`; 6 tests nuevos en `I18nTest` (178 en total).
 
-- [ ] **S9. Flujo de emisión fallida + comprobante provisorio (RF-24).**
+- [x] **S9. Flujo de emisión fallida + comprobante provisorio (RF-24).**
   - *Depende de:* T7
   - *Hecho cuando:* CheckoutService simula fallo de emisión (mock DocumentService::emit fails); venta queda en estado pending + Document::pending; pos/checkout.blade.php muestra comprobante provisorio con leyenda "Provisorio"; botón "Reintentar emisión" en admin/sales/index; test cubre fallo → provisorio → reintento → issued sin duplicar folio.
+  - *Cierre (2026-11-02):* el cobro crea el documento original **pendiente y sin folio dentro de la transacción** y sólo emite después del commit (`CheckoutService::issueDocument()`), así que un fallo del simulador no puede deshacer la venta, el stock ni los movimientos. Punto de simulación sustituible por inyección (`DocumentEmitter` → `SimulatedDocumentEmitter`); sólo se captura `EmissionFailed`, un error de base de datos se propaga. `DocumentService` centraliza `emit()`, `retry()` y `allocateFolio()` (boleta, factura y nota de crédito) con `pg_advisory_xact_lock` por tipo, conservando el folio del documento rechazado; índice único parcial `documents_sale_original_unique` (`sale_id` donde `reversal_of_id IS NULL`). `pos/receipt` muestra «Provisorio», «Pendiente de emisión: sin folio asignado» y nunca inventa folio; historial y documentos ofrecen «Reintentar emisión» y lo ocultan si la venta está anulada (reintentarla responde error de dominio). 11 tests en `DocumentEmissionTest` + 1 de concurrencia real con dos procesos en `FolioConcurrencyTest` (197 en total, 817 aserciones).
 
 - [ ] **S10. Mensaje de concurrencia específico (RF-28).**
   - *Depende de:* T8

@@ -145,6 +145,10 @@ return [
         'issuer_line' => ':business · :address',
         'electronic' => ':type electrónica',
         'folio' => 'Folio :folio',
+        'folio_pending' => 'Pendiente de emisión: sin folio asignado.',
+        'no_folio' => 'Sin folio asignado.',
+        'provisional' => 'Provisorio',
+        'provisional_notice' => 'Este comprobante es provisorio: la emisión simulada aún no se completó. La venta ya está registrada.',
         'invoice_heading' => 'Datos de factura',
         'invoice_rut' => 'RUT :rut',
         'invoice_business_name' => 'Razón social: :name',
@@ -196,7 +200,7 @@ return [
             'total' => 'Total',
             'actions' => 'Acciones',
             'view' => 'Ver',
-            'retry' => 'Reintentar',
+            'retry' => 'Reintentar emisión',
             'empty' => 'No hay ventas con esos filtros.',
         ],
         'sale' => [
@@ -244,7 +248,7 @@ return [
             'folio' => 'Folio',
             'issued_at' => 'Emitido',
             'actions' => 'Acciones',
-            'retry' => 'Reintentar',
+            'retry' => 'Reintentar emisión',
             'no_actions' => 'Sin acciones',
             'empty' => 'No hay documentos.',
             'reissued' => 'Documento :folio reemitido.',
@@ -330,6 +334,8 @@ return [
         'prescription_invalid' => 'Dato de receta inválido.',
         'received_below_total' => 'El monto recibido es menor que el total a pagar.',
         'supervisor_invalid' => 'Credenciales de supervisor inválidas.',
+        'emission_failed' => 'La emisión simulada volvió a fallar. El documento sigue pendiente y puedes reintentar.',
+        'voided_sale_document' => 'La venta está anulada: su documento pendiente ya no se puede emitir.',
     ],
 
 ];

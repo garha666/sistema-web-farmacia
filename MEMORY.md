@@ -8,8 +8,8 @@
 - **Constitución:** `docs/constitution.md` v1.0, vigente (6 principios).
 - **Spec 001 POS:** `specs/001-pos/spec.md` v1.0, **aprobada**, 40 RF y 13 RNF, sin dudas abiertas.
 - **Plan 001 POS:** `specs/001-pos/plan.md`, completo (arquitectura, funciones puras, pseudocódigo, UI, decisiones, tests).
-- **Tareas 001 POS:** `specs/001-pos/tasks.md`, 10 tareas + correcciones Vuelta 1 (S1–S5) + Vuelta 2 (S6–S14). **T1 a T10 cerradas; S1 a S5 cerradas; S6, S7 y S8 cerradas.**
-- **Código:** Laravel 11.57.1. Dominio `app/Pos/` completo. Persistencia: `Product`, `Sale`, `SaleLine`, `Document`, `InvoiceDetail`, `StockMovement`, `AuditLog`, `Convention`, `Prescription`, `ControlledRegisterEntry`. Servicios: `CartService`, `CheckoutService`, `VoidSaleService`, `AuditService`, `ConventionService`, `DocumentService`, `ManualDiscountService`. HTTP: `PosController` y `Admin\{ConventionController, SaleController, DocumentController, AuditController, ControlledRegisterController}`. Vistas: `pos/index`, `pos/checkout`, `pos/receipt`, `admin/*` (layout `layouts.admin`). Traducciones en `lang/es/`. 185 tests en verde.
+- **Tareas 001 POS:** `specs/001-pos/tasks.md`, 10 tareas + correcciones Vuelta 1 (S1–S5) + Vuelta 2 (S6–S14). **T1 a T10 cerradas; S1 a S9 cerradas.**
+- **Código:** Laravel 11.57.1. Dominio `app/Pos/` completo. Persistencia: `Product`, `Sale`, `SaleLine`, `Document`, `InvoiceDetail`, `StockMovement`, `AuditLog`, `Convention`, `Prescription`, `ControlledRegisterEntry`. Servicios: `CartService`, `CheckoutService`, `VoidSaleService`, `AuditService`, `ConventionService`, `DocumentService`, `ManualDiscountService`. Emisión simulada: `Pos\Contract\DocumentEmitter`, `Pos\Emission\SimulatedDocumentEmitter`, `Pos\Folio\FolioAllocator`. HTTP: `PosController` y `Admin\{ConventionController, SaleController, DocumentController, AuditController, ControlledRegisterController}`. Vistas: `pos/index`, `pos/checkout`, `pos/receipt`, `admin/*` (layout `layouts.admin`). Traducciones en `lang/es/`. 197 tests en verde (817 aserciones).
 - **Comandos SDD:** instalados en `.opencode/commands/` (9 comandos).
 
 ## Entorno (2026-10-30)
@@ -66,6 +66,12 @@
 - **Idioma (S8):** la interfaz, los mensajes de validación y los estados viven en `lang/es/pos.php` (+ `lang/es/validation.php`); `config/app.php` fija `locale = 'es'` para no depender de `APP_LOCALE` del `.env`. Las vistas Blade y los controladores usan `__('pos.*')`, y los enums `DocumentStatus`, `SaleStatus`, `PaymentMethod` y `DocumentType` exponen `label()` traducido (Pendiente/Emitida/Rechazada, Confirmada/Anulada). Código sigue en inglés; sólo la interfaz está en español.
 - **Factura (S6, RF-23/S-2):** el checkout pregunta «Boleta/Factura» (`document_type`). La factura exige RUT, razón social, giro, dirección y comuna (`required_if`), que se guardan en `invoice_details` (1:1 con `sales`, con el rango `folio_from`/`folio_to` usado). `CheckoutService` emite `DocumentType::invoice` con folio del rango 50.001–100.000, independiente del de boletas; el comprobante muestra «Factura electrónica» y el bloque «Datos de factura». `nextFolio()` ahora usa `match` por tipo (boleta, factura y nota de crédito).
 - **Receta en el detalle (S7, RF-38):** `admin.sales.show` muestra la tarjeta «Receta asociada» (número, prescriptor, RUT, emisión y «Vigente hasta») sólo cuando la venta tiene receta con todos sus campos. La vigencia no se guarda: `Prescription::validUntil()` la calcula como `issued_on + pos.prescription.validity_days` (30 días, el día 30 es el último válido, igual que `PrescriptionPolicy`).
+- **Emisión después del cobro (S9, RF-24):** `CheckoutService` crea la venta, líneas, stock, movimientos, `invoice_details` y **un** documento original `pending` sin folio en la misma transacción; al confirmar, limpia carrito y redirige al comprobante. Recién entonces `issueDocument()` intenta la emisión simulada. Si el simulador falla (`EmissionFailed`), la venta queda confirmada y el documento pendiente para reintento; ningún otro error se captura (un `QueryException` se propaga y deja ver el fallo real). El flujo normal sigue siendo síncrono: la misma petición emite y asigna folio.
+- **Punto de simulación (S9):** interfaz `Pos\Contract\DocumentEmitter` con `SimulatedDocumentEmitter` (sin llamada externa) enlazada en `AppServiceProvider`. Los tests la sustituyen por un doble que lanza `EmissionFailed`; no hay interruptor de «fallar emisión» en la interfaz ni en la demo.
+- **Folios (S9):** todo pasa por `DocumentService::allocateFolio()` (boleta, factura y nota de crédito). En PostgreSQL cada tipo toma `pg_advisory_xact_lock(20261102, tipo)` antes de leer `max(folio)`, de modo que dos cajas no calculan el mismo número; el lock es transaccional y un rollback no quema el folio. `FolioAllocator` es la función pura del rango y el índice único `(type, folio)` sigue como última defensa. La anulación usa el mismo camino para la nota de crédito.
+- **Un documento original por venta (S9):** índice único parcial `documents_sale_original_unique ON documents (sale_id) WHERE reversal_of_id IS NULL` (migración `2026_11_02_000002`), que no bloquea la nota de crédito porque lleva `reversal_of_id`.
+- **Venta anulada con documento pendiente (S9):** el reintento se **bloquea** con error de dominio (`pos.errors.voided_sale_document`) y el botón se oculta en historial y documentos; no se crea nota de crédito porque nunca hubo emisión. Si el documento estaba emitido, la anulación sigue generando la nota como en T9.
+- **Comprobante provisorio (S9):** `pos/receipt` muestra «Provisorio», «Pendiente de emisión: sin folio asignado» y la leyenda de simulación cuando el documento está `pending`; nunca imprime un folio inventado. «Reintentar emisión» está en `admin/sales/index` y `admin/documents/index`, sólo para Admin, y desaparece cuando el documento está emitido.
 
 ## Pendientes conocidos
 
@@ -73,6 +79,7 @@
 - `specs/004-reportes/` (cierre de caja) no ha sido redactada.
 - No existe ruta `/login`; en local se entra con una sesión de desarrollo generada con un script externo al repo.
 - `welcome.blade.php` sigue en inglés (página por defecto de Laravel, fuera del alcance de la spec).
+- `tests/Feature/Pos/FolioConcurrencyTest.php` lanza dos procesos PHP reales (`tests/Fixtures/concurrent-retry.php`): en rojo la carrera no siempre se materializa (es probabilística), pero con el lock de asesoría el verde es determinista. Requiere la BD `farmacia_pos_test` accesible por procesos hijos.
 
 ## Verificación visual (375 px)
 
@@ -123,6 +130,20 @@ Esta vez con el MCP `chrome-devtools` (`emulate` 375×812×2 mobile/touch, cooki
 
 Observación pendiente (preexistente, no es de S7): en esa pantalla los encabezados de la tabla de líneas («Cant.», «Precio», «Descuento», «Subtotal») quedan pegados a 375 px; se puede revisar junto con S14.
 
+### Vuelta 2 (S9, 2026-11-02)
+
+Mismo MCP `chrome-devtools` (375×812×2 mobile/touch) contra `127.0.0.1:8001` y la BD demo. El documento #2 se dejó `pending` sin folio con un script externo para reproducir el fallo de emisión, y el reintento se disparó desde el botón real de la interfaz.
+
+| Pantalla | Resultado |
+| --- | --- |
+| `pos/sales/2/receipt` (pendiente) | Correcta. «Pendiente de emisión: sin folio asignado», etiqueta «Provisorio», leyenda «Este comprobante es provisorio…» y «Documento simulado — sin validez tributaria»; no imprime ningún folio. `scrollWidth = 375`. |
+| `admin/sales` (pendiente) | Correcta. Fila «Boleta sin folio · Pendiente» y botón «Reintentar emisión». `scrollWidth = 375`. |
+| `admin/documents` (pendiente) | Correcta. Fila «Pendiente» con «Reintentar emisión». `scrollWidth = 375`. |
+| Reintento desde ambas pantallas | Correcto. Aviso «Documento 2 reemitido.», la fila pasa a «Emitida» con folio 2 y el botón desaparece. |
+| `pos/sales/2/receipt` (emitido) | Correcto. «Folio 2», sin «Provisorio» ni aviso de pendiente. `scrollWidth = 375`. |
+
+Sin mensajes de consola ni peticiones fallidas. Se corrigió de paso el «#sin folio» del historial: el `#` ahora aparece sólo cuando hay folio.
+
 ## Próximo paso
 
-S7 (receta en el detalle de venta) cerrada con 185 tests en verde. Siguiente en el orden acordado: **S9 — emisión fallida y comprobante provisorio (RF-24)**.
+S9 (emisión fallida, comprobante provisorio y reintento) cerrada con 197 tests en verde. Siguiente en el orden acordado: **S10 — mensaje de concurrencia específico (RF-28)**.

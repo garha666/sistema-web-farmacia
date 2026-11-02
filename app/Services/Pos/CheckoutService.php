@@ -6,7 +6,6 @@ namespace App\Services\Pos;
 
 use App\Models\ControlledRegisterEntry;
 use App\Models\Convention;
-use App\Models\Document;
 use App\Models\Prescription;
 use App\Models\Product;
 use App\Models\Sale;
@@ -18,6 +17,7 @@ use App\Pos\Enum\PaymentMethod;
 use App\Pos\Enum\SaleCategory;
 use App\Pos\Enum\SaleStatus;
 use App\Pos\Exception\DiscountRejected;
+use App\Pos\Exception\EmissionFailed;
 use App\Pos\Exception\EmptyCart;
 use App\Pos\Exception\InsufficientStock;
 use App\Pos\Exception\PrescriptionRejected;
@@ -36,10 +36,12 @@ use DomainException;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Confirma la venta en una sola transacción (RF-22).
+ * Confirma la venta en una sola transacción (RF-22) y emite después (RF-24).
  *
- * Todo o nada: stock, venta, líneas, documento y movimientos. Si algo falla,
- * el carrito queda intacto (RF-6).
+ * Todo o nada: stock, venta, líneas, movimientos, datos de factura y un único
+ * documento original pendiente. Recién cuando esa transacción confirma se
+ * intenta la emisión simulada: un fallo del simulador deja el documento
+ * pendiente sin deshacer la venta, y un error de base de datos se propaga.
  */
 final class CheckoutService
 {
@@ -49,6 +51,7 @@ final class CheckoutService
         private readonly PrescriptionPolicy $prescriptions,
         private readonly DiscountPolicy $discounts,
         private readonly AuditService $audit,
+        private readonly DocumentService $documents,
     ) {
     }
 
@@ -121,7 +124,7 @@ final class CheckoutService
 
         // 3 intentos: reintenta si PostgreSQL detecta un deadlock (SQLSTATE 40P01)
         // o una espera de lock agotada por concurrencia entre cajas (RF-28).
-        return DB::transaction(function () use ($cart, $method, $receivedAmount, $customerRut, $token, $userId, $convention, $totals, $prescription, $reuseAuthorizedBy, $alreadyUsed, $category, $globalDiscount, $discountAuthorizedBy, $discountNeedsSupervisor, $documentType, $invoice): Sale {
+        $sale = DB::transaction(function () use ($cart, $method, $receivedAmount, $customerRut, $token, $userId, $convention, $totals, $prescription, $reuseAuthorizedBy, $alreadyUsed, $category, $globalDiscount, $discountAuthorizedBy, $discountNeedsSupervisor, $documentType, $invoice): Sale {
             $existing = Sale::query()->where('token', $token)->first();
 
             if ($existing !== null) {
@@ -210,13 +213,14 @@ final class CheckoutService
                 ]);
             }
 
-            $folio = $this->nextFolio($documentType);
-
+            // RF-23/RF-24: el documento original nace pendiente y sin folio
+            // dentro de la misma transacción que la venta. La emisión simulada
+            // se intenta después de confirmar, para no poder deshacer la venta.
             $sale->document()->create([
                 'type' => $documentType,
-                'folio' => $folio,
-                'status' => $folio === null ? DocumentStatus::pending : DocumentStatus::issued,
-                'issued_at' => $folio === null ? null : now(),
+                'folio' => null,
+                'status' => DocumentStatus::pending,
+                'issued_at' => null,
             ]);
 
             // RF-23/S-2: la factura guarda los datos tributarios del cliente y
@@ -247,7 +251,7 @@ final class CheckoutService
                         'medication' => $line->name(),
                         'quantity' => $line->quantity(),
                         'customer_rut' => $customerRut,
-                        'folio' => $folio,
+                        'folio' => null,
                         'sold_at' => $sale->sold_at,
                     ]);
                 }
@@ -275,6 +279,38 @@ final class CheckoutService
 
             return $sale->load('lines', 'document');
         }, 3);
+
+        // RF-24: la venta ya está confirmada. La emisión se simula después, por
+        // lo que su fallo no puede revertir la venta ni el stock.
+        if ($sale->wasRecentlyCreated) {
+            $this->issueDocument($sale);
+        }
+
+        return $sale;
+    }
+
+    /**
+     * Emisión simulada posterior a la confirmación (RF-24).
+     *
+     * Sólo se captura el fallo esperado del simulador. Un error de base de datos
+     * o de integridad se propaga: nunca se disfraza de documento pendiente.
+     */
+    private function issueDocument(Sale $sale): void
+    {
+        $document = $sale->document;
+
+        if ($document === null) {
+            return;
+        }
+
+        try {
+            $this->documents->emit($document);
+        } catch (EmissionFailed) {
+            // El documento queda pendiente para reintento desde administración.
+        }
+
+        $sale->unsetRelation('document');
+        $sale->load('lines', 'document');
     }
 
     /**
@@ -387,35 +423,5 @@ final class CheckoutService
             ->orderBy('id')
             ->lockForUpdate()
             ->get();
-    }
-
-    /**
-     * Siguiente folio del rango configurado; null si el rango se agotó (RF-24).
-     */
-    private function nextFolio(DocumentType $type): ?int
-    {
-        $range = match ($type) {
-            DocumentType::receipt => [
-                'from' => (int) config('pos.folio.receipt_from'),
-                'to' => (int) config('pos.folio.receipt_to'),
-            ],
-            DocumentType::invoice => [
-                'from' => (int) config('pos.folio.invoice_from'),
-                'to' => (int) config('pos.folio.invoice_to'),
-            ],
-            DocumentType::creditNote => [
-                'from' => (int) config('pos.folio.credit_note_from'),
-                'to' => (int) config('pos.folio.credit_note_to'),
-            ],
-        };
-
-        $last = Document::query()
-            ->where('type', $type)
-            ->whereNotNull('folio')
-            ->max('folio');
-
-        $next = $last === null ? $range['from'] : ((int) $last) + 1;
-
-        return $next > $range['to'] ? null : $next;
     }
 }

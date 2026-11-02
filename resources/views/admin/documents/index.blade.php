@@ -64,7 +64,8 @@
                         </td>
                         <td class="px-4 py-3 text-slate-600">{{ $document->issued_at?->format('d-m-Y H:i') ?? __('pos.common.none') }}</td>
                         <td class="px-4 py-3 text-right">
-                            @if ($document->status !== \App\Pos\Enum\DocumentStatus::issued)
+                            @if ($document->status !== \App\Pos\Enum\DocumentStatus::issued
+                                && $document->sale?->status !== \App\Pos\Enum\SaleStatus::voided)
                                 <form method="POST" action="{{ route('admin.documents.retry', $document) }}" class="inline">
                                     @csrf
                                     <button type="submit" class="text-sm font-semibold text-amber-700 hover:underline">

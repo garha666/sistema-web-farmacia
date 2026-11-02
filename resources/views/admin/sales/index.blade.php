@@ -127,7 +127,11 @@
                                 <span class="text-slate-400">{{ __('pos.common.none') }}</span>
                             @else
                                 <span class="font-medium">{{ $sale->document->type->label() }}</span>
-                                <span class="text-slate-500">#{{ $sale->document->folio ?? __('pos.common.no_folio') }}</span>
+                                @if ($sale->document->folio !== null)
+                                    <span class="text-slate-500">#{{ $sale->document->folio }}</span>
+                                @else
+                                    <span class="text-slate-500">{{ __('pos.common.no_folio') }}</span>
+                                @endif
                                 <span class="ml-1 rounded-full px-2 py-0.5 text-xs font-semibold
                                     {{ $sale->document->status === \App\Pos\Enum\DocumentStatus::issued ? 'bg-emerald-100 text-emerald-800' : '' }}
                                     {{ $sale->document->status === \App\Pos\Enum\DocumentStatus::pending ? 'bg-amber-100 text-amber-900' : '' }}
@@ -140,7 +144,9 @@
                         <td class="px-4 py-3 text-right">
                             <a href="{{ route('admin.sales.show', $sale) }}" class="text-sm font-semibold text-emerald-700 hover:underline">{{ __('pos.admin.sales.view') }}</a>
 
-                            @if ($sale->document !== null && $sale->document->status !== \App\Pos\Enum\DocumentStatus::issued)
+                            @if ($sale->document !== null
+                                && $sale->document->status !== \App\Pos\Enum\DocumentStatus::issued
+                                && $sale->status !== \App\Pos\Enum\SaleStatus::voided)
                                 <form method="POST" action="{{ route('admin.documents.retry', $sale->document) }}" class="inline">
                                     @csrf
                                     <button type="submit" class="ml-3 text-sm font-semibold text-amber-700 hover:underline">{{ __('pos.admin.sales.retry') }}</button>

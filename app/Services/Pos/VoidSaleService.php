@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Services\Pos;
 
-use App\Models\Document;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Models\StockMovement;
@@ -27,6 +26,7 @@ final class VoidSaleService
     public function __construct(
         private readonly VoidPolicy $policy,
         private readonly AuditService $audit,
+        private readonly DocumentService $documents,
     ) {
     }
 
@@ -78,6 +78,10 @@ final class VoidSaleService
 
     /**
      * Nota de crédito simulada por el documento emitido (RF-34, S-5).
+     *
+     * Comparte la asignación de folios con el resto del sistema (S9). Si la
+     * venta se anuló con el documento aún pendiente no hay nada que revertir:
+     * no se crea nota de crédito.
      */
     private function createCreditNote(Sale $sale): void
     {
@@ -87,7 +91,7 @@ final class VoidSaleService
             return;
         }
 
-        $folio = $this->nextCreditNoteFolio();
+        $folio = $this->documents->allocateFolio(DocumentType::creditNote);
 
         $sale->reversal()->create([
             'reversal_of_id' => $original->id,
@@ -96,23 +100,5 @@ final class VoidSaleService
             'status' => $folio === null ? DocumentStatus::pending : DocumentStatus::issued,
             'issued_at' => $folio === null ? null : now(),
         ]);
-    }
-
-    /**
-     * Siguiente folio de nota de crédito; null si el rango se agotó (RF-24).
-     */
-    private function nextCreditNoteFolio(): ?int
-    {
-        $from = (int) config('pos.folio.credit_note_from');
-        $to = (int) config('pos.folio.credit_note_to');
-
-        $last = Document::query()
-            ->where('type', DocumentType::creditNote)
-            ->whereNotNull('folio')
-            ->max('folio');
-
-        $next = $last === null ? $from : ((int) $last) + 1;
-
-        return $next > $to ? null : $next;
     }
 }
