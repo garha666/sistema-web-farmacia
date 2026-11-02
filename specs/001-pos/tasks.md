@@ -2,7 +2,7 @@
 
 **Spec:** \specs/001-pos/spec.md\ v1.0 (aprobada) · **Plan:** \specs/001-pos/plan.md\
 **Metodología:** TDD — test rojo primero, código después, \php artisan test\ en verde.
-**Estado:** T1–T10 cerradas; correcciones Vuelta 1 (S1–S5) cerradas; correcciones Vuelta 2 (S6–S9) cerradas, S10–S14 pendientes.
+**Estado:** T1–T10 cerradas; correcciones Vuelta 1 (S1–S5) cerradas; correcciones Vuelta 2 (S6–S10) cerradas, S11–S14 pendientes.
 
 > Nota: la skill \sdd\ no está instalada; el formato sigue lo acordado en \AGENTS.md\ y la constitución.
 
@@ -136,9 +136,10 @@ RF-1 a RF-40: **cobertura nominal completa**; huecos reales que corrigen S1–S5
   - *Hecho cuando:* CheckoutService simula fallo de emisión (mock DocumentService::emit fails); venta queda en estado pending + Document::pending; pos/checkout.blade.php muestra comprobante provisorio con leyenda "Provisorio"; botón "Reintentar emisión" en admin/sales/index; test cubre fallo → provisorio → reintento → issued sin duplicar folio.
   - *Cierre (2026-11-02):* el cobro crea el documento original **pendiente y sin folio dentro de la transacción** y sólo emite después del commit (`CheckoutService::issueDocument()`), así que un fallo del simulador no puede deshacer la venta, el stock ni los movimientos. Punto de simulación sustituible por inyección (`DocumentEmitter` → `SimulatedDocumentEmitter`); sólo se captura `EmissionFailed`, un error de base de datos se propaga. `DocumentService` centraliza `emit()`, `retry()` y `allocateFolio()` (boleta, factura y nota de crédito) con `pg_advisory_xact_lock` por tipo, conservando el folio del documento rechazado; índice único parcial `documents_sale_original_unique` (`sale_id` donde `reversal_of_id IS NULL`). `pos/receipt` muestra «Provisorio», «Pendiente de emisión: sin folio asignado» y nunca inventa folio; historial y documentos ofrecen «Reintentar emisión» y lo ocultan si la venta está anulada (reintentarla responde error de dominio). 11 tests en `DocumentEmissionTest` + 1 de concurrencia real con dos procesos en `FolioConcurrencyTest` (197 en total, 817 aserciones).
 
-- [ ] **S10. Mensaje de concurrencia específico (RF-28).**
+- [x] **S10. Mensaje de concurrencia específico (RF-28).**
   - *Depende de:* T8
   - *Hecho cuando:* error de concurrencia muestra "Stock actual: X unidades del producto [nombre]" en lugar de "Sin stock suficiente para el producto 3"; test verifica mensaje exacto.
+  - *Cierre (2026-11-02):* `CheckoutService::shortageMessage()` arma el mensaje con `lang/es/pos.php` `errors.concurrent_stock` («Stock actual: :available unidades del producto ":name"»), leyendo la existencia real con la fila ya bloqueada. Sólo el fallo del descuento condicional (`where stock >= qty`) lo emite; el aviso previo de S5 y el rechazo de producto sin stock en `PosController::add` siguen intactos. 2 tests nuevos en `ConcurrencyTest` (mensaje exacto del servicio + mensaje visible en `/pos/checkout` con 0 ventas y 0 movimientos persistidos). 199 tests (828 aserciones).
 
 - [ ] **S11. Columna descuento por línea en carrito (RF-4).**
   - *Depende de:* S4, T6

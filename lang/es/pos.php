@@ -324,6 +324,7 @@ return [
         'product_not_sellable' => 'El producto no está disponible para la venta.',
         'product_out_of_stock' => 'El producto no tiene stock disponible.',
         'quantity_available' => 'Sólo hay :stock unidades disponibles.',
+        'concurrent_stock' => 'Stock actual: :available unidades del producto ":name"',
         'discount_manual_reason' => 'Todo descuento manual exige un motivo.',
         'discount_zero_total' => 'El descuento no puede dejar el total en cero o negativo.',
         'discount_above_cap' => 'El descuento supera el tope del :cap%. Ingresa las credenciales de un supervisor para autorizarlo.',

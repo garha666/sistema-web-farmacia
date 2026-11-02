@@ -160,7 +160,7 @@ final class CheckoutService
                     ->decrement('stock', $line->quantity());
 
                 if ($affected === 0) {
-                    throw new InsufficientStock("Sin stock suficiente para el producto {$line->productId()}.");
+                    throw new InsufficientStock($this->shortageMessage($line));
                 }
             }
 
@@ -400,6 +400,26 @@ final class CheckoutService
         }
 
         return [$convention, $decision->discount(), $decision->requiresSupervisor()];
+    }
+
+    /**
+     * RF-28: mensaje específico cuando otra caja se adelantó.
+     *
+     * Sólo cubre el fallo del descuento condicional (la fila ya no alcanza); el
+     * aviso previo de cambio de stock de S5 es otro flujo. La existencia se lee
+     * dentro de la transacción, con la fila de producto ya bloqueada, y el
+     * nombre es el que el cajero ve en el carrito.
+     */
+    private function shortageMessage(CartLine $line): string
+    {
+        $available = Product::query()
+            ->whereKey($line->productId())
+            ->value('stock');
+
+        return __('pos.errors.concurrent_stock', [
+            'name' => $line->name(),
+            'available' => max(0, (int) $available),
+        ]);
     }
 
     /**

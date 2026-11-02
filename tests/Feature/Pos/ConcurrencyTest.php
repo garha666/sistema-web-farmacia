@@ -139,6 +139,76 @@ final class ConcurrencyTest extends TestCase
         $this->assertSame(-1, (int) StockMovement::query()->sum('quantity'));
     }
 
+    public function test_a_lost_race_reports_the_current_stock_and_the_product_name(): void
+    {
+        $product = Product::factory()->create([
+            'name' => 'Paracetamol 500 mg',
+            'stock' => 2,
+            'price' => 1000,
+        ]);
+
+        // El carrito se armó con 5 unidades; otra caja dejó sólo 2 antes de
+        // confirmar, así que el descuento condicional no afecta ninguna fila.
+        $staleCart = Cart::empty()->add(new ProductSnapshot(
+            id: $product->id,
+            name: $product->name,
+            unitPrice: Money::fromPesos(1000),
+            category: $product->sale_category,
+            availableStock: 5,
+        ), 5);
+
+        try {
+            app(CheckoutService::class)->checkout(
+                $staleCart,
+                PaymentMethod::debit,
+                null,
+                null,
+                (string) Str::uuid(),
+            );
+
+            $this->fail('La venta debió rechazarse por stock insuficiente.');
+        } catch (InsufficientStock $exception) {
+            $this->assertSame(
+                'Stock actual: 2 unidades del producto "Paracetamol 500 mg"',
+                $exception->getMessage(),
+            );
+        }
+
+        $this->assertSame(0, Sale::query()->count());
+        $this->assertSame(2, $product->fresh()->stock);
+    }
+
+    public function test_the_lost_race_message_reaches_the_checkout_screen(): void
+    {
+        $product = Product::factory()->create([
+            'name' => 'Ibuprofeno 400 mg',
+            'stock' => 5,
+            'price' => 1000,
+        ]);
+
+        $this->post('/pos/cart', ['product_id' => $product->id]);
+        $this->post('/pos/cart', ['product_id' => $product->id]);
+
+        // Otra caja vende 4 unidades entre el armado del carrito y la
+        // confirmación: quedan 1 para una línea que pide 2.
+        Product::query()->whereKey($product->id)->update(['stock' => 1]);
+
+        $response = $this->post('/pos/checkout', ['payment_method' => 'debit']);
+
+        $expected = 'Stock actual: 1 unidades del producto "Ibuprofeno 400 mg"';
+
+        $response->assertRedirect();
+        $response->assertSessionHasErrors(['cart' => $expected]);
+
+        $this->get('/pos/checkout')
+            ->assertOk()
+            ->assertSeeText($expected);
+
+        $this->assertSame(0, Sale::query()->count());
+        $this->assertSame(1, $product->fresh()->stock);
+        $this->assertSame(0, (int) StockMovement::query()->sum('quantity'));
+    }
+
     public function test_stock_movements_sum_matches_the_final_stock(): void
     {
         $product = Product::factory()->create(['stock' => 10, 'price' => 1000]);
