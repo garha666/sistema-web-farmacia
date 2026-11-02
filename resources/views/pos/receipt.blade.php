@@ -38,6 +38,20 @@
                 @endif
             </header>
 
+            {{-- RF-23/S-2: datos tributarios del receptor cuando se emitió factura. --}}
+            @if ($document?->type === \App\Pos\Enum\DocumentType::invoice && $sale->invoiceDetail !== null)
+                <section class="mt-4 rounded-lg border border-slate-200 p-3 text-sm" aria-labelledby="invoice-data-title">
+                    <h2 id="invoice-data-title" class="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        {{ __('pos.receipt.invoice_heading') }}
+                    </h2>
+                    <p class="mt-1">{{ __('pos.receipt.invoice_rut', ['rut' => $sale->invoiceDetail->rut]) }}</p>
+                    <p>{{ __('pos.receipt.invoice_business_name', ['name' => $sale->invoiceDetail->business_name]) }}</p>
+                    <p>{{ __('pos.receipt.invoice_business_activity', ['activity' => $sale->invoiceDetail->business_activity]) }}</p>
+                    <p>{{ __('pos.receipt.invoice_address', ['address' => $sale->invoiceDetail->address]) }}</p>
+                    <p>{{ __('pos.receipt.invoice_commune', ['commune' => $sale->invoiceDetail->commune]) }}</p>
+                </section>
+            @endif
+
             <table class="mt-4 w-full text-sm">
                 <thead class="text-left text-xs uppercase tracking-wide text-slate-500">
                     <tr>

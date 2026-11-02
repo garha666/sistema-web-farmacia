@@ -126,6 +126,16 @@ final class Sale extends Model
     }
 
     /**
+     * Datos tributarios cuando el documento es factura (RF-23, S-2).
+     *
+     * @return HasOne<InvoiceDetail, $this>
+     */
+    public function invoiceDetail(): HasOne
+    {
+        return $this->hasOne(InvoiceDetail::class);
+    }
+
+    /**
      * Nota de crédito simulada que revierte el documento (RF-34).
      *
      * @return HasOne<Document, $this>

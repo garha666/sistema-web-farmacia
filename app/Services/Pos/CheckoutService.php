@@ -27,10 +27,12 @@ use App\Pos\Value\Cart;
 use App\Pos\Value\CartLine;
 use App\Pos\Value\ConventionSnapshot;
 use App\Pos\Value\Discount;
+use App\Pos\Value\InvoiceData;
 use App\Pos\Value\PrescriptionInput;
 use App\Pos\Value\ReceiptTotals;
 use DateTimeImmutable;
 use DateTimeZone;
+use DomainException;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -62,9 +64,18 @@ final class CheckoutService
         ?int $reuseAuthorizedBy = null,
         ?Discount $manualDiscount = null,
         ?int $discountAuthorizedBy = null,
+        ?DocumentType $documentType = null,
+        ?InvoiceData $invoice = null,
     ): Sale {
         if ($cart->isEmpty()) {
             throw new EmptyCart('El carrito está vacío.');
+        }
+
+        // RF-23: la factura exige los datos tributarios del cliente (S-2).
+        $documentType ??= DocumentType::receipt;
+
+        if ($documentType === DocumentType::invoice && $invoice === null) {
+            throw new DomainException('La factura exige los datos tributarios del cliente.');
         }
 
         // RF-8/RF-9: validar la receta antes de tocar stock o dinero.
@@ -110,7 +121,7 @@ final class CheckoutService
 
         // 3 intentos: reintenta si PostgreSQL detecta un deadlock (SQLSTATE 40P01)
         // o una espera de lock agotada por concurrencia entre cajas (RF-28).
-        return DB::transaction(function () use ($cart, $method, $receivedAmount, $customerRut, $token, $userId, $convention, $totals, $prescription, $reuseAuthorizedBy, $alreadyUsed, $category, $globalDiscount, $discountAuthorizedBy, $discountNeedsSupervisor): Sale {
+        return DB::transaction(function () use ($cart, $method, $receivedAmount, $customerRut, $token, $userId, $convention, $totals, $prescription, $reuseAuthorizedBy, $alreadyUsed, $category, $globalDiscount, $discountAuthorizedBy, $discountNeedsSupervisor, $documentType, $invoice): Sale {
             $existing = Sale::query()->where('token', $token)->first();
 
             if ($existing !== null) {
@@ -199,14 +210,28 @@ final class CheckoutService
                 ]);
             }
 
-            $folio = $this->nextFolio(DocumentType::receipt);
+            $folio = $this->nextFolio($documentType);
 
             $sale->document()->create([
-                'type' => DocumentType::receipt,
+                'type' => $documentType,
                 'folio' => $folio,
                 'status' => $folio === null ? DocumentStatus::pending : DocumentStatus::issued,
                 'issued_at' => $folio === null ? null : now(),
             ]);
+
+            // RF-23/S-2: la factura guarda los datos tributarios del cliente y
+            // el rango de folios usado, para poder reimprimirla tal cual.
+            if ($documentType === DocumentType::invoice && $invoice !== null) {
+                $sale->invoiceDetail()->create([
+                    'rut' => $invoice->rut,
+                    'business_name' => $invoice->businessName,
+                    'business_activity' => $invoice->businessActivity,
+                    'address' => $invoice->address,
+                    'commune' => $invoice->commune,
+                    'folio_from' => (int) config('pos.folio.invoice_from'),
+                    'folio_to' => (int) config('pos.folio.invoice_to'),
+                ]);
+            }
 
             // RF-10: una fila del libro por cada línea controlada de la venta.
             if ($prescriptionModel !== null && $category === SaleCategory::controlled) {
@@ -369,9 +394,20 @@ final class CheckoutService
      */
     private function nextFolio(DocumentType $type): ?int
     {
-        $range = $type === DocumentType::receipt
-            ? ['from' => (int) config('pos.folio.receipt_from'), 'to' => (int) config('pos.folio.receipt_to')]
-            : ['from' => (int) config('pos.folio.invoice_from'), 'to' => (int) config('pos.folio.invoice_to')];
+        $range = match ($type) {
+            DocumentType::receipt => [
+                'from' => (int) config('pos.folio.receipt_from'),
+                'to' => (int) config('pos.folio.receipt_to'),
+            ],
+            DocumentType::invoice => [
+                'from' => (int) config('pos.folio.invoice_from'),
+                'to' => (int) config('pos.folio.invoice_to'),
+            ],
+            DocumentType::creditNote => [
+                'from' => (int) config('pos.folio.credit_note_from'),
+                'to' => (int) config('pos.folio.credit_note_to'),
+            ],
+        };
 
         $last = Document::query()
             ->where('type', $type)

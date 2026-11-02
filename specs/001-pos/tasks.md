@@ -116,9 +116,10 @@ RF-1 a RF-40: **cobertura nominal completa**; huecos reales que corrigen S1–S5
 > Orden recomendado: **S8 → S6 → S7 → S9 → S10 → S11 → S12 → S13 → S14**.
 > S8 (i18n) desbloquea mensajes en español para todo lo demás.
 
-- [ ] **S6. Factura (RF-23) — implementar tipo factura con campos S-2.**
+- [x] **S6. Factura (RF-23) — implementar tipo factura con campos S-2.**
   - *Depende de:* T7, S1
   - *Hecho cuando:* CheckoutService crea DocumentType::invoice con RUT, razón social, giro, dirección, comuna; pos/checkout.blade.php tiene selector Boleta/Factura + campos condicionales; vista de comprobante muestra campos de factura; test cubre factura completa con campos S-2.
+  - *Cierre (2026-11-02):* migración `invoice_details` (1:1 con `sales` + rango `folio_from`/`folio_to`), modelo `InvoiceDetail`, valor puro `InvoiceData`, `CheckoutService` emite `DocumentType::invoice` con folio 50.001–100.000 y el checkout exige RUT/razón social/giro/dirección/comuna (`required_if`). 5 tests en `InvoiceTest` (183 en total).
 
 - [ ] **S7. Detalle de venta muestra receta asociada (RF-38).**
   - *Depende de:* S2

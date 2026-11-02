@@ -80,6 +80,86 @@
                 </div>
             </fieldset>
 
+            <fieldset>
+                <legend class="text-sm font-semibold text-slate-700">{{ __('pos.checkout.document_type') }}</legend>
+                <div class="mt-2 grid grid-cols-2 gap-2">
+                    <label class="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-300 px-3 py-3 text-sm hover:border-emerald-500">
+                        <input
+                            type="radio"
+                            name="document_type"
+                            value="receipt"
+                            class="text-emerald-600"
+                            data-document-type
+                            @checked(old('document_type', 'receipt') === 'receipt')
+                        >
+                        {{ __('pos.checkout.receipt') }}
+                    </label>
+                    <label class="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-300 px-3 py-3 text-sm hover:border-emerald-500">
+                        <input
+                            type="radio"
+                            name="document_type"
+                            value="invoice"
+                            class="text-emerald-600"
+                            data-document-type
+                            @checked(old('document_type') === 'invoice')
+                        >
+                        {{ __('pos.checkout.invoice') }}
+                    </label>
+                </div>
+            </fieldset>
+
+            {{-- S-2: campos tributarios de la factura; el script los muestra al elegirla. --}}
+            <fieldset
+                data-invoice-fields
+                class="rounded-lg border border-slate-300 bg-slate-50 p-4"
+                @if (old('document_type') !== 'invoice') hidden @endif
+            >
+                <legend class="px-1 text-sm font-semibold text-slate-700">{{ __('pos.checkout.invoice_data') }}</legend>
+                <p class="text-xs text-slate-500">{{ __('pos.checkout.invoice_help') }}</p>
+
+                <div class="mt-3 grid gap-3 sm:grid-cols-2">
+                    <div>
+                        <label for="invoice_business_name" class="text-sm font-semibold text-slate-700">{{ __('pos.checkout.invoice_business_name') }}</label>
+                        <input id="invoice_business_name" name="invoice_business_name" type="text" maxlength="255"
+                               value="{{ old('invoice_business_name') }}"
+                               class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">
+                        @error('invoice_business_name')
+                            <p class="mt-1 text-xs text-red-700">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <div>
+                        <label for="invoice_business_activity" class="text-sm font-semibold text-slate-700">{{ __('pos.checkout.invoice_business_activity') }}</label>
+                        <input id="invoice_business_activity" name="invoice_business_activity" type="text" maxlength="255"
+                               value="{{ old('invoice_business_activity') }}"
+                               class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">
+                        @error('invoice_business_activity')
+                            <p class="mt-1 text-xs text-red-700">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <div>
+                        <label for="invoice_address" class="text-sm font-semibold text-slate-700">{{ __('pos.checkout.invoice_address') }}</label>
+                        <input id="invoice_address" name="invoice_address" type="text" maxlength="255"
+                               value="{{ old('invoice_address') }}"
+                               class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">
+                        @error('invoice_address')
+                            <p class="mt-1 text-xs text-red-700">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <div>
+                        <label for="invoice_commune" class="text-sm font-semibold text-slate-700">{{ __('pos.checkout.invoice_commune') }}</label>
+                        <input id="invoice_commune" name="invoice_commune" type="text" maxlength="100"
+                               value="{{ old('invoice_commune') }}"
+                               class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">
+                        @error('invoice_commune')
+                            <p class="mt-1 text-xs text-red-700">{{ $message }}</p>
+                        @enderror
+                    </div>
+                </div>
+            </fieldset>
+
             @if ($requiresPrescription)
                 <fieldset class="rounded-lg border border-amber-300 bg-amber-50 p-4">
                     <legend class="px-1 text-sm font-semibold text-amber-900">{{ __('pos.checkout.prescription_title') }}</legend>
@@ -216,4 +296,24 @@
             </div>
         </form>
     </div>
+
+    <script>
+        // S-2: los datos de factura sólo se piden cuando el documento es factura.
+        (() => {
+            const fields = document.querySelector('[data-invoice-fields]');
+            const radios = document.querySelectorAll('[data-document-type]');
+
+            if (!fields || radios.length === 0) {
+                return;
+            }
+
+            const sync = () => {
+                const selected = document.querySelector('[data-document-type]:checked');
+                fields.hidden = selected?.value !== 'invoice';
+            };
+
+            radios.forEach((radio) => radio.addEventListener('change', sync));
+            sync();
+        })();
+    </script>
 @endsection

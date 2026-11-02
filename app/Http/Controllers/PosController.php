@@ -9,6 +9,7 @@ use App\Models\Sale;
 use App\Models\User;
 use App\Pos\Calculator\PriceCalculator;
 use App\Pos\Enum\DiscountType;
+use App\Pos\Enum\DocumentType;
 use App\Pos\Enum\PaymentMethod;
 use App\Pos\Exception\DiscountRejected;
 use App\Pos\Exception\InsufficientStock;
@@ -19,6 +20,7 @@ use App\Pos\Policy\PrescriptionPolicy;
 use App\Pos\Policy\StockPolicy;
 use App\Pos\Value\Cart;
 use App\Pos\Value\Discount;
+use App\Pos\Value\InvoiceData;
 use App\Pos\Value\PrescriptionInput;
 use App\Services\Pos\CartService;
 use App\Services\Pos\CheckoutService;
@@ -31,6 +33,7 @@ use DomainException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Enum;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -274,8 +277,13 @@ final class PosController extends Controller
 
         $data = $request->validate([
             'payment_method' => ['required', new Enum(PaymentMethod::class)],
+            'document_type' => ['nullable', Rule::in(['receipt', 'invoice'])],
             'received_amount' => ['nullable', 'integer', 'min:0'],
-            'customer_rut' => ['nullable', 'string', 'max:20'],
+            'customer_rut' => ['nullable', 'string', 'max:20', 'required_if:document_type,invoice'],
+            'invoice_business_name' => ['nullable', 'string', 'max:255', 'required_if:document_type,invoice'],
+            'invoice_business_activity' => ['nullable', 'string', 'max:255', 'required_if:document_type,invoice'],
+            'invoice_address' => ['nullable', 'string', 'max:255', 'required_if:document_type,invoice'],
+            'invoice_commune' => ['nullable', 'string', 'max:100', 'required_if:document_type,invoice'],
             'convention_id' => ['nullable', 'integer'],
             'prescription_number' => ['nullable', 'string', 'max:50', 'required_with:prescription_prescriber_name,prescription_prescriber_rut,prescription_issued_at'],
             'prescription_prescriber_name' => ['nullable', 'string', 'max:255', 'required_with:prescription_number,prescription_prescriber_rut,prescription_issued_at'],
@@ -287,6 +295,18 @@ final class PosController extends Controller
 
         $prescription = $this->prescriptionInput($data);
         $supervisorId = $this->supervisorId($data);
+
+        // RF-23/S-2: boleta por defecto; factura con datos tributarios.
+        $documentType = DocumentType::from($data['document_type'] ?? DocumentType::receipt->value);
+        $invoice = $documentType === DocumentType::invoice
+            ? new InvoiceData(
+                rut: (string) $data['customer_rut'],
+                businessName: (string) $data['invoice_business_name'],
+                businessActivity: (string) $data['invoice_business_activity'],
+                address: (string) $data['invoice_address'],
+                commune: (string) $data['invoice_commune'],
+            )
+            : null;
 
         $manualDiscount = $this->manualDiscountService->load();
         $discountAuthorizedBy = $supervisorId ?? $this->manualDiscountService->authorizedBy();
@@ -329,6 +349,8 @@ final class PosController extends Controller
                 reuseAuthorizedBy: $supervisorId,
                 manualDiscount: $manualDiscount,
                 discountAuthorizedBy: $discountAuthorizedBy,
+                documentType: $documentType,
+                invoice: $invoice,
             );
         } catch (DiscountRejected $exception) {
             throw ValidationException::withMessages([$exception->field() => $exception->getMessage()]);
@@ -357,7 +379,7 @@ final class PosController extends Controller
      */
     public function receipt(Sale $sale): View
     {
-        $sale->loadMissing('lines', 'document', 'reversal', 'discountAuthorizedBy');
+        $sale->loadMissing('lines', 'document', 'reversal', 'discountAuthorizedBy', 'invoiceDetail');
 
         $voidReason = $sale->auditLogs()
             ->where('action', 'sale.void')
