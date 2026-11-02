@@ -58,6 +58,7 @@ final class SaleController extends Controller
             'document',
             'reversal',
             'convention',
+            'prescription',
             'user',
             'auditLogs.user',
         ]);

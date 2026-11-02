@@ -121,9 +121,10 @@ RF-1 a RF-40: **cobertura nominal completa**; huecos reales que corrigen S1–S5
   - *Hecho cuando:* CheckoutService crea DocumentType::invoice con RUT, razón social, giro, dirección, comuna; pos/checkout.blade.php tiene selector Boleta/Factura + campos condicionales; vista de comprobante muestra campos de factura; test cubre factura completa con campos S-2.
   - *Cierre (2026-11-02):* migración `invoice_details` (1:1 con `sales` + rango `folio_from`/`folio_to`), modelo `InvoiceDetail`, valor puro `InvoiceData`, `CheckoutService` emite `DocumentType::invoice` con folio 50.001–100.000 y el checkout exige RUT/razón social/giro/dirección/comuna (`required_if`). 5 tests en `InvoiceTest` (183 en total).
 
-- [ ] **S7. Detalle de venta muestra receta asociada (RF-38).**
+- [x] **S7. Detalle de venta muestra receta asociada (RF-38).**
   - *Depende de:* S2
   - *Hecho cuando:* admin/sales/show.blade.php muestra sección "Receta asociada" con número, prescriptor, RUT, fecha, vigencia; test verifica que venta #2 (con receta REC-OK-001) la muestra.
+  - *Cierre (2026-11-02):* `Prescription::validUntil()` (emisión + `pos.prescription.validity_days`, día final inclusive), `SaleController::show()` carga `prescription` y la vista muestra la tarjeta «Receta asociada» sólo si la receta existe y sus campos están completos. 2 tests nuevos en `AdministrationTest` (185 en total). Sólo lectura: no se tocó el cobro ni el comprobante.
 
 - [x] **S8. Internacionalización (RNF-4, RNF-9, P6) — lang/es/pos.php y mensajes en español.**
   - *Depende de:* T6, T10

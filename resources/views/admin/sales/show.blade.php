@@ -91,6 +91,26 @@
                 <p class="text-sm text-slate-600">{{ __('pos.admin.sale.customer_rut', ['rut' => $sale->customer_rut ?? __('pos.common.none')]) }}</p>
             </section>
 
+            @php($prescription = $sale->prescription)
+            @if ($prescription !== null
+                && $prescription->number !== null
+                && $prescription->prescriber_name !== null
+                && $prescription->prescriber_rut !== null
+                && $prescription->issued_on !== null)
+                <section class="rounded-xl bg-white p-4 shadow-sm" aria-labelledby="prescription-title">
+                    <h3 id="prescription-title" class="text-sm font-semibold uppercase tracking-wide text-slate-500">
+                        {{ __('pos.admin.sale.prescription') }}
+                    </h3>
+                    <p class="mt-2 break-words font-medium">{{ $prescription->number }}</p>
+                    <dl class="mt-2 space-y-1 break-words text-sm text-slate-600">
+                        <div>{{ __('pos.admin.sale.prescription_prescriber', ['name' => $prescription->prescriber_name]) }}</div>
+                        <div>{{ __('pos.admin.sale.prescription_rut', ['rut' => $prescription->prescriber_rut]) }}</div>
+                        <div>{{ __('pos.admin.sale.prescription_issued_on', ['date' => $prescription->issued_on->format('d-m-Y')]) }}</div>
+                        <div>{{ __('pos.admin.sale.prescription_valid_until', ['date' => $prescription->validUntil()->format('d-m-Y')]) }}</div>
+                    </dl>
+                </section>
+            @endif
+
             <section class="rounded-xl bg-white p-4 shadow-sm">
                 <h3 class="text-sm font-semibold uppercase tracking-wide text-slate-500">{{ __('pos.admin.sale.convention') }}</h3>
                 @if ($sale->convention_name !== null)

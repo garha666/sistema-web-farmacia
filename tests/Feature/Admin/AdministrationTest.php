@@ -7,6 +7,7 @@ namespace Tests\Feature\Admin;
 use App\Models\AuditLog;
 use App\Models\Convention;
 use App\Models\Document;
+use App\Models\Prescription;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Models\User;
@@ -276,6 +277,40 @@ final class AdministrationTest extends TestCase
         $response->assertSee('$1.000');
         $response->assertSee('Anulada');
         $response->assertSee($sale->document->folio);
+    }
+
+    public function test_the_sale_detail_shows_the_associated_prescription(): void
+    {
+        $this->signIn('admin');
+        $sale = $this->sell();
+
+        $prescription = Prescription::query()->create([
+            'number' => 'REC-OK-001',
+            'prescriber_name' => 'Dra. Ana Pérez',
+            'prescriber_rut' => '9.876.543-2',
+            'issued_on' => now()->subDays(5)->toDateString(),
+        ]);
+        $sale->update(['prescription_id' => $prescription->id]);
+
+        $response = $this->get(route('admin.sales.show', $sale));
+
+        $response->assertOk()
+            ->assertSee(__('pos.admin.sale.prescription'))
+            ->assertSee('REC-OK-001')
+            ->assertSee('Dra. Ana Pérez')
+            ->assertSee('9.876.543-2')
+            ->assertSee($prescription->issued_on->format('d-m-Y'))
+            ->assertSee($prescription->validUntil()->format('d-m-Y'));
+    }
+
+    public function test_the_sale_detail_omits_the_prescription_section_when_there_is_none(): void
+    {
+        $this->signIn('admin');
+        $sale = $this->sell();
+
+        $this->get(route('admin.sales.show', $sale))
+            ->assertOk()
+            ->assertDontSee(__('pos.admin.sale.prescription'));
     }
 
     // ------------------------------------------------------------------
