@@ -374,6 +374,7 @@ final class CheckoutService
             convention: $snapshot,
             generalCapPercent: (int) config('pos.discount.general_cap_percent'),
             today: $today,
+            lineDiscountsPesos: $this->calculator->lineDiscounts($cart)->pesos(),
         );
 
         if ($decision->isRejected()) {

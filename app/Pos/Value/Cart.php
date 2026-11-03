@@ -100,6 +100,11 @@ final readonly class Cart
         return array_values($this->lines);
     }
 
+    public function line(int $productId): ?CartLine
+    {
+        return $this->lines[$productId] ?? null;
+    }
+
     public function isEmpty(): bool
     {
         return $this->lines === [];

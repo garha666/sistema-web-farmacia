@@ -12,14 +12,39 @@
 
         <ul class="mt-4 divide-y divide-slate-100 text-sm">
             @foreach ($cart->lines() as $line)
-                <li class="flex justify-between py-2">
-                    <span>{{ $line->quantity() }} × {{ $line->name() }}</span>
-                    <span class="font-medium">{{ $money($line->unitPrice()->pesos() * $line->quantity()) }}</span>
+                @php
+                    $lineBasePesos = $calculator->lineSubtotal($line)->pesos();
+                    $lineDiscountPesos = $calculator->lineDiscount($line)->pesos();
+                @endphp
+                <li class="flex items-start justify-between gap-2 py-2">
+                    <span class="min-w-0">
+                        {{ $line->quantity() }} × {{ $line->name() }}
+                        @if ($lineDiscountPesos > 0)
+                            <span class="block text-xs text-emerald-700">
+                                {{ __('pos.checkout.line_discount', [
+                                    'amount' => $money($lineDiscountPesos),
+                                    'reason' => $line->discount()->reason,
+                                ]) }}
+                            </span>
+                        @endif
+                    </span>
+                    <span class="whitespace-nowrap font-medium">{{ $money($lineBasePesos - $lineDiscountPesos) }}</span>
                 </li>
             @endforeach
         </ul>
 
-        <div class="mt-4 flex justify-between border-t border-slate-200 pt-3 text-lg font-bold">
+        <div class="mt-3 space-y-1 border-t border-slate-200 pt-3 text-sm">
+            <div class="flex justify-between">
+                <span class="text-slate-600">{{ __('pos.common.subtotal') }}</span>
+                <span>{{ $money($totals->subtotal()->pesos()) }}</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-slate-600">{{ __('pos.common.discounts') }}</span>
+                <span>-{{ $money($totals->discounts()->pesos()) }}</span>
+            </div>
+        </div>
+
+        <div class="mt-3 flex justify-between border-t border-slate-200 pt-3 text-lg font-bold">
             <span>{{ __('pos.checkout.total_to_pay') }}</span>
             <span>{{ $money($totals->total()->pesos()) }}</span>
         </div>

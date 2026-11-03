@@ -24,6 +24,9 @@ Route::prefix('pos')->name('pos.')->middleware('auth')->group(function (): void 
     Route::post('/discount', [PosController::class, 'applyDiscount'])->name('discount.apply');
     Route::delete('/discount', [PosController::class, 'removeDiscount'])->name('discount.remove');
 
+    Route::post('/cart/{product}/discount', [PosController::class, 'applyLineDiscount'])->name('cart.discount');
+    Route::delete('/cart/{product}/discount', [PosController::class, 'removeLineDiscount'])->name('cart.discount.remove');
+
     Route::get('/sales/{sale}/receipt', [PosController::class, 'receipt'])->name('sales.receipt');
 
     // Sólo Químico (supervisor) y Admin pueden anular (RF-32).

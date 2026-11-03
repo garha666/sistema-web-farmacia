@@ -1,15 +1,15 @@
 # MEMORY.md — Estado del proyecto
 
 **Proyecto:** Sistema Web de Gestión y Simulación de Farmacia Privada Comercial (Grupo A) — INACAP
-**Última actualización:** 2026-11-02
+**Última actualización:** 2026-11-03
 
 ## Estado actual
 
 - **Constitución:** `docs/constitution.md` v1.0, vigente (6 principios).
 - **Spec 001 POS:** `specs/001-pos/spec.md` v1.0, **aprobada**, 40 RF y 13 RNF, sin dudas abiertas.
 - **Plan 001 POS:** `specs/001-pos/plan.md`, completo (arquitectura, funciones puras, pseudocódigo, UI, decisiones, tests).
-- **Tareas 001 POS:** `specs/001-pos/tasks.md`, 10 tareas + correcciones Vuelta 1 (S1–S5) + Vuelta 2 (S6–S14). **T1 a T10 cerradas; S1 a S10 cerradas.**
-- **Código:** Laravel 11.57.1. Dominio `app/Pos/` completo. Persistencia: `Product`, `Sale`, `SaleLine`, `Document`, `InvoiceDetail`, `StockMovement`, `AuditLog`, `Convention`, `Prescription`, `ControlledRegisterEntry`. Servicios: `CartService`, `CheckoutService`, `VoidSaleService`, `AuditService`, `ConventionService`, `DocumentService`, `ManualDiscountService`. Emisión simulada: `Pos\Contract\DocumentEmitter`, `Pos\Emission\SimulatedDocumentEmitter`, `Pos\Folio\FolioAllocator`. HTTP: `PosController` y `Admin\{ConventionController, SaleController, DocumentController, AuditController, ControlledRegisterController}`. Vistas: `pos/index`, `pos/checkout`, `pos/receipt`, `admin/*` (layout `layouts.admin`). Traducciones en `lang/es/`. 199 tests en verde (828 aserciones).
+- **Tareas 001 POS:** `specs/001-pos/tasks.md`, 10 tareas + correcciones Vuelta 1 (S1–S5) + Vuelta 2 (S6–S14). **T1 a T10 cerradas; S1 a S11 cerradas.**
+- **Código:** Laravel 11.57.1. Dominio `app/Pos/` completo. Persistencia: `Product`, `Sale`, `SaleLine`, `Document`, `InvoiceDetail`, `StockMovement`, `AuditLog`, `Convention`, `Prescription`, `ControlledRegisterEntry`. Servicios: `CartService`, `CheckoutService`, `VoidSaleService`, `AuditService`, `ConventionService`, `DocumentService`, `ManualDiscountService`. Emisión simulada: `Pos\Contract\DocumentEmitter`, `Pos\Emission\SimulatedDocumentEmitter`, `Pos\Folio\FolioAllocator`. HTTP: `PosController` y `Admin\{ConventionController, SaleController, DocumentController, AuditController, ControlledRegisterController}`. Vistas: `pos/index`, `pos/checkout`, `pos/receipt`, `admin/*` (layout `layouts.admin`). Traducciones en `lang/es/`. 214 tests en verde (904 aserciones).
 - **Comandos SDD:** instalados en `.opencode/commands/` (9 comandos).
 
 ## Entorno (2026-10-30)
@@ -38,7 +38,7 @@
 - **Controlados (T4):** exigen registro en el libro (`requiresControlledRegister`); la categoría más restrictiva del carrito manda sobre toda la venta.
 - **Stock (T5):** stock negativo o producto desconocido se tratan como 0; `canSell` exige cantidad ≥ 1 y existencia ≥ cantidad. El faltante es `requested - available` y el carrito se bloquea completo si hay al menos uno.
 - **Cambio de stock (T5/S5):** `StockPolicy::detectChanges` compara la existencia viva contra el stock congelado al agregar o ajustar cada línea. La caja guarda ese stock en la sesión `pos.cart_stock` (junto a `pos.cart`), porque `CartService::load()` relee la base en cada request; `PosController::checkout` detecta los cambios y muestra «Stock actual: X» más el botón «Ajustar cantidades». La transacción de cobro sigue bloqueando la fila real con `lockForUpdate()` (T8).
-- **Carrito en sesión (T6):** se guarda sólo `id de producto => cantidad`; precio, categoría y stock se releen de la base en cada request. La clave es `pos.cart`.
+- **Carrito en sesión (T6):** se guarda `id de producto => cantidad` en `pos.cart`, el stock congelado en `pos.cart_stock` y, desde S11, el descuento por línea en `pos.line_discounts` (mapa id => tipo, valor y motivo); precio, categoría y stock se releen de la base en cada request.
 - **Búsqueda (T6):** `lower(...) like` sobre nombre, principio activo y código de barras, límite 20 resultados, sólo productos vendibles.
 - **Tailwind (T6):** `tailwindcss@3` + PostCSS + Vite. `npm run build` genera `public/build`; la vista usa `@vite` y cae a CDN sólo si falta el manifest. `public/build` está en `.gitignore`, así que **tras cada `git pull` hay que ejecutar `npm run build`**: si no, las clases nuevas de las vistas no existen en el CSS compilado y la pantalla sale sin estilos (pasó con `bg-amber-600` del botón «Ajustar cantidades»).
 - **Sesiones:** Laravel 11 crea la tabla `sessions` en la migración de `users`; no se agrega una migración propia.
@@ -74,6 +74,7 @@
 - **Venta anulada con documento pendiente (S9):** el reintento se **bloquea** con error de dominio (`pos.errors.voided_sale_document`) y el botón se oculta en historial y documentos; no se crea nota de crédito porque nunca hubo emisión. Si el documento estaba emitido, la anulación sigue generando la nota como en T9.
 - **Comprobante provisorio (S9):** `pos/receipt` muestra «Provisorio», «Pendiente de emisión: sin folio asignado» y la leyenda de simulación cuando el documento está `pending`; nunca imprime un folio inventado. «Reintentar emisión» está en `admin/sales/index` y `admin/documents/index`, sólo para Admin, y desaparece cuando el documento está emitido.
 - **Mensaje de concurrencia (S10, RF-28):** cuando el descuento condicional (`where stock >= qty`) no afecta ninguna fila porque otra caja se adelantó, `CheckoutService::shortageMessage()` lanza `InsufficientStock` con «Stock actual: :available unidades del producto ":name"» (`pos.errors.concurrent_stock`), leyendo la existencia real con la fila de producto ya bloqueada dentro de la transacción. Sustituye el viejo «Sin stock suficiente para el producto {id}»; el aviso previo de S5 (`stock_changed_*`) y el rechazo de producto sin stock en `PosController::add` quedan intactos. 2 tests nuevos en `ConcurrencyTest` verifican el mensaje exacto y su llegada a `/pos/checkout` sin persistir venta ni movimientos.
+- **Descuento por línea (S11, RF-4/RF-13 a RF-18):** el cajero aplica `%` o `$` por línea con motivo obligatorio; el valor y el motivo viven en la sesión junto al carrito y el cálculo sigue en el dominio (`Cart::applyLineDiscount`, `PriceCalculator::lineDiscount`). `DiscountPolicy::evaluateLine()` rechaza motivo vacío y total cero/negativo, y mide el **acumulado de todas las líneas** contra el tope del 10%; sobre el tope pide credenciales de Químico/Admin (mismo `Hash::check` + rol) y el modal se reabre si las credenciales son inválidas. El tope del descuento global ahora también descuenta las líneas (`evaluate(..., lineDiscountsPesos)` / `PriceCalculator::lineDiscounts`), de modo que 10% de línea + 10% global exige supervisor (RF-14 acumulado). La línea muestra el chip `-10% · motivo` con «Quitar descuento»; el control es un `<details>` nativo (accesible sin JS). El checkout muestra el descuento por renglón y el pie subtotal/descuentos.
 
 ## Pendientes conocidos
 
@@ -82,6 +83,8 @@
 - No existe ruta `/login`; en local se entra con una sesión de desarrollo generada con un script externo al repo.
 - `welcome.blade.php` sigue en inglés (página por defecto de Laravel, fuera del alcance de la spec).
 - `tests/Feature/Pos/FolioConcurrencyTest.php` lanza dos procesos PHP reales (`tests/Fixtures/concurrent-retry.php`): en rojo la carrera no siempre se materializa (es probabilística), pero con el lock de asesoría el verde es determinista. Requiere la BD `farmacia_pos_test` accesible por procesos hijos.
+- **S12 (RF-36):** la autorización de supervisor del descuento **por línea** se valida y se usa para aplicar, pero todavía no se persiste el autor ni se audita; hoy sólo se audita la autorización del descuento global (`sale.discount_authorized`). S12 debe guardar el autor de la línea (sesión → venta) y registrar el evento en `audit_logs`.
+- `layouts/pos.blade.php` carga `@vite` **y** `<script src="https://cdn.tailwindcss.com">`. Sin internet el CDN no responde y la pantalla depende del CSS compilado local: hay que correr `npm run build` después de tocar clases de Tailwind (pasó en S11 con `h-3.5`/`group-open:`). Conviene quitar el CDN en una limpieza posterior.
 
 ## Verificación visual (375 px)
 
@@ -146,6 +149,19 @@ Mismo MCP `chrome-devtools` (375×812×2 mobile/touch) contra `127.0.0.1:8001` y
 
 Sin mensajes de consola ni peticiones fallidas. Se corrigió de paso el «#sin folio» del historial: el `#` ahora aparece sólo cuando hay folio.
 
+### Vuelta 2 (S11, 2026-11-03)
+
+Mismo MCP `chrome-devtools` (375×812×2 mobile/touch) contra `127.0.0.1:8001` y la BD demo, con sesión admin inyectada en la propia sesión del navegador (ver «Pendientes conocidos»: no hay `/login`). Antes se ejecutó `npm run build` porque el CSS compilado estaba añejo y el CDN de Tailwind no carga sin internet.
+
+| Pantalla | Resultado |
+| --- | --- |
+| `pos/index` carrito a 375 px | Correcta. «Descuento de línea» plegado bajo el producto; `scrollWidth = 375` y sin desbordes. |
+| `pos/index` descuento 10% | Correcto. Chip emerald «-10% · Promoción de temporada» con «Quitar descuento»; total de la línea $1.341, «Descuentos -$149» y total $1.341. `scrollWidth = 375`. |
+| `pos/index` 20% sin supervisor | Correcto. Modal «Autorización de supervisor» (343×369 px) con el mensaje del tope, correo y contraseña; cabe en pantalla. |
+| `pos/checkout` con descuento de línea | Correcto. «Descuento de línea: -$149 (Promoción de temporada)» bajo el renglón, pie subtotal/descuentos y «Total a pagar $1.341». `scrollWidth = 375`. |
+
+Sin mensajes de consola. Pendiente heredado: el aviso global del layout repite el mensaje del tope arriba del modal (igual que en S4).
+
 ## Próximo paso
 
-S10 (mensaje de concurrencia específico) cerrada con 199 tests en verde. Siguiente en el orden acordado: **S11 — columna descuento por línea en carrito (RF-4)**.
+S11 (columna de descuento por línea) cerrada con 214 tests en verde. Siguiente en el orden acordado: **S12 — auditoría de autorizaciones de descuento y receta repetida (RF-36)**, que debe incluir el autor del descuento por línea que S11 valida pero aún no persiste.

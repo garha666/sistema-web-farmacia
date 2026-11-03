@@ -5,15 +5,19 @@ declare(strict_types=1);
 namespace App\Services\Pos;
 
 use App\Models\Product;
+use App\Pos\Enum\DiscountType;
+use App\Pos\Money;
 use App\Pos\Value\Cart;
 use App\Pos\Value\CartLine;
+use App\Pos\Value\Discount;
 use App\Pos\Value\ProductSnapshot;
 
 /**
  * Carrito de la caja, persistido en sesión (RF-6).
  *
- * En sesión sólo se guarda id de producto y cantidad; el precio y el stock se
- * releen de la base en cada request para no vender con datos viejos.
+ * En sesión sólo se guarda id de producto, cantidad y descuento de línea; el
+ * precio y el stock se releen de la base en cada request para no vender con
+ * datos viejos.
  */
 final class CartService
 {
@@ -23,6 +27,11 @@ final class CartService
      * Stock congelado cuando se agregó o ajustó cada línea (RF-29).
      */
     private const STOCK_KEY = 'pos.cart_stock';
+
+    /**
+     * Descuento por línea, junto al carrito (RF-4, RF-13). Mapa id => datos.
+     */
+    private const LINE_DISCOUNT_KEY = 'pos.line_discounts';
 
     public function load(): Cart
     {
@@ -49,6 +58,19 @@ final class CartService
             $cart = $cart->add($this->snapshot($product), max(1, (int) $quantity));
         }
 
+        // RF-6/RF-13: rehidrata el descuento de línea guardado con el carrito.
+        $lineDiscounts = session()->get(self::LINE_DISCOUNT_KEY, []);
+
+        if (is_array($lineDiscounts)) {
+            foreach ($lineDiscounts as $productId => $data) {
+                $discount = $this->decodeDiscount($data);
+
+                if ($discount !== null && isset($stored[(int) $productId])) {
+                    $cart = $cart->applyLineDiscount((int) $productId, $discount);
+                }
+            }
+        }
+
         return $cart;
     }
 
@@ -56,15 +78,21 @@ final class CartService
     {
         $stored = [];
         $stock = [];
+        $lineDiscounts = [];
 
         /** @var CartLine $line */
         foreach ($cart->lines() as $line) {
             $stored[$line->productId()] = $line->quantity();
             $stock[$line->productId()] = $line->product->availableStock;
+
+            if ($line->discount() !== null) {
+                $lineDiscounts[$line->productId()] = $this->encodeDiscount($line->discount());
+            }
         }
 
         session()->put(self::SESSION_KEY, $stored);
         session()->put(self::STOCK_KEY, $stock);
+        session()->put(self::LINE_DISCOUNT_KEY, $lineDiscounts);
     }
 
     /**
@@ -108,7 +136,12 @@ final class CartService
 
     public function clear(): void
     {
-        session()->forget([self::SESSION_KEY, self::STOCK_KEY, 'pos.checkout_token']);
+        session()->forget([
+            self::SESSION_KEY,
+            self::STOCK_KEY,
+            self::LINE_DISCOUNT_KEY,
+            'pos.checkout_token',
+        ]);
     }
 
     /**
@@ -131,10 +164,44 @@ final class CartService
         return new ProductSnapshot(
             id: $product->id,
             name: $product->name,
-            unitPrice: \App\Pos\Money::fromPesos($product->price),
+            unitPrice: Money::fromPesos($product->price),
             category: $product->sale_category,
             availableStock: $product->stock,
             sellable: $product->sellable,
         );
+    }
+
+    /**
+     * @return array{type: string, value: float|int, reason: string}
+     */
+    private function encodeDiscount(Discount $discount): array
+    {
+        return [
+            'type' => $discount->type->value,
+            'value' => $discount->value,
+            'reason' => $discount->reason,
+        ];
+    }
+
+    /**
+     * @param  mixed  $data
+     */
+    private function decodeDiscount($data): ?Discount
+    {
+        if (! is_array($data)
+            || ! isset($data['type'], $data['value'], $data['reason'])) {
+            return null;
+        }
+
+        $type = DiscountType::tryFrom((string) $data['type']);
+        $reason = (string) $data['reason'];
+
+        if ($type === null || trim($reason) === '') {
+            return null;
+        }
+
+        return $type === DiscountType::percent
+            ? Discount::percent((float) $data['value'], $reason)
+            : Discount::amount(Money::fromPesos((int) round((float) $data['value'])), $reason);
     }
 }

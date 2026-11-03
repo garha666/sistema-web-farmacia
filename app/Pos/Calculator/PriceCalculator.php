@@ -43,15 +43,24 @@ final class PriceCalculator
         return $subtotal;
     }
 
-    public function totals(Cart $cart, int $ivaRate, ?Discount $globalDiscount = null): ReceiptTotals
+    /**
+     * Descuentos de línea ya aplicados (RF-4, RF-14).
+     */
+    public function lineDiscounts(Cart $cart): Money
     {
-        $subtotal = Money::fromPesos(0);
-        $lineDiscounts = Money::fromPesos(0);
+        $discounts = Money::fromPesos(0);
 
         foreach ($cart->lines() as $line) {
-            $subtotal = $subtotal->add($this->lineSubtotal($line));
-            $lineDiscounts = $lineDiscounts->add($this->lineDiscount($line));
+            $discounts = $discounts->add($this->lineDiscount($line));
         }
+
+        return $discounts;
+    }
+
+    public function totals(Cart $cart, int $ivaRate, ?Discount $globalDiscount = null): ReceiptTotals
+    {
+        $subtotal = $this->subtotal($cart);
+        $lineDiscounts = $this->lineDiscounts($cart);
 
         $afterLines = $subtotal->subtract($lineDiscounts);
 

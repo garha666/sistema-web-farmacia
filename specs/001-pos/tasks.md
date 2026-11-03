@@ -2,7 +2,7 @@
 
 **Spec:** \specs/001-pos/spec.md\ v1.0 (aprobada) · **Plan:** \specs/001-pos/plan.md\
 **Metodología:** TDD — test rojo primero, código después, \php artisan test\ en verde.
-**Estado:** T1–T10 cerradas; correcciones Vuelta 1 (S1–S5) cerradas; correcciones Vuelta 2 (S6–S10) cerradas, S11–S14 pendientes.
+**Estado:** T1–T10 cerradas; correcciones Vuelta 1 (S1–S5) cerradas; correcciones Vuelta 2 (S6–S11) cerradas, S12–S14 pendientes.
 
 > Nota: la skill \sdd\ no está instalada; el formato sigue lo acordado en \AGENTS.md\ y la constitución.
 
@@ -141,9 +141,10 @@ RF-1 a RF-40: **cobertura nominal completa**; huecos reales que corrigen S1–S5
   - *Hecho cuando:* error de concurrencia muestra "Stock actual: X unidades del producto [nombre]" en lugar de "Sin stock suficiente para el producto 3"; test verifica mensaje exacto.
   - *Cierre (2026-11-02):* `CheckoutService::shortageMessage()` arma el mensaje con `lang/es/pos.php` `errors.concurrent_stock` («Stock actual: :available unidades del producto ":name"»), leyendo la existencia real con la fila ya bloqueada. Sólo el fallo del descuento condicional (`where stock >= qty`) lo emite; el aviso previo de S5 y el rechazo de producto sin stock en `PosController::add` siguen intactos. 2 tests nuevos en `ConcurrencyTest` (mensaje exacto del servicio + mensaje visible en `/pos/checkout` con 0 ventas y 0 movimientos persistidos). 199 tests (828 aserciones).
 
-- [ ] **S11. Columna descuento por línea en carrito (RF-4).**
+- [x] **S11. Columna descuento por línea en carrito (RF-4).**
   - *Depende de:* S4, T6
   - *Hecho cuando:* pos/index.blade.php tabla del carrito tiene columna "Descuento" por línea con input %/monto; subtotal de línea = precio × cantidad − descuento; totales recalculan en vivo; test verifica columna, cálculo y recálculo.
+  - *Cierre (2026-11-03):* `CartService` persiste el descuento por línea en sesión (mapa `pos.line_discounts`) junto al carrito; rutas `pos.cart.discount` (POST) y `pos.cart.discount.remove` (DELETE); `DiscountPolicy::evaluateLine()` valida motivo, total positivo y tope acumulado del 10% con supervisor; `PriceCalculator::lineDiscounts()` y `evaluate()` descuentan las líneas antes del descuento global (RF-14 acumulado). Vista: chip emerald con `-10% · motivo` y control plegable `<details>` accesible (375 px, sin overflow), modal de supervisor reutilizado con credenciales inválidas reabriendo el modal. Checkout muestra el descuento de línea por renglón y el pie de descuentos. 15 tests en `LineDiscountTest` (214 en total). Verificado en Chrome DevTools a 375 px (carrito, chip, modal, checkout) con `scrollWidth = 375`.
 
 - [ ] **S12. Auditoría de autorizaciones de descuento y receta repetida (RF-36).**
   - *Depende de:* S4, S2

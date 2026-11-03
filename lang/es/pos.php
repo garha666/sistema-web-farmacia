@@ -100,6 +100,15 @@ return [
             'authorize' => 'Autorizar y aplicar',
             'cancel' => 'Cancelar',
         ],
+        'line_discount' => [
+            'title' => 'Descuento de línea',
+            'value_placeholder' => 'Valor',
+            'percent' => 'Porcentaje (%)',
+            'amount' => 'Monto ($)',
+            'reason_placeholder' => 'Motivo (obligatorio)',
+            'apply' => 'Aplicar',
+            'remove' => 'Quitar descuento',
+        ],
     ],
 
     'checkout' => [
@@ -107,6 +116,7 @@ return [
         'heading' => 'Cobro',
         'total_to_pay' => 'Total a pagar',
         'manual_discount' => 'Descuento manual (:reason): -:amount',
+        'line_discount' => 'Descuento de línea: -:amount (:reason)',
         'stock_changed_title' => 'El stock cambió desde que armaste el carrito',
         'stock_changed_line' => ':name: pediste :requested y antes había :previous.',
         'stock_current' => 'Stock actual: :available',

@@ -81,16 +81,21 @@
             @else
                 <ul class="mt-3 divide-y divide-slate-100 text-sm">
                     @foreach ($cart->lines() as $line)
+                        @php
+                            $lineBasePesos = $calculator->lineSubtotal($line)->pesos();
+                            $lineDiscountPesos = $calculator->lineDiscount($line)->pesos();
+                            $lineTotalPesos = $lineBasePesos - $lineDiscountPesos;
+                        @endphp
                         <li class="py-3">
                             <div class="flex items-start justify-between gap-2">
                                 <div class="min-w-0">
-                                    <p class="font-medium">{{ $line->name() }}</p>
+                                    <p class="truncate font-medium">{{ $line->name() }}</p>
                                     <p class="text-xs text-slate-500">
                                         {{ __('pos.common.per_unit', ['price' => $money($line->unitPrice()->pesos())]) }}
                                     </p>
                                 </div>
                                 <p class="whitespace-nowrap font-semibold">
-                                    {{ $money($line->unitPrice()->pesos() * $line->quantity()) }}
+                                    {{ $money($lineTotalPesos) }}
                                 </p>
                             </div>
 
@@ -121,6 +126,98 @@
                                     </button>
                                 </form>
                             </div>
+
+                            @if ($line->discount() !== null)
+                                <div class="mt-2 flex items-center justify-between gap-2 rounded-lg bg-emerald-50 px-2 py-1 text-xs transition-colors duration-200">
+                                    <span class="flex min-w-0 items-center gap-1 font-semibold text-emerald-800">
+                                        <svg aria-hidden="true" viewBox="0 0 20 20" fill="currentColor" class="h-3.5 w-3.5 shrink-0">
+                                            <path d="M10 2a8 8 0 1 0 0 16 8 8 0 0 0 0-16Zm2.53 5.03a.75.75 0 0 1 0 1.06l-4 4a.75.75 0 0 1-1.06 0l-2-2a.75.75 0 1 1 1.06-1.06L8 10.5l3.47-3.47a.75.75 0 0 1 1.06 0Z" />
+                                        </svg>
+                                        <span class="truncate">
+                                            @if ($line->discount()->type === \App\Pos\Enum\DiscountType::percent)
+                                                -{{ rtrim(rtrim(number_format($line->discount()->value, 2, ',', '.'), '0'), ',') }}%
+                                            @else
+                                                -{{ $money($lineDiscountPesos) }}
+                                            @endif
+                                            · {{ $line->discount()->reason }}
+                                        </span>
+                                    </span>
+                                    <form method="POST" action="{{ route('pos.cart.discount.remove', $line->productId()) }}">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="shrink-0 font-semibold text-red-700 underline-offset-2 hover:underline focus:outline-none focus:ring-2 focus:ring-red-300 rounded" aria-label="{{ __('pos.cash.line_discount.remove') }}: {{ $line->name() }}">
+                                            {{ __('pos.cash.line_discount.remove') }}
+                                        </button>
+                                    </form>
+                                </div>
+                            @else
+                                <details class="group mt-2 rounded-lg border border-slate-200 bg-slate-50/70 open:bg-white" @if ((int) old('line_product_id') === $line->productId() && ($errors->has('line_reason') || $errors->has('line_value'))) open @endif>
+                                    <summary class="flex cursor-pointer items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-300">
+                                        <svg aria-hidden="true" viewBox="0 0 20 20" fill="currentColor" class="h-3.5 w-3.5 shrink-0 text-slate-400 transition-transform duration-200 group-open:rotate-90">
+                                            <path d="M7.72 4.47a.75.75 0 0 1 1.06 0l5 5a.75.75 0 0 1 0 1.06l-5 5a.75.75 0 1 1-1.06-1.06L12.19 10 7.72 5.53a.75.75 0 0 1 0-1.06Z" />
+                                        </svg>
+                                        {{ __('pos.cash.line_discount.title') }}
+                                    </summary>
+
+                                    <form method="POST" action="{{ route('pos.cart.discount', $line->productId()) }}" class="space-y-2 border-t border-slate-200 p-2">
+                                        @csrf
+                                        <input type="hidden" name="line_product_id" value="{{ $line->productId() }}">
+
+                                        <div class="grid grid-cols-[5.5rem_minmax(0,1fr)] items-center gap-2">
+                                            <label class="text-xs font-medium text-slate-700" for="line-type-{{ $line->productId() }}">
+                                                {{ __('pos.cash.discount.type') }}
+                                            </label>
+                                            <select
+                                                id="line-type-{{ $line->productId() }}"
+                                                name="line_type"
+                                                class="w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                                            >
+                                                <option value="percent" @selected(old('line_type') === 'percent')>{{ __('pos.cash.line_discount.percent') }}</option>
+                                                <option value="amount" @selected(old('line_type') === 'amount')>{{ __('pos.cash.line_discount.amount') }}</option>
+                                            </select>
+
+                                            <label class="text-xs font-medium text-slate-700" for="line-value-{{ $line->productId() }}">
+                                                {{ __('pos.cash.discount.value') }}
+                                            </label>
+                                            <input
+                                                id="line-value-{{ $line->productId() }}"
+                                                name="line_value"
+                                                type="number"
+                                                min="0.01"
+                                                step="0.01"
+                                                inputmode="decimal"
+                                                value="{{ (int) old('line_product_id') === $line->productId() ? old('line_value') : '' }}"
+                                                placeholder="{{ __('pos.cash.line_discount.value_placeholder') }}"
+                                                class="w-full rounded border border-slate-300 px-2 py-1 text-sm focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                                            >
+
+                                            <label class="text-xs font-medium text-slate-700" for="line-reason-{{ $line->productId() }}">
+                                                {{ __('pos.cash.discount.reason_short') }}
+                                            </label>
+                                            <input
+                                                id="line-reason-{{ $line->productId() }}"
+                                                name="line_reason"
+                                                type="text"
+                                                maxlength="255"
+                                                value="{{ (int) old('line_product_id') === $line->productId() ? old('line_reason') : '' }}"
+                                                placeholder="{{ __('pos.cash.line_discount.reason_placeholder') }}"
+                                                class="w-full rounded border border-slate-300 px-2 py-1 text-sm focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                                            >
+                                        </div>
+
+                                        @error('line_reason')
+                                            <p class="text-xs text-red-700">{{ $message }}</p>
+                                        @enderror
+                                        @error('line_value')
+                                            <p class="text-xs text-red-700">{{ $message }}</p>
+                                        @enderror
+
+                                        <button type="submit" class="w-full rounded-lg bg-slate-700 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-400">
+                                            {{ __('pos.cash.line_discount.apply') }}
+                                        </button>
+                                    </form>
+                                </details>
+                            @endif
                         </li>
                     @endforeach
                 </ul>
@@ -276,6 +373,65 @@
                         <input
                             id="discount_supervisor_password"
                             name="supervisor_password"
+                            type="password"
+                            class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+                        >
+                    </div>
+
+                    <div class="flex justify-end gap-2 pt-2">
+                        <a href="{{ route('pos.index') }}" class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">
+                            {{ __('pos.cash.discount.cancel') }}
+                        </a>
+                        <button type="submit" class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
+                            {{ __('pos.cash.discount.authorize') }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    @endif
+
+    @if ($errors->has('line_discount_supervisor') && old('line_product_id'))
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">
+            <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="line-discount-supervisor-title"
+                class="w-full max-w-md rounded-xl bg-white p-6 shadow-xl"
+            >
+                <h2 id="line-discount-supervisor-title" class="text-lg font-semibold">{{ __('pos.cash.discount.supervisor_title') }}</h2>
+                <p class="mt-2 text-sm text-red-700">{{ $errors->first('line_discount_supervisor') }}</p>
+
+                <form method="POST" action="{{ route('pos.cart.discount', ['product' => old('line_product_id')]) }}" class="mt-4 space-y-3">
+                    @csrf
+                    <input type="hidden" name="line_product_id" value="{{ old('line_product_id') }}">
+                    <input type="hidden" name="line_type" value="{{ old('line_type', 'percent') }}">
+                    <input type="hidden" name="line_value" value="{{ old('line_value') }}">
+                    <input type="hidden" name="line_reason" value="{{ old('line_reason') }}">
+
+                    <div>
+                        <label for="line_supervisor_email" class="text-sm font-semibold text-slate-700">
+                            {{ __('pos.cash.discount.supervisor_email') }}
+                        </label>
+                        <input
+                            id="line_supervisor_email"
+                            name="line_supervisor_email"
+                            type="email"
+                            value="{{ old('line_supervisor_email') }}"
+                            class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+                        >
+                        @error('line_supervisor_email')
+                            <p class="mt-1 text-xs text-red-700">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <div>
+                        <label for="line_supervisor_password" class="text-sm font-semibold text-slate-700">
+                            {{ __('pos.cash.discount.supervisor_password') }}
+                        </label>
+                        <input
+                            id="line_supervisor_password"
+                            name="line_supervisor_password"
                             type="password"
                             class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
                         >

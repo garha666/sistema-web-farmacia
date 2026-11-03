@@ -78,6 +78,7 @@ final class PosController extends Controller
                 $manualDiscount,
             ),
             'manualDiscount' => $manualDiscount,
+            'calculator' => $this->priceCalculator,
         ]);
     }
 
@@ -184,6 +185,7 @@ final class PosController extends Controller
             convention: null,
             generalCapPercent: (int) config('pos.discount.general_cap_percent'),
             today: new DateTimeImmutable('now', new DateTimeZone((string) config('pos.timezone'))),
+            lineDiscountsPesos: $this->priceCalculator->lineDiscounts($cart)->pesos(),
         );
 
         if ($decision->isRejected()) {
@@ -227,6 +229,111 @@ final class PosController extends Controller
     }
 
     /**
+     * Aplica el descuento de una línea del carrito (RF-4, RF-13 a RF-18).
+     *
+     * Exige motivo, no deja la línea en cero y el acumulado de la transacción
+     * no supera el tope general; sobre el tope pide supervisor.
+     */
+    public function applyLineDiscount(Request $request, Product $product): RedirectResponse
+    {
+        $data = $request->validate([
+            'line_type' => ['required', new Enum(DiscountType::class)],
+            'line_value' => ['required', 'numeric', 'min:0.01', 'max:99999999'],
+            'line_reason' => ['required', 'string', 'min:3', 'max:255'],
+            'line_supervisor_email' => ['nullable', 'email'],
+            'line_supervisor_password' => ['nullable', 'string'],
+        ]);
+
+        $cart = $this->cartService->load();
+        $line = $cart->line($product->id);
+
+        if ($line === null) {
+            throw ValidationException::withMessages([
+                'line_value' => __('pos.errors.product_missing'),
+            ]);
+        }
+
+        $type = DiscountType::from($data['line_type']);
+        $reason = trim((string) $data['line_reason']);
+
+        $discount = $type === DiscountType::percent
+            ? Discount::percent((float) $data['line_value'], $reason)
+            : Discount::amount(
+                Money::fromPesos($this->priceCalculator->roundToPeso((float) $data['line_value'])),
+                $reason,
+            );
+
+        $otherLinesDiscount = $this->otherLinesDiscount($cart, $product->id);
+
+        $decision = $this->discountPolicy->evaluateLine(
+            lineBase: $this->priceCalculator->lineSubtotal($line)->pesos(),
+            discount: $discount,
+            transactionSubtotal: $this->priceCalculator->subtotal($cart)->pesos(),
+            otherLinesDiscountPesos: $otherLinesDiscount,
+            generalCapPercent: (int) config('pos.discount.general_cap_percent'),
+        );
+
+        if ($decision->isRejected()) {
+            throw ValidationException::withMessages(
+                $decision->reason() === 'reason_required'
+                    ? ['line_reason' => __('pos.errors.discount_manual_reason')]
+                    : ['line_value' => __('pos.errors.discount_zero_total')],
+            );
+        }
+
+        if ($decision->requiresSupervisor()
+            && $this->supervisorId(
+                $data,
+                'line_supervisor_email',
+                'line_supervisor_password',
+                'line_discount_supervisor',
+            ) === null) {
+            throw ValidationException::withMessages([
+                'line_discount_supervisor' => __('pos.errors.discount_above_cap', [
+                    'cap' => (int) config('pos.discount.general_cap_percent'),
+                ]),
+            ]);
+        }
+
+        $this->cartService->persist(
+            $cart->applyLineDiscount($product->id, $discount),
+        );
+
+        return redirect()->route('pos.index');
+    }
+
+    /**
+     * Quita el descuento de una línea del carrito (RF-13).
+     */
+    public function removeLineDiscount(Product $product): RedirectResponse
+    {
+        $cart = $this->cartService->load()
+            ->applyLineDiscount($product->id, null);
+
+        $this->cartService->persist($cart);
+
+        return redirect()->route('pos.index');
+    }
+
+    /**
+     * Ahorro en pesos ya aplicado en las demás líneas del carrito (RF-14).
+     */
+    private function otherLinesDiscount(Cart $cart, int $excludeProductId): int
+    {
+        $total = 0;
+
+        foreach ($cart->lines() as $line) {
+            if ($line->productId() === $excludeProductId) {
+                continue;
+            }
+
+            $total += $this->priceCalculator->lineDiscount($line)->pesos();
+        }
+
+        return $total;
+    }
+
+    /**
      * Pantalla de cobro (RF-20, RF-21).
      */
     public function checkout(): View|RedirectResponse
@@ -256,6 +363,7 @@ final class PosController extends Controller
                 (int) config('pos.iva_rate'),
                 $manualDiscount,
             ),
+            'calculator' => $this->priceCalculator,
             'manualDiscount' => $manualDiscount,
             'stockChanges' => $this->stockChanges($cart, $liveStock, $changedIds),
             'methods' => PaymentMethod::cases(),
@@ -512,10 +620,14 @@ final class PosController extends Controller
      *
      * @param  array<string, mixed>  $data
      */
-    private function supervisorId(array $data): ?int
-    {
-        $email = $data['supervisor_email'] ?? null;
-        $password = $data['supervisor_password'] ?? null;
+    private function supervisorId(
+        array $data,
+        string $emailKey = 'supervisor_email',
+        string $passwordKey = 'supervisor_password',
+        string $errorKey = 'supervisor_email',
+    ): ?int {
+        $email = $data[$emailKey] ?? null;
+        $password = $data[$passwordKey] ?? null;
 
         if ($email === null && $password === null) {
             return null;
@@ -527,7 +639,7 @@ final class PosController extends Controller
             || ! in_array($supervisor->role, [User::ROLE_QUIMICO, User::ROLE_ADMIN], true)
             || ! Hash::check((string) $password, $supervisor->password)) {
             throw ValidationException::withMessages([
-                'supervisor_email' => __('pos.errors.supervisor_invalid'),
+                $errorKey => __('pos.errors.supervisor_invalid'),
             ]);
         }
 
