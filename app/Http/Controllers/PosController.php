@@ -30,6 +30,7 @@ use App\Services\Pos\VoidSaleService;
 use DateTimeImmutable;
 use DateTimeZone;
 use DomainException;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -54,8 +55,7 @@ final class PosController extends Controller
         private readonly DiscountPolicy $discountPolicy,
         private readonly ManualDiscountService $manualDiscountService,
         private readonly StockPolicy $stockPolicy,
-    ) {
-    }
+    ) {}
 
     public function index(Request $request): View
     {
@@ -281,23 +281,33 @@ final class PosController extends Controller
             );
         }
 
-        if ($decision->requiresSupervisor()
-            && $this->supervisorId(
+        $lineAuthorizedBy = null;
+
+        if ($decision->requiresSupervisor()) {
+            $lineAuthorizedBy = $this->supervisorId(
                 $data,
                 'line_supervisor_email',
                 'line_supervisor_password',
                 'line_discount_supervisor',
-            ) === null) {
-            throw ValidationException::withMessages([
-                'line_discount_supervisor' => __('pos.errors.discount_above_cap', [
-                    'cap' => (int) config('pos.discount.general_cap_percent'),
-                ]),
-            ]);
+            );
+
+            if ($lineAuthorizedBy === null) {
+                throw ValidationException::withMessages([
+                    'line_discount_supervisor' => __('pos.errors.discount_above_cap', [
+                        'cap' => (int) config('pos.discount.general_cap_percent'),
+                    ]),
+                ]);
+            }
         }
 
         $this->cartService->persist(
             $cart->applyLineDiscount($product->id, $discount),
         );
+
+        // S12/RF-36: recuerda al supervisor para auditarlo al confirmar el cobro.
+        if ($lineAuthorizedBy !== null) {
+            $this->cartService->authorizeLineDiscount($product->id, $lineAuthorizedBy);
+        }
 
         return redirect()->route('pos.index');
     }
@@ -459,6 +469,7 @@ final class PosController extends Controller
                 discountAuthorizedBy: $discountAuthorizedBy,
                 documentType: $documentType,
                 invoice: $invoice,
+                lineDiscountAuthorizedBy: $this->cartService->lineDiscountAuthors(),
             );
         } catch (DiscountRejected $exception) {
             throw ValidationException::withMessages([$exception->field() => $exception->getMessage()]);
@@ -561,7 +572,7 @@ final class PosController extends Controller
     }
 
     /**
-     * @return \Illuminate\Database\Eloquent\Collection<int, Product>
+     * @return Collection<int, Product>
      */
     private function search(string $term)
     {

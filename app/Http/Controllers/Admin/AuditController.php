@@ -17,9 +17,9 @@ final class AuditController extends Controller
     {
         return view('admin.audit.index', [
             'logs' => AuditLog::query()
-                ->with(['user', 'auditable'])
+                ->with(['user', 'auditable', 'saleLine'])
                 ->latest('id')
-                ->paginate(30),
+                ->paginate(50),
         ]);
     }
 }

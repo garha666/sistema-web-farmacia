@@ -19,7 +19,19 @@ final class AuditLog extends Model
         'auditable_type',
         'auditable_id',
         'reason',
+        'discount_type',
+        'discount_value',
     ];
+
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'discount_value' => 'integer',
+        ];
+    }
 
     /**
      * @return BelongsTo<User, $this>
@@ -27,6 +39,16 @@ final class AuditLog extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Línea autorizada cuando el subject es un descuento de línea (S12).
+     *
+     * @return BelongsTo<SaleLine, $this>
+     */
+    public function saleLine(): BelongsTo
+    {
+        return $this->belongsTo(SaleLine::class, 'auditable_id');
     }
 
     /**

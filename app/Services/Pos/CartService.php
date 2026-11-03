@@ -11,6 +11,7 @@ use App\Pos\Value\Cart;
 use App\Pos\Value\CartLine;
 use App\Pos\Value\Discount;
 use App\Pos\Value\ProductSnapshot;
+use Illuminate\Support\Str;
 
 /**
  * Carrito de la caja, persistido en sesión (RF-6).
@@ -79,6 +80,8 @@ final class CartService
         $stored = [];
         $stock = [];
         $lineDiscounts = [];
+        $previous = session()->get(self::LINE_DISCOUNT_KEY, []);
+        $previous = is_array($previous) ? $previous : [];
 
         /** @var CartLine $line */
         foreach ($cart->lines() as $line) {
@@ -86,13 +89,67 @@ final class CartService
             $stock[$line->productId()] = $line->product->availableStock;
 
             if ($line->discount() !== null) {
-                $lineDiscounts[$line->productId()] = $this->encodeDiscount($line->discount());
+                $entry = $this->encodeDiscount($line->discount());
+
+                // S12: conserva el autor de la autorización mientras el
+                // descuento de la línea siga siendo el mismo (p. ej. al cambiar
+                // la cantidad, que recalcula el monto pero no reautoriza).
+                $prior = $previous[$line->productId()] ?? null;
+
+                if (is_array($prior)
+                    && ($prior['type'] ?? null) === $entry['type']
+                    && ($prior['value'] ?? null) == $entry['value']
+                    && isset($prior['authorized_by'])) {
+                    $entry['authorized_by'] = (int) $prior['authorized_by'];
+                }
+
+                $lineDiscounts[$line->productId()] = $entry;
             }
         }
 
         session()->put(self::SESSION_KEY, $stored);
         session()->put(self::STOCK_KEY, $stock);
         session()->put(self::LINE_DISCOUNT_KEY, $lineDiscounts);
+    }
+
+    /**
+     * Supervisor que autorizó el descuento de cada línea (S12, RF-36).
+     *
+     * @return array<int, int> id de producto => id del supervisor
+     */
+    public function lineDiscountAuthors(): array
+    {
+        $stored = session()->get(self::LINE_DISCOUNT_KEY, []);
+
+        if (! is_array($stored)) {
+            return [];
+        }
+
+        $authors = [];
+
+        foreach ($stored as $productId => $entry) {
+            if (is_array($entry) && isset($entry['authorized_by'])) {
+                $authors[(int) $productId] = (int) $entry['authorized_by'];
+            }
+        }
+
+        return $authors;
+    }
+
+    /**
+     * Guarda el supervisor que autorizó el descuento de una línea (S12).
+     */
+    public function authorizeLineDiscount(int $productId, int $supervisorId): void
+    {
+        $stored = session()->get(self::LINE_DISCOUNT_KEY, []);
+
+        if (! is_array($stored) || ! isset($stored[$productId]) || ! is_array($stored[$productId])) {
+            return;
+        }
+
+        $stored[$productId]['authorized_by'] = $supervisorId;
+
+        session()->put(self::LINE_DISCOUNT_KEY, $stored);
     }
 
     /**
@@ -152,7 +209,7 @@ final class CartService
         $token = session()->get('pos.checkout_token');
 
         if (! is_string($token) || $token === '') {
-            $token = (string) \Illuminate\Support\Str::uuid();
+            $token = (string) Str::uuid();
             session()->put('pos.checkout_token', $token);
         }
 

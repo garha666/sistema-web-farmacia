@@ -2,7 +2,7 @@
 
 **Spec:** \specs/001-pos/spec.md\ v1.0 (aprobada) · **Plan:** \specs/001-pos/plan.md\
 **Metodología:** TDD — test rojo primero, código después, \php artisan test\ en verde.
-**Estado:** T1–T10 cerradas; correcciones Vuelta 1 (S1–S5) cerradas; correcciones Vuelta 2 (S6–S11) cerradas, S12–S14 pendientes.
+**Estado:** T1–T10 cerradas; correcciones Vuelta 1 (S1–S5) cerradas; correcciones Vuelta 2 (S6–S12) cerradas, S13–S14 pendientes.
 
 > Nota: la skill \sdd\ no está instalada; el formato sigue lo acordado en \AGENTS.md\ y la constitución.
 
@@ -146,9 +146,10 @@ RF-1 a RF-40: **cobertura nominal completa**; huecos reales que corrigen S1–S5
   - *Hecho cuando:* pos/index.blade.php tabla del carrito tiene columna "Descuento" por línea con input %/monto; subtotal de línea = precio × cantidad − descuento; totales recalculan en vivo; test verifica columna, cálculo y recálculo.
   - *Cierre (2026-11-03):* `CartService` persiste el descuento por línea en sesión (mapa `pos.line_discounts`) junto al carrito; rutas `pos.cart.discount` (POST) y `pos.cart.discount.remove` (DELETE); `DiscountPolicy::evaluateLine()` valida motivo, total positivo y tope acumulado del 10% con supervisor; `PriceCalculator::lineDiscounts()` y `evaluate()` descuentan las líneas antes del descuento global (RF-14 acumulado). Vista: chip emerald con `-10% · motivo` y control plegable `<details>` accesible (375 px, sin overflow), modal de supervisor reutilizado con credenciales inválidas reabriendo el modal. Checkout muestra el descuento de línea por renglón y el pie de descuentos. 15 tests en `LineDiscountTest` (214 en total). Verificado en Chrome DevTools a 375 px (carrito, chip, modal, checkout) con `scrollWidth = 375`.
 
-- [ ] **S12. Auditoría de autorizaciones de descuento y receta repetida (RF-36).**
+- [x] **S12. Auditoría de autorizaciones de descuento y receta repetida (RF-36).**
   - *Depende de:* S4, S2
   - *Hecho cuando:* AuditService registra discount.authorization y prescription.reuse con autor, motivo, timestamp; admin/audit/index muestra estos eventos; test verifica registro en audit_logs.
+  - *Cierre (2026-11-03):* la receta repetida (`sale.prescription_reuse`) y el descuento global sobre el tope (`sale.discount_authorized`) ya se auditaban desde T3/S4; S12 cierra el hueco del descuento **por línea**. La autorización ocurre en la caja (la venta aún no existe), así que `CartService` guarda el id del supervisor junto al descuento de la línea (`pos.line_discounts[...]['authorized_by']`) y `CheckoutService` registra `sale.line_discount_authorized` al confirmar el cobro, ligado a la `SaleLine` real, con `discount_type` y `discount_value` (migración `2026_11_03_000000_extend_audit_logs_table`: dos columnas nullable, sin `sale_line_id` para no duplicar el morph ni borrar auditoría en cascada). `admin/audit/index` gana las columnas Tipo/Producto/Monto y resuelve la venta también para las líneas; paginación a 50. RBAC se mantiene Químico+Admin (decisión T10). 8 tests en `AuditTest` (222 en total). Verificado en Chrome DevTools a 375 px (Tipo `%`, «Ibuprofeno 400 mg», Monto `-$298`, Motivo), `scrollWidth = 375` y sin errores de consola.
 
 - [ ] **S13. Test de filtro por convenio en historial (RF-37).**
   - *Depende de:* T10

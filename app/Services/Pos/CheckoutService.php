@@ -11,6 +11,7 @@ use App\Models\Product;
 use App\Models\Sale;
 use App\Models\StockMovement;
 use App\Pos\Calculator\PriceCalculator;
+use App\Pos\Enum\DiscountType;
 use App\Pos\Enum\DocumentStatus;
 use App\Pos\Enum\DocumentType;
 use App\Pos\Enum\PaymentMethod;
@@ -52,8 +53,7 @@ final class CheckoutService
         private readonly DiscountPolicy $discounts,
         private readonly AuditService $audit,
         private readonly DocumentService $documents,
-    ) {
-    }
+    ) {}
 
     public function checkout(
         Cart $cart,
@@ -69,6 +69,7 @@ final class CheckoutService
         ?int $discountAuthorizedBy = null,
         ?DocumentType $documentType = null,
         ?InvoiceData $invoice = null,
+        array $lineDiscountAuthorizedBy = [],
     ): Sale {
         if ($cart->isEmpty()) {
             throw new EmptyCart('El carrito está vacío.');
@@ -124,7 +125,7 @@ final class CheckoutService
 
         // 3 intentos: reintenta si PostgreSQL detecta un deadlock (SQLSTATE 40P01)
         // o una espera de lock agotada por concurrencia entre cajas (RF-28).
-        $sale = DB::transaction(function () use ($cart, $method, $receivedAmount, $customerRut, $token, $userId, $convention, $totals, $prescription, $reuseAuthorizedBy, $alreadyUsed, $category, $globalDiscount, $discountAuthorizedBy, $discountNeedsSupervisor, $documentType, $invoice): Sale {
+        $sale = DB::transaction(function () use ($cart, $method, $receivedAmount, $customerRut, $token, $userId, $convention, $totals, $prescription, $reuseAuthorizedBy, $alreadyUsed, $category, $globalDiscount, $discountAuthorizedBy, $discountNeedsSupervisor, $documentType, $invoice, $lineDiscountAuthorizedBy): Sale {
             $existing = Sale::query()->where('token', $token)->first();
 
             if ($existing !== null) {
@@ -255,6 +256,26 @@ final class CheckoutService
                         'sold_at' => $sale->sold_at,
                     ]);
                 }
+            }
+
+            // S12/RF-36: la autorización del descuento de cada línea queda
+            // auditada con su autor, ligada a la SaleLine real de la venta.
+            foreach ($cart->lines() as $line) {
+                $authorizedBy = $lineDiscountAuthorizedBy[$line->productId()] ?? null;
+
+                if ($line->discount() === null || $authorizedBy === null) {
+                    continue;
+                }
+
+                $applied = $this->calculator->lineDiscount($line)->pesos();
+
+                $this->audit->recordLineDiscountAuthorization(
+                    line: $createdLines[$line->productId()],
+                    authorizedBy: (int) $authorizedBy,
+                    type: $line->discount()->type,
+                    discountValue: $applied,
+                    reason: $this->lineDiscountReason($line->discount(), $applied),
+                );
             }
 
             // RF-11/RF-36: la reutilización autorizada queda auditada con su autor.
@@ -401,6 +422,18 @@ final class CheckoutService
         }
 
         return [$convention, $decision->discount(), $decision->requiresSupervisor()];
+    }
+
+    /**
+     * Motivo legible de la autorización de un descuento de línea (S12, RF-36).
+     */
+    private function lineDiscountReason(Discount $discount, int $appliedPesos): string
+    {
+        $detail = $discount->type === DiscountType::percent
+            ? rtrim(rtrim(number_format($discount->value, 2, ',', '.'), '0'), ',').'%'
+            : '$'.number_format($appliedPesos, 0, ',', '.');
+
+        return "Descuento de línea ({$detail}) autorizado por supervisor.";
     }
 
     /**
