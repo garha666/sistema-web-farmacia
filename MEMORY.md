@@ -19,6 +19,7 @@
 - **Docker no instalado**: desviación aprobada del plan, se usa PG 18 local en lugar de PG 16 en contenedor.
 - `composer` instaló con `--no-security-blocking` porque Laravel 11 arrastra avisos de seguridad; revisar antes de producción.
 - Zona horaria `America/Santiago`, `SESSION_DRIVER=database` (falta migración de sesiones para RF-6).
+- **Skill `frontend-design` (2026-11-03):** instalada desde `anthropics/skills` con `npx skills add anthropics/skills -s frontend-design`. El contenido descargado vive en `.agents/skills/` (ignorado por git) y `skills-lock.json` sí se versiona: cualquier integrante restaura el entorno con `npx skills experimental_install`. Es una guía de diseño para el agente, no una dependencia de la aplicación ni de la suite.
 
 ## Decisiones vigentes
 
