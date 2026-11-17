@@ -60,11 +60,11 @@ final class SaleController extends Controller
             'convention',
             'prescription',
             'user',
-            'auditLogs.user',
         ]);
 
         return view('admin.sales.show', [
             'sale' => $sale,
+            'authorizations' => $sale->authorizationLogs(),
         ]);
     }
 

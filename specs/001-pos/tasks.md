@@ -2,7 +2,7 @@
 
 **Spec:** \specs/001-pos/spec.md\ v1.0 (aprobada) · **Plan:** \specs/001-pos/plan.md\
 **Metodología:** TDD — test rojo primero, código después, \php artisan test\ en verde.
-**Estado:** T1–T10 cerradas; correcciones Vuelta 1 (S1–S5) cerradas; correcciones Vuelta 2 (S6–S13) cerradas, S14 pendiente.
+**Estado:** T1–T10 cerradas; correcciones Vuelta 1 (S1–S5) cerradas; correcciones Vuelta 2 (S6–S14) cerradas.
 
 > Nota: la skill \sdd\ no está instalada; el formato sigue lo acordado en \AGENTS.md\ y la constitución.
 
@@ -156,9 +156,10 @@ RF-1 a RF-40: **cobertura nominal completa**; huecos reales que corrigen S1–S5
   - *Hecho cuando:* AdministrationTest::test_history_filters_by_convention pasa; admin/sales/index filtra por convenio correctamente.
   - *Cierre (2026-11-17):* el filtro por convenio ya existía desde T10 en `SaleController::query()` (`convention_id`) y en el `<select id="convention_id">` de `admin/sales/index.blade.php`; S13 era el hueco de cobertura. `AdministrationTest::test_history_filters_by_convention` cobra una venta con convenio activo y otra sin él, filtra por `convention_id` y verifica que sólo aparece la venta con convenio, que la otra no aparece y que el `<select>` conserva la opción elegida. Se comprobó que el test detecta la regresión: al neutralizar el `where` del controlador falla con «2 ventas en vez de 1». No se tocó código de producción salvo quitar un import sin uso (`PaymentMethod`) que Pint marcaba en el archivo de test. 228 tests (971 aserciones).
 
-- [ ] **S14. Detalle de venta completo (RF-38 complemento + RNF-9).**
+- [x] **S14. Detalle de venta completo (RF-38 complemento + RNF-9).**
   - *Depende de:* S7, S8
   - *Hecho cuando:* admin/sales/show.blade.php muestra: receta asociada, autorizaciones (descuento/receta), convenio, estado traducido (Emitida/Pendiente/Rechazada/Anulada); estados no en inglés; test verifica campos presentes.
+  - *Cierre (2026-11-17):* el hueco real eran las autorizaciones de **línea**: S12 las registra sobre la `SaleLine`, así que el morph `Sale::auditLogs()` no las veía y el detalle sólo mostraba las de la venta, con la acción cruda en inglés. Se añadió `Sale::authorizationLogs()`, que une los logs de la venta y los de sus líneas con su autor; `SaleController::show()` pasa `$authorizations` y la vista reemplaza la lista cruda por «Autorizaciones aplicadas» con etiqueta traducida (Descuento de línea / Descuento global sobre el tope / Reutilización de receta), autor, monto autorizado, motivo y fecha; las acciones desconocidas caen en «Otra autorización» para no filtrar inglés (RNF-9). Receta, convenio, documento con estado traducido y anulación ya existían y quedan cubiertos por tests. 3 tests nuevos: autorización de línea en español, convenio con porcentaje y ahorro, y estados Pendiente/Emitida/Rechazada. Se corrigió además el `@php(...)` inline de la vista: al añadir un `@endphp` nuevo, Blade emparejó el bloque desde ese `@php` y dejó media vista como texto literal; ahora es un bloque cerrado. Hallazgo anotado, no corregido: `lineDiscountReason()` guarda un texto generado («Descuento de línea (20%) autorizado por supervisor.») y descarta el motivo escrito por el cajero. 231 tests (994 aserciones).
 
 ---
 
@@ -182,9 +183,8 @@ RF-1 a RF-40: **cobertura nominal completa**; huecos reales que corrigen S1–S5
 | T1–T10 | ✅ Cerradas |
 | S1–S5 (Vuelta 1) | ✅ Cerradas |
 | S6–S12 (Vuelta 2) | ✅ Cerradas |
-| **S13 (Vuelta 2)** | ✅ **Cerrada** |
-| **S14 (Vuelta 2)** | ⬜ **Pendiente** |
+| **S13–S14 (Vuelta 2)** | ✅ **Cerradas** |
 
 ---
 
-*Actualizado: 2026-11-17. Suite completa: 228 tests, 971 aserciones, 0 fallos.*
+*Actualizado: 2026-11-17. Suite completa: 231 tests, 994 aserciones, 0 fallos.*

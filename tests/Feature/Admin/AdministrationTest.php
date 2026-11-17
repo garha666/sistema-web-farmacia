@@ -345,6 +345,98 @@ final class AdministrationTest extends TestCase
             ->assertDontSee(__('pos.admin.sale.prescription'));
     }
 
+    /**
+     * S14 (RF-38, RNF-9): las autorizaciones aplicadas a la venta incluyen las
+     * que se registran sobre sus líneas, con su autor, monto y motivo, y con la
+     * acción en español.
+     */
+    public function test_the_sale_detail_shows_the_line_discount_authorization_in_spanish(): void
+    {
+        $this->signIn('tecnico');
+        $supervisor = User::factory()->create(['role' => 'quimico', 'name' => 'Supervisora Demo']);
+
+        $product = Product::factory()->create(['price' => 1000, 'stock' => 5]);
+        $this->post('/pos/cart', ['product_id' => $product->id]);
+
+        $this->post(route('pos.cart.discount', $product), [
+            'line_type' => 'percent',
+            'line_value' => '20',
+            'line_reason' => 'Convenio interno',
+            'line_supervisor_email' => $supervisor->email,
+            'line_supervisor_password' => 'password',
+        ])->assertRedirect(route('pos.index'));
+
+        $this->post('/pos/checkout', ['payment_method' => 'debit'])->assertSessionHasNoErrors();
+        $sale = Sale::query()->latest('id')->firstOrFail();
+
+        $this->signIn('admin');
+        $response = $this->get(route('admin.sales.show', $sale));
+
+        $response->assertOk()
+            ->assertSee('Autorizaciones aplicadas')
+            ->assertSee('Descuento de línea')
+            ->assertSee('Autorizó: Supervisora Demo')
+            ->assertSee('Monto autorizado: $200')
+            ->assertSee('autorizado por supervisor')
+            // RNF-9: la acción interna no se muestra en inglés.
+            ->assertDontSee('sale.line_discount_authorized');
+    }
+
+    /**
+     * S14 (RF-38): el detalle muestra el convenio aplicado con su porcentaje y
+     * el ahorro registrado, o el aviso de que no hubo convenio.
+     */
+    public function test_the_sale_detail_shows_the_applied_convention(): void
+    {
+        $this->signIn('tecnico');
+
+        $convention = Convention::factory()->create([
+            'name' => 'Banmédica',
+            'percent' => 10,
+            'valid_from' => now()->subDay()->toDateString(),
+            'valid_until' => now()->addDay()->toDateString(),
+        ]);
+
+        $this->addToCart();
+        $this->post('/pos/checkout', [
+            'payment_method' => 'debit',
+            'convention_id' => $convention->id,
+        ])->assertSessionHasNoErrors();
+
+        $sale = Sale::query()->latest('id')->firstOrFail();
+
+        $this->signIn('admin');
+
+        $this->get(route('admin.sales.show', $sale))
+            ->assertOk()
+            ->assertSee('Banmédica')
+            ->assertSee('10% de descuento')
+            ->assertSee('Ahorro: $100')
+            ->assertDontSee('Sin convenio.');
+    }
+
+    /**
+     * S14 (RNF-9): los estados del documento se muestran en español, no con el
+     * valor interno del enum.
+     */
+    public function test_the_sale_detail_translates_the_document_status(): void
+    {
+        $this->signIn('admin');
+        $sale = $this->sell();
+
+        foreach ([
+            DocumentStatus::pending->value => 'Pendiente',
+            DocumentStatus::issued->value => 'Emitida',
+            DocumentStatus::rejected->value => 'Rechazada',
+        ] as $status => $label) {
+            $sale->document()->update(['status' => DocumentStatus::from($status)]);
+
+            $this->get(route('admin.sales.show', $sale))
+                ->assertOk()
+                ->assertSee('Estado: '.$label);
+        }
+    }
+
     // ------------------------------------------------------------------
     // Documentos y reintento (RF-26)
     // ------------------------------------------------------------------

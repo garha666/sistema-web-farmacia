@@ -5,6 +5,11 @@
 @php
     $money = fn (?int $pesos): string => $pesos === null ? __('pos.common.none') : '$'.number_format($pesos, 0, ',', '.');
     $percent = fn (float|int $value): string => rtrim(rtrim(number_format((float) $value, 2, ',', '.'), '0'), ',');
+    $actionLabels = [
+        'sale.prescription_reuse' => __('pos.admin.sale.authorization_prescription_reuse'),
+        'sale.discount_authorized' => __('pos.admin.sale.authorization_discount'),
+        'sale.line_discount_authorized' => __('pos.admin.sale.authorization_line_discount'),
+    ];
 @endphp
 
 @section('content')
@@ -91,7 +96,9 @@
                 <p class="text-sm text-slate-600">{{ __('pos.admin.sale.customer_rut', ['rut' => $sale->customer_rut ?? __('pos.common.none')]) }}</p>
             </section>
 
-            @php($prescription = $sale->prescription)
+            @php
+                $prescription = $sale->prescription;
+            @endphp
             @if ($prescription !== null
                 && $prescription->number !== null
                 && $prescription->prescriber_name !== null
@@ -139,17 +146,27 @@
                 @endif
             </section>
 
-            @if ($sale->auditLogs->isNotEmpty())
-                <section class="rounded-xl bg-white p-4 shadow-sm">
-                    <h3 class="text-sm font-semibold uppercase tracking-wide text-slate-500">{{ __('pos.admin.sale.audit') }}</h3>
-                    <ul class="mt-2 space-y-2 text-sm">
-                        @foreach ($sale->auditLogs as $log)
-                            <li>
-                                <span class="font-medium">{{ $log->action }}</span>
-                                · {{ $log->user?->name ?? __('pos.common.none') }}
+            @if ($authorizations->isNotEmpty())
+                <section class="rounded-xl bg-white p-4 shadow-sm" aria-labelledby="authorizations-title">
+                    <h3 id="authorizations-title" class="text-sm font-semibold uppercase tracking-wide text-slate-500">{{ __('pos.admin.sale.authorizations') }}</h3>
+                    <ul class="mt-2 space-y-3 text-sm">
+                        @foreach ($authorizations as $log)
+                            <li class="break-words">
+                                <span class="font-medium">
+                                    {{ $actionLabels[$log->action] ?? __('pos.admin.sale.authorization_other') }}
+                                </span>
+                                <span class="block text-slate-600">
+                                    {{ __('pos.admin.sale.authorized_by', ['name' => $log->user?->name ?? __('pos.common.none')]) }}
+                                </span>
+                                @if ($log->discount_value !== null)
+                                    <span class="block text-slate-600">
+                                        {{ __('pos.admin.sale.authorization_amount', ['amount' => $money($log->discount_value)]) }}
+                                    </span>
+                                @endif
                                 @if ($log->reason)
                                     <span class="block text-slate-600">{{ $log->reason }}</span>
                                 @endif
+                                <span class="block text-xs text-slate-500">{{ $log->created_at?->format('d-m-Y H:i') }}</span>
                             </li>
                         @endforeach
                     </ul>

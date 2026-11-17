@@ -5,10 +5,11 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Pos\Enum\DiscountOrigin;
-use App\Pos\Enum\DocumentStatus;
-use App\Pos\Enum\DocumentType;
 use App\Pos\Enum\PaymentMethod;
 use App\Pos\Enum\SaleStatus;
+use Database\Factories\SaleFactory;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -18,7 +19,7 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 final class Sale extends Model
 {
-    /** @use HasFactory<\Database\Factories\SaleFactory> */
+    /** @use HasFactory<SaleFactory> */
     use HasFactory;
 
     protected $fillable = [
@@ -156,6 +157,37 @@ final class Sale extends Model
     }
 
     /**
+     * Autorizaciones aplicadas a la venta completa (RF-38): las registradas
+     * sobre la venta y las que S12 registra sobre cada línea, ya que el
+     * descuento de línea se autoriza en la caja, cuando la venta aún no existe.
+     *
+     * @return Collection<int, AuditLog>
+     */
+    public function authorizationLogs(): Collection
+    {
+        $lineIds = $this->lines->modelKeys();
+
+        return AuditLog::query()
+            ->where(function (Builder $query) use ($lineIds): void {
+                $query->where(function (Builder $query): void {
+                    $query->where('auditable_type', $this->getMorphClass())
+                        ->where('auditable_id', $this->getKey());
+                });
+
+                if ($lineIds !== []) {
+                    $query->orWhere(function (Builder $query) use ($lineIds): void {
+                        $query->where('auditable_type', (new SaleLine)->getMorphClass())
+                            ->whereIn('auditable_id', $lineIds);
+                    });
+                }
+            })
+            ->with('user')
+            ->orderBy('created_at')
+            ->orderBy('id')
+            ->get();
+    }
+
+    /**
      * @return HasMany<StockMovement, $this>
      */
     public function movements(): HasMany
@@ -174,7 +206,7 @@ final class Sale extends Model
      */
     protected static function booted(): void
     {
-        static::creating(function (self $sale): void {
+        self::creating(function (self $sale): void {
             if ($sale->user_id === null) {
                 $sale->user_id = auth()->id();
             }

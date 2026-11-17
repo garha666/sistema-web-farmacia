@@ -246,6 +246,13 @@ return [
             'no_document' => 'Sin documento.',
             'credit_note' => 'Nota de crédito #:folio',
             'audit' => 'Auditoría',
+            'authorizations' => 'Autorizaciones aplicadas',
+            'authorized_by' => 'Autorizó: :name',
+            'authorization_amount' => 'Monto autorizado: :amount',
+            'authorization_prescription_reuse' => 'Reutilización de receta',
+            'authorization_discount' => 'Descuento global sobre el tope',
+            'authorization_line_discount' => 'Descuento de línea',
+            'authorization_other' => 'Otra autorización',
         ],
         'documents' => [
             'title' => 'Documentos',
