@@ -25,6 +25,24 @@ final class AdministrationTest extends TestCase
 {
     use RefreshDatabase;
 
+    /**
+     * B10 - RNF-2: la administración usa el CSS compilado, nunca el CDN de Tailwind.
+     */
+    public function test_the_admin_layout_loads_compiled_assets_and_not_the_tailwind_cdn(): void
+    {
+        $this->signIn('admin');
+
+        $response = $this->get(route('admin.sales.index'));
+
+        $response->assertOk();
+        $response->assertSee('/build/assets/', false);
+
+        $layout = (string) file_get_contents(resource_path('views/layouts/admin.blade.php'));
+
+        $this->assertStringContainsString('@vite', $layout);
+        $this->assertStringNotContainsString('cdn.tailwindcss.com', $layout);
+    }
+
     // ------------------------------------------------------------------
     // Convenios (RF-39, RF-40)
     // ------------------------------------------------------------------

@@ -9,7 +9,8 @@
 - **Spec 001 POS:** `specs/001-pos/spec.md` v1.0, **aprobada**, 40 RF y 13 RNF, sin dudas abiertas.
 - **Plan 001 POS:** `specs/001-pos/plan.md`, completo (arquitectura, funciones puras, pseudocódigo, UI, decisiones, tests).
 - **Tareas 001 POS:** `specs/001-pos/tasks.md`, 10 tareas + correcciones Vuelta 1 (S1–S5) + Vuelta 2 (S6–S14). **T1 a T10 cerradas; S1 a S12 cerradas.**
-- **Código:** Laravel 11.57.1. Dominio `app/Pos/` completo. Persistencia: `Product`, `Sale`, `SaleLine`, `Document`, `InvoiceDetail`, `StockMovement`, `AuditLog`, `Convention`, `Prescription`, `ControlledRegisterEntry`. Servicios: `CartService`, `CheckoutService`, `VoidSaleService`, `AuditService`, `ConventionService`, `DocumentService`, `ManualDiscountService`. Emisión simulada: `Pos\Contract\DocumentEmitter`, `Pos\Emission\SimulatedDocumentEmitter`, `Pos\Folio\FolioAllocator`. HTTP: `PosController` y `Admin\{ConventionController, SaleController, DocumentController, AuditController, ControlledRegisterController}`. Vistas: `pos/index`, `pos/checkout`, `pos/receipt`, `admin/*` (layout `layouts.admin`). Traducciones en `lang/es/`. 237 tests en verde (1034 aserciones).
+- **Código:** Laravel 11.57.1. Dominio `app/Pos/` completo. Persistencia: `Product`, `Sale`, `SaleLine`, `Document`, `InvoiceDetail`, `StockMovement`, `AuditLog`, `Convention`, `Prescription`, `ControlledRegisterEntry`. Servicios: `CartService`, `CheckoutService`, `VoidSaleService`, `AuditService`, `ConventionService`, `DocumentService`, `ManualDiscountService`. Emisión simulada: `Pos\Contract\DocumentEmitter`, `Pos\Emission\SimulatedDocumentEmitter`, `Pos\Folio\FolioAllocator`. HTTP: `PosController` y `Admin\{ConventionController, SaleController, DocumentController, AuditController, ControlledRegisterController}`. Vistas: `pos/index`, `pos/checkout`, `pos/receipt`, `admin/*` (layout `layouts.admin`). Traducciones en `lang/es/`. 239 tests en verde (1042 aserciones).
+- **Spec 002 paneles/inventario/caja:** `specs/002-dashboard/spec.md` v0.1, **borrador** (2026-11-17). 37 RF (RF-41 a RF-77), 9 RNF (RNF-14 a RNF-22). Cubre los cuatro paneles por rol, el catálogo de productos con ajuste de stock auditado y el cierre de caja con diferencia declarada. Introduce el rol Bodeguero y absorbe dos temas que 001 delegaba o excluía: el arqueo (antes en `004-reportes`) y los tableros por rol. **Pendiente:** aprobación del equipo y las 5 enmiendas a la spec 001 listadas en su §10 (sin ellas las dos specs se contradicen).
 - **Comandos SDD:** instalados en `.opencode/commands/` (9 comandos).
 
 ## Entorno (2026-10-30)
@@ -40,7 +41,7 @@
 - **Cambio de stock (T5/S5):** `StockPolicy::detectChanges` compara la existencia viva contra el stock congelado al agregar o ajustar cada línea. La caja guarda ese stock en la sesión `pos.cart_stock` (junto a `pos.cart`), porque `CartService::load()` relee la base en cada request; `PosController::checkout` detecta los cambios y muestra «Stock actual: X» más el botón «Ajustar cantidades». La transacción de cobro sigue bloqueando la fila real con `lockForUpdate()` (T8).
 - **Carrito en sesión (T6):** se guarda `id de producto => cantidad` en `pos.cart`, el stock congelado en `pos.cart_stock` y, desde S11, el descuento por línea en `pos.line_discounts` (mapa id => tipo, valor y motivo); precio, categoría y stock se releen de la base en cada request.
 - **Búsqueda (T6):** `lower(...) like` sobre nombre, principio activo y código de barras, límite 20 resultados, sólo productos vendibles.
-- **Tailwind (T6):** `tailwindcss@3` + PostCSS + Vite. `npm run build` genera `public/build`; la vista usa `@vite` y cae a CDN sólo si falta el manifest. `public/build` está en `.gitignore`, así que **tras cada `git pull` hay que ejecutar `npm run build`**: si no, las clases nuevas de las vistas no existen en el CSS compilado y la pantalla sale sin estilos (pasó con `bg-amber-600` del botón «Ajustar cantidades»).
+- **Tailwind (T6, B10):** `tailwindcss@3` + PostCSS + Vite. `npm run build` genera `public/build`, que **está versionado desde B10**: un clon funciona sin `npm install` ni internet. Los layouts usan `@vite` directo, sin la rama de respaldo con el CDN. Sigue siendo obligatorio ejecutar `npm run build` después de tocar clases de Tailwind, porque el CSS compilado sólo contiene las utilidades que existían al compilar (pasó con `bg-amber-600` del botón «Ajustar cantidades»).
 - **Sesiones:** Laravel 11 crea la tabla `sessions` en la migración de `users`; no se agrega una migración propia.
 - **Cobro (T7):** `CheckoutService` hace todo dentro de `DB::transaction`: descuenta stock con `where('stock','>=',qty)`, crea venta, líneas congeladas, documento y movimiento negativo. Si algo falla, rollback y el carrito queda intacto.
 - **Bloqueo pesimista (T8):** antes de validar y descontar, `CheckoutService::lockProducts()` ejecuta `SELECT ... FOR UPDATE` (`lockForUpdate()`) sobre los productos del carrito ordenados por `id`. El descuento condicional `where('stock','>=',qty)` queda como segunda barrera contra la sobreventa (RF-27, RF-30).
@@ -116,9 +117,16 @@
   `AdministrationTest::test_the_sale_detail_does_not_prefix_the_missing_folio_with_a_hash`, que compara en crudo (`assertDontSee('#sin folio', false)`).
   Verificado en navegador a 375×812: la tarjeta muestra «Boleta sin folio», `scrollWidth = 375` y sin mensajes de consola. Suite: **237 tests, 1034
   aserciones**.
+- **B10 (RNF-2, 2026-11-17):** los layouts ya no dependen del CDN de Tailwind. `layouts/pos.blade.php` y `layouts/admin.blade.php` tenían un `@if
+  (file_exists(public_path('build/manifest.json')))` con `@vite` y, en el `@else`, `<script src="https://cdn.tailwindcss.com">`; sin internet o sin build
+  la pantalla quedaba a merced de un servicio externo (principio 1 de la constitución). Ahora ambos usan `@vite` directo y `/public/build` dejó de estar
+  en `.gitignore`: el build (3 archivos, 90 KB) se versiona, así que un clon funciona sin `npm install`. Consecuencia deliberada: si alguien borra
+  `public/build`, `@vite` lanza «Vite manifest not found» y los tests de vista fallan en vez de degradar en silencio. Tests nuevos: uno en `CartFlowTest` y
+  otro en `AdministrationTest` que verifican el HTML renderizado con `/build/assets/` y la **fuente** del layout sin `cdn.tailwindcss.com` (el primer
+  intento miraba sólo el HTML y pasaba en verde, porque la rama `@else` no se ejecuta cuando el manifest existe). Suite: **239 tests, 1042 aserciones**.
 - **S14 (RF-38, RNF-9, 2026-11-17):** el detalle de venta mostraba sólo las autorizaciones registradas sobre la `Sale`, pero S12 registra el descuento de línea sobre la `SaleLine`; el morph `auditLogs()` no las veía. `Sale::authorizationLogs()` une ambos orígenes con su autor y la vista los lista en «Autorizaciones aplicadas» con etiqueta traducida (Descuento de línea, Descuento global sobre el tope, Reutilización de receta), autor, monto, motivo y fecha; una acción desconocida cae en «Otra autorización» para no mostrar inglés. `SaleController::show()` pasa `$authorizations` (ya no carga `auditLogs.user`). Receta, convenio y estados del documento ya estaban resueltos y quedan con test propio. **Trampa de Blade detectada:** la vista tenía `@php($prescription = $sale->prescription)` inline; al añadir un bloque `@php ... @endphp`, Blade emparejó el bloque desde ese `@php` inline y dejó media vista como texto literal (los tests fallaban con «Expected» mostrando Blade sin compilar). Se convirtió en bloque cerrado. **Hallazgo corregido en B8:** `lineDiscountReason()` descartaba el motivo escrito por el cajero y guardaba el texto generado «Descuento de línea (20%) autorizado por supervisor.».
 - **S12 (RF-36):** cerrada. La autorización del descuento por línea ya se audita con su autor (`sale.line_discount_authorized`). El pendiente heredado (revalidar el tope acumulado de las líneas al confirmar el cobro) quedó cerrado en B7.
-- `layouts/pos.blade.php` carga `@vite` **y** `<script src="https://cdn.tailwindcss.com">`. Sin internet el CDN no responde y la pantalla depende del CSS compilado local: hay que correr `npm run build` después de tocar clases de Tailwind (pasó en S11 con `h-3.5`/`group-open:`). Conviene quitar el CDN en una limpieza posterior.
+- ~~`layouts/pos.blade.php` carga `@vite` **y** `<script src="https://cdn.tailwindcss.com">`. Sin internet el CDN no responde y la pantalla depende del CSS compilado local: hay que correr `npm run build` después de tocar clases de Tailwind (pasó en S11 con `h-3.5`/`group-open:`). Conviene quitar el CDN en una limpieza posterior.~~ **Resuelto en B10:** ambos layouts cargan sólo `@vite` y `public/build` está versionado.
 
 ## Verificación visual (375 px)
 
@@ -205,6 +213,15 @@ MCP `chrome-devtools` (375×812×2 mobile/touch) contra `php artisan serve --por
 | `admin/sales/5`, tarjeta «Documento» | «Boleta sin folio», sin el `#` antepuesto. Antes decía «Boleta #sin folio». |
 | Medidas | `scrollWidth = 375`, sin desbordes y sin mensajes de consola. |
 
+### B10 — sin CDN de Tailwind (2026-11-17)
+
+MCP `chrome-devtools` (375×812×2 mobile/touch) contra `php artisan serve --port=8002`, con la sesión admin de desarrollo. Se comprobó que la página pide **sólo** `/build/assets/app-*.css` y `/build/assets/app-*.js`, sin ninguna petición a `cdn.tailwindcss.com`.
+
+| Pantalla | Resultado |
+| --- | --- |
+| `admin/sales` a 375 px | Estilos aplicados desde el CSS compilado: barra lateral `rgb(15,23,42)` (slate-900), `scrollWidth = 375`. Sin errores de consola. |
+| `pos` a 375 px | Encabezado con marca, buscador con icono, chips «Receta»/«Controlado» y carrito con total: todo desde el CSS compilado. `scrollWidth = 375`. Sin errores de consola. |
+
 ### Vuelta 2 (S7, 2026-11-02)
 
 Esta vez con el MCP `chrome-devtools` (`emulate` 375×812×2 mobile/touch, cookie de sesión admin inyectada, `evaluate_script`, `take_screenshot`, `list_console_messages`), contra `127.0.0.1:8001` y la BD demo.
@@ -254,4 +271,4 @@ Datos demo usados para la verificación eliminados al terminar (venta, línea y 
 
 ## Próximo paso
 
-S12 (auditoría de autorizaciones de descuento) cerrada. Cola en curso: **B0–B9, S13 y S14 cerradas con 237 tests en verde. Auditoría RF por RF completa en `specs/001-pos/rf-audit.md`.** Pendientes de mejora (no bloqueantes): quitar el CDN de Tailwind del layout, formalizar `BarcodeScanPolicy` en la spec, paginación explícita en `SaleController::query()`, extraer los iconos SVG del menú de administración, `tabular-nums` y `focus-visible` en las tablas de administración, y el `??` de la celda de motivo en `admin/audit` (un motivo vacío deja la celda en blanco en vez de «—»).
+S12 (auditoría de autorizaciones de descuento) cerrada. Cola en curso: **B0–B10, S13 y S14 cerradas con 239 tests en verde. Auditoría RF por RF completa en `specs/001-pos/rf-audit.md`.** Pendientes de mejora (no bloqueantes): paginación propia en español, extraer los iconos SVG del menú de administración a un partial, `tabular-nums` y `focus-visible` en las tablas de administración, y el `??` de la celda de motivo en `admin/audit` (un motivo vacío deja la celda en blanco en vez de «—»). **Nueva spec 002** (paneles por rol, inventario y cierre de caja) aprobada en `specs/002-dashboard/spec.md`, pendiente de plan y tareas.

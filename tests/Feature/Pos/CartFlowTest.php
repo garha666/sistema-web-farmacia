@@ -35,6 +35,22 @@ final class CartFlowTest extends TestCase
         $response->assertSee('Carrito vacío');
     }
 
+    /**
+     * B10 - RNF-2: la caja usa el CSS compilado, nunca el CDN de Tailwind.
+     */
+    public function test_the_cash_layout_loads_compiled_assets_and_not_the_tailwind_cdn(): void
+    {
+        $response = $this->get('/pos');
+
+        $response->assertOk();
+        $response->assertSee('/build/assets/', false);
+
+        $layout = (string) file_get_contents(resource_path('views/layouts/pos.blade.php'));
+
+        $this->assertStringContainsString('@vite', $layout);
+        $this->assertStringNotContainsString('cdn.tailwindcss.com', $layout);
+    }
+
     public function test_search_finds_product_by_name(): void
     {
         Product::factory()->create(['name' => 'Paracetamol 500 mg']);

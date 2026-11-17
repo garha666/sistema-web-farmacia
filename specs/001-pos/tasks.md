@@ -179,6 +179,8 @@ RF-1 a RF-40: **cobertura nominal completa**; huecos reales que corrigen S1–S5
 
 - **2026-11-17 — B9 (`#` antepuesto al folio ausente).** `admin/sales/show.blade.php` armaba el documento como `{{ type }} #{{ folio ?? no_folio }}`, así que un documento `pending` sin folio se titulaba «Boleta #sin folio». Ahora un `@if ($sale->document->folio !== null)` imprime `#folio` sólo cuando existe y, si no, el texto de `pos.common.no_folio`, igual que el historial de ventas. No cambia ningún RF ni RNF: es un error de copy de RNF-9. Test nuevo en `AdministrationTest` (el detalle muestra «sin folio» y no «#sin folio»). Verificado en navegador a 375×812.
 
+- **2026-11-17 — B10 (sin CDN de Tailwind).** Los dos layouts envolvían `@vite` en un `@if (file_exists(public_path('build/manifest.json')))` con `<script src="https://cdn.tailwindcss.com">` como respaldo: sin internet o sin build, la pantalla dependía de un servicio externo. Ahora `layouts/pos.blade.php` y `layouts/admin.blade.php` usan `@vite` directo y `/public/build` (3 archivos, 90 KB) dejó de estar en `.gitignore`, así que un clon funciona sin `npm install`. Si falta el manifest, `@vite` falla en vez de degradar en silencio. No cambia ningún RF ni RNF: cumple el principio 1 de la constitución y RNF-2. Tests nuevos en `CartFlowTest` y `AdministrationTest` que revisan el HTML renderizado y la fuente del layout; el primer intento pasaba en verde porque la rama de respaldo no se ejecuta cuando el manifest existe. Verificado en navegador a 375×812.
+
 ---
 
 ## Estado actual del flujo SDD
@@ -196,11 +198,11 @@ RF-1 a RF-40: **cobertura nominal completa**; huecos reales que corrigen S1–S5
 | **S13–S14 (Vuelta 2)** | ✅ **Cerradas** |
 | B0–B5 | ✅ **Cerradas** |
 | B6–B7 | ✅ **Cerradas** |
-| B8–B9 | ✅ **Cerradas** |
+| B8–B10 | ✅ **Cerradas** |
 | Verificación visual 375 px | ✅ **Completada** |
 | Auditoría RF por RF | ✅ **Completada** |
 | Cierre documental | ✅ **Completado** |
 
 ---
 
-*Actualizado: 2026-11-17. Suite completa: 237 tests, 1034 aserciones, 0 fallos. Auditoría RF por RF: `specs/001-pos/rf-audit.md`.*
+*Actualizado: 2026-11-17. Suite completa: 239 tests, 1042 aserciones, 0 fallos. Auditoría RF por RF: `specs/001-pos/rf-audit.md`.*
