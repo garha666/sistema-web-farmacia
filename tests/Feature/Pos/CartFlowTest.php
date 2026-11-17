@@ -6,6 +6,7 @@ namespace Tests\Feature\Pos;
 
 use App\Models\Product;
 use App\Models\User;
+use Database\Seeders\ProductSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -65,6 +66,44 @@ final class CartFlowTest extends TestCase
         $response = $this->get('/pos?q=7801234567890');
 
         $response->assertSee('Vitamina C');
+    }
+
+    /**
+     * B1 (RNF-3): el catálogo de demo se escanea en el mostrador, así que cada
+     * producto trae un EAN-13 real, único y con dígito verificador correcto.
+     */
+    public function test_demo_catalog_products_have_unique_valid_ean13_barcodes(): void
+    {
+        $this->seed(ProductSeeder::class);
+
+        $products = Product::query()->orderBy('id')->get();
+
+        $this->assertCount(4, $products);
+        $this->assertSame(4, $products->pluck('barcode')->unique()->count());
+
+        foreach ($products as $product) {
+            $this->assertNotNull($product->barcode, "El producto {$product->name} no tiene código de barras.");
+            $this->assertTrue(
+                $this->isValidEan13($product->barcode),
+                "El código {$product->barcode} de {$product->name} no es un EAN-13 válido.",
+            );
+        }
+    }
+
+    private function isValidEan13(string $code): bool
+    {
+        if (preg_match('/^\d{13}$/', $code) !== 1) {
+            return false;
+        }
+
+        $sum = 0;
+
+        for ($position = 0; $position < 12; $position++) {
+            $digit = (int) $code[$position];
+            $sum += $position % 2 === 0 ? $digit : $digit * 3;
+        }
+
+        return (10 - $sum % 10) % 10 === (int) $code[12];
     }
 
     public function test_search_without_matches_shows_empty_message(): void

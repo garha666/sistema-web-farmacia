@@ -183,4 +183,4 @@ RF-1 a RF-40: **cobertura nominal completa**; huecos reales que corrigen S1–S5
 
 ---
 
-*Actualizado: 2026-11-17. Suite completa: 221 tests, 931 aserciones, 0 fallos.*
+*Actualizado: 2026-11-17. Suite completa: 222 tests, 941 aserciones, 0 fallos.*
