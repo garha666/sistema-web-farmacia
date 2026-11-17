@@ -456,6 +456,7 @@ final class PosController extends Controller
                 $conventionId,
                 $manualDiscount,
                 $discountAuthorizedBy,
+                $this->cartService->lineDiscountAuthors(),
             );
         } catch (DiscountRejected $exception) {
             throw ValidationException::withMessages([$exception->field() => $exception->getMessage()]);

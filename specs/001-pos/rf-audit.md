@@ -1,7 +1,7 @@
 # Auditoría RF por RF — POS 001
 
 **Proyecto:** Sistema Web de Gestión y Simulación de Farmacia Privada Comercial (Grupo A)
-**Fecha:** 2026-11-17 · **Suite:** 232 tests, 1000 aserciones, 0 fallos.
+**Fecha:** 2026-11-17 · **Suite:** 235 tests, 1024 aserciones, 0 fallos.
 **Criterio:** §8.1 — Todo RF con al menos un test automatizado en verde, escrito antes del código.
 
 ---
@@ -91,6 +91,6 @@
 ## Resumen
 
 - **40 RF cubiertos** (100 %). Cada RF tiene al menos un test en verde.
-- **232 tests, 1000 aserciones, 0 fallos.**
+- **235 tests, 1024 aserciones, 0 fallos.**
 - **Verificación visual a 375 px completada** el 2026-11-17: escaneo, error de escaneo, comprobante 80 mm, detalle de venta e historial con filtro.
 - **Pendientes documentados:** el tope acumulado de líneas no se revalida en `CheckoutService` (hueco de S12); el motivo original del descuento de línea lo reemplaza un texto generado en `lineDiscountReason()`.

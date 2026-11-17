@@ -334,4 +334,100 @@ final class LineDiscountTest extends TestCase
         $this->assertSame(100, $line->discount_amount);
         $this->assertSame(1, $line->quantity);
     }
+
+    public function test_checkout_rejects_a_line_discount_that_exceeds_the_cap_after_the_cart_changes(): void
+    {
+        $discounted = Product::factory()->create(['price' => 1000, 'stock' => 10]);
+        $other = Product::factory()->create(['price' => 1000, 'stock' => 10]);
+
+        $this->post('/pos/cart', ['product_id' => $discounted->id]);
+        $this->post('/pos/cart', ['product_id' => $other->id]);
+        $this->patch(route('pos.cart.update', $discounted), ['quantity' => 3]);
+
+        // $300 sobre una base de $3.000: 7,5% del carrito de $4.000, dentro del tope.
+        $this->post(route('pos.cart.discount', $discounted), [
+            'line_type' => 'amount',
+            'line_value' => '300',
+            'line_reason' => 'Promoción',
+        ])->assertRedirect(route('pos.index'));
+
+        // Al bajar la cantidad, $300 sobre un carrito de $2.000 ya es 15%.
+        $this->patch(route('pos.cart.update', $discounted), ['quantity' => 1])
+            ->assertRedirect(route('pos.index'));
+
+        // RF-14/RF-16: sobre el tope hace falta supervisor, también al cobrar.
+        $this->post('/pos/checkout', ['payment_method' => 'debit'])
+            ->assertSessionHasErrors('line_discount_supervisor');
+
+        $this->assertSame(0, Sale::query()->count());
+        $this->assertSame(10, $discounted->fresh()->stock);
+
+        // El aviso queda visible en el cobro, con la vuelta a la caja.
+        $this->get('/pos/checkout')
+            ->assertOk()
+            ->assertSeeText(__('pos.checkout.line_discount_blocked_title'))
+            ->assertSeeText(__('pos.errors.line_discount_revalidate', [
+                'name' => $discounted->name,
+                'cap' => 10,
+            ]));
+    }
+
+    public function test_checkout_accepts_a_line_discount_authorized_by_a_supervisor_after_the_cart_changes(): void
+    {
+        $discounted = Product::factory()->create(['price' => 1000, 'stock' => 10]);
+        $other = Product::factory()->create(['price' => 1000, 'stock' => 10]);
+        $supervisor = User::factory()->create(['role' => 'quimico']);
+
+        $this->post('/pos/cart', ['product_id' => $discounted->id]);
+        $this->post('/pos/cart', ['product_id' => $other->id]);
+        $this->patch(route('pos.cart.update', $discounted), ['quantity' => 2]);
+
+        // 20% sobre $2.000 = $400: 13,3% del carrito, sobre el tope y autorizado.
+        $this->post(route('pos.cart.discount', $discounted), [
+            'line_type' => 'percent',
+            'line_value' => '20',
+            'line_reason' => 'Convenio interno',
+            'line_supervisor_email' => $supervisor->email,
+            'line_supervisor_password' => 'password',
+        ])->assertRedirect(route('pos.index'));
+
+        $this->patch(route('pos.cart.update', $discounted), ['quantity' => 1])
+            ->assertRedirect(route('pos.index'));
+
+        // La autorización vigente cubre el descuento aunque el carrito cambie:
+        // 20% de la nueva base de $1.000 son $200, sobre un subtotal de $2.000.
+        $this->post('/pos/checkout', ['payment_method' => 'debit'])->assertRedirect();
+
+        $sale = Sale::query()->firstOrFail();
+
+        $this->assertSame(1800, $sale->total);
+    }
+
+    public function test_checkout_rejects_a_line_discount_that_now_zeroes_the_line(): void
+    {
+        $product = Product::factory()->create(['price' => 1000, 'stock' => 10]);
+        $supervisor = User::factory()->create(['role' => 'quimico']);
+
+        $this->post('/pos/cart', ['product_id' => $product->id]);
+        $this->patch(route('pos.cart.update', $product), ['quantity' => 3]);
+
+        // $2.999 sobre una base de $3.000: sobre el tope, autorizado.
+        $this->post(route('pos.cart.discount', $product), [
+            'line_type' => 'amount',
+            'line_value' => '2999',
+            'line_reason' => 'Ajuste de precio',
+            'line_supervisor_email' => $supervisor->email,
+            'line_supervisor_password' => 'password',
+        ])->assertRedirect(route('pos.index'));
+
+        // Al bajar la cantidad el monto iguala la base: la línea queda en cero.
+        $this->patch(route('pos.cart.update', $product), ['quantity' => 1])
+            ->assertRedirect(route('pos.index'));
+
+        // RF-18: ningún descuento puede dejar el total en cero o negativo.
+        $this->post('/pos/checkout', ['payment_method' => 'debit'])
+            ->assertSessionHasErrors('line_value');
+
+        $this->assertSame(0, Sale::query()->count());
+    }
 }

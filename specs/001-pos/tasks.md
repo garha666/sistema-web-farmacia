@@ -173,6 +173,8 @@ RF-1 a RF-40: **cobertura nominal completa**; huecos reales que corrigen S1–S5
 
 - **2026-11-17 — B6 (identidad visual).** `specs/001-pos/spec.md` §9 suma el supuesto **S-8**: paleta única con esmeralda de acento y navegación lateral en el panel de administración, como desarrollo de RNF-11 (foco visible, etiquetas y contraste). Sólo se editan vistas y layouts: no cambia ningún RF, regla de negocio, ruta ni dato, y los textos siguen saliendo de `lang/es/pos.php`.
 
+- **2026-11-17 — B7 (tope de línea al cobrar).** `CheckoutService::assertLineDiscountsAuthorized()` revalida los descuentos de línea contra el tope acumulado del carrito final, en `checkout()` y en `totalsFor()` (antes de validar el efectivo recibido). Si el carrito cambió desde que se aplicó el descuento y el ahorro vigente supera el 10 %, la venta se rechaza con `line_discount_supervisor`; el cobro muestra «El descuento de línea ya no es válido» con vuelta a la caja para reautorizar. Una línea con supervisor recordado (S12) conserva su autorización, y una que quedó en cero tras el cambio se rechaza con `line_value` (RF-18). No cambia ningún RF ni RNF: cierra el pendiente que S12 dejó abierto. 3 tests nuevos en `LineDiscountTest`.
+
 ---
 
 ## Estado actual del flujo SDD
@@ -189,10 +191,11 @@ RF-1 a RF-40: **cobertura nominal completa**; huecos reales que corrigen S1–S5
 | S6–S12 (Vuelta 2) | ✅ Cerradas |
 | **S13–S14 (Vuelta 2)** | ✅ **Cerradas** |
 | B0–B5 | ✅ **Cerradas** |
+| B6–B7 | ✅ **Cerradas** |
 | Verificación visual 375 px | ✅ **Completada** |
 | Auditoría RF por RF | ✅ **Completada** |
 | Cierre documental | ✅ **Completado** |
 
 ---
 
-*Actualizado: 2026-11-17. Suite completa: 232 tests, 1000 aserciones, 0 fallos. Auditoría RF por RF: `specs/001-pos/rf-audit.md`.*
+*Actualizado: 2026-11-17. Suite completa: 235 tests, 1024 aserciones, 0 fallos. Auditoría RF por RF: `specs/001-pos/rf-audit.md`.*

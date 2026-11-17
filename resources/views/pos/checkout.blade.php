@@ -87,6 +87,19 @@
         <form method="POST" action="{{ route('pos.checkout.store') }}" class="mt-6 space-y-4">
             @csrf
 
+            {{-- RF-14/RF-16: el carrito cambió y el descuento de línea dejó de estar dentro del tope. --}}
+            @if ($errors->has('line_discount_supervisor') || $errors->has('line_value'))
+                <div class="rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-800">
+                    <p class="font-semibold">{{ __('pos.checkout.line_discount_blocked_title') }}</p>
+                    <p class="mt-1">
+                        {{ $errors->first('line_discount_supervisor') ?: $errors->first('line_value') }}
+                    </p>
+                    <a href="{{ route('pos.index') }}" class="mt-3 inline-block font-semibold underline">
+                        {{ __('pos.checkout.back') }}
+                    </a>
+                </div>
+            @endif
+
             <fieldset>
                 <legend class="text-sm font-semibold text-slate-700">{{ __('pos.checkout.payment_method') }}</legend>
                 <div class="mt-2 grid grid-cols-2 gap-2">

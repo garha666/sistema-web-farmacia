@@ -75,6 +75,10 @@ final class CheckoutService
             throw new EmptyCart('El carrito está vacío.');
         }
 
+        // RF-14/RF-16: el carrito pudo cambiar desde que se autorizó el
+        // descuento de cada línea; el tope se revalida recién al cobrar.
+        $this->assertLineDiscountsAuthorized($cart, $lineDiscountAuthorizedBy);
+
         // RF-23: la factura exige los datos tributarios del cliente (S-2).
         $documentType ??= DocumentType::receipt;
 
@@ -344,7 +348,10 @@ final class CheckoutService
         ?int $conventionId,
         ?Discount $manualDiscount = null,
         ?int $discountAuthorizedBy = null,
+        array $lineDiscountAuthorizedBy = [],
     ): ReceiptTotals {
+        $this->assertLineDiscountsAuthorized($cart, $lineDiscountAuthorizedBy);
+
         [, $globalDiscount] = $this->resolveDiscount(
             $cart,
             $conventionId,
@@ -353,6 +360,57 @@ final class CheckoutService
         );
 
         return $this->calculator->totals($cart, (int) config('pos.iva_rate'), $globalDiscount);
+    }
+
+    /**
+     * Revalida el tope acumulado de los descuentos de línea al cobrar (RF-14, RF-16).
+     *
+     * El descuento se autorizó sobre el carrito de ese momento; cambiar
+     * cantidades o quitar líneas altera el ahorro sin volver a evaluar el tope.
+     * Una línea con supervisor recordado conserva su autorización (RF-36);
+     * las demás deben seguir dentro del tope o pedir supervisor de nuevo.
+     *
+     * @param  array<int, int>  $lineDiscountAuthorizedBy  id de producto => id del supervisor
+     */
+    private function assertLineDiscountsAuthorized(Cart $cart, array $lineDiscountAuthorizedBy): void
+    {
+        $subtotal = $this->calculator->subtotal($cart)->pesos();
+        $totalLineDiscounts = $this->calculator->lineDiscounts($cart)->pesos();
+        $cap = (int) config('pos.discount.general_cap_percent');
+
+        /** @var CartLine $line */
+        foreach ($cart->lines() as $line) {
+            if ($line->discount() === null) {
+                continue;
+            }
+
+            $decision = $this->discounts->evaluateLine(
+                lineBase: $this->calculator->lineSubtotal($line)->pesos(),
+                discount: $line->discount(),
+                transactionSubtotal: $subtotal,
+                otherLinesDiscountPesos: $totalLineDiscounts - $this->calculator->lineDiscount($line)->pesos(),
+                generalCapPercent: $cap,
+            );
+
+            // RF-18: ningún descuento puede dejar la línea en cero o negativo.
+            if ($decision->isRejected()) {
+                throw new DiscountRejected(
+                    'line_value',
+                    __('pos.errors.discount_zero_total'),
+                );
+            }
+
+            if ($decision->requiresSupervisor()
+                && ! isset($lineDiscountAuthorizedBy[$line->productId()])) {
+                throw new DiscountRejected(
+                    'line_discount_supervisor',
+                    __('pos.errors.line_discount_revalidate', [
+                        'name' => $line->name(),
+                        'cap' => $cap,
+                    ]),
+                );
+            }
+        }
     }
 
     /**
