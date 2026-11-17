@@ -1,7 +1,7 @@
 # Especificación 001 — Punto de Venta (POS)
 
 **Proyecto:** Sistema Web de Gestión y Simulación de Farmacia Privada Comercial (Grupo A)
-**Estado:** aprobada · **Versión:** 1.0 · **Ámbito:** sólo el QUÉ y el POR QUÉ
+**Estado:** aprobada · **Versión:** 1.1 (2026-11-17: el arqueo y los paneles por rol se trasladan a la spec 002) · **Ámbito:** sólo el QUÉ y el POR QUÉ
 
 > **Alcance tributario:** los documentos de esta iteración son **simulados**. El sistema genera folio, estado de emisión y comprobante reimprimible, pero **no** emite documentos con validez legal ni se conecta al SII ni a certificadores. Todo comprobante lo declara de forma visible.
 
@@ -21,7 +21,7 @@ La farmacia atiende en mostrador: hoy la venta se anota a mano y el stock se cor
 | **Cliente** | — | Recibe el comprobante. Entrega RUT si pide factura o si se desea dejar registro; entrega receta cuando el producto lo exige. |
 | **Emisor tributario simulado** | — | Componente interno del sistema que asigna folios y simula el ciclo de emisión (pendiente, emitido, rechazado). No es un servicio externo ni tiene validez legal. |
 
-> **Mapeo de roles:** el RBAC del sistema define cuatro roles (Químico, Técnico, Bodeguero, Admin). En el POS, Técnico actúa como Cajero, Químico como Supervisor y Admin como Administrador. El rol Bodeguero no tiene acceso a esta funcionalidad.
+> **Mapeo de roles:** el RBAC del sistema define cuatro roles (Químico, Técnico, Bodeguero, Admin). En el POS, Técnico actúa como Cajero, Químico como Supervisor y Admin como Administrador. El rol Bodeguero no tiene acceso a esta funcionalidad: su ámbito es el inventario y los paneles de la spec 002.
 
 ## 3. Historias de usuario
 
@@ -79,9 +79,11 @@ Notación EARS. "El sistema" es el POS.
 ### 4.4 Cobro y documento tributario simulado
 
 - **RF-20 — Medio de pago.** Cuando el cajero confirma el cobro, el sistema deberá exigir la selección de un medio de pago: efectivo, débito, crédito o transferencia.
+  - *Criterio:* Si el cajero no tiene un turno de caja abierto, entonces el sistema deberá impedir confirmar el cobro e indicar cómo abrirlo (precondición definida en la spec 002, RF-57 a RF-60).
 - **RF-21 — Vuelto.** Si el medio de pago es efectivo, entonces el sistema deberá calcular y mostrar el vuelto a partir del monto recibido.
   - *Criterio:* Si el monto recibido es menor que el total, entonces el sistema deberá impedir confirmar la venta.
 - **RF-22 — Confirmar venta.** Cuando el cajero confirma el cobro, el sistema deberá registrar la venta, sus líneas, sus descuentos, su convenio si aplica, su medio de pago, el cajero y la fecha y hora local, y descontar el stock en el mismo acto.
+  - *Criterio:* La venta deberá quedar asociada al turno de caja en el que se cobró, de modo que el cierre pueda calcular el efectivo esperado (spec 002, RF-59).
 - **RF-23 — Documento tributario simulado.** Cuando se confirma una venta, el sistema deberá generar un documento simulado —boleta, o factura si el cliente entrega RUT y razón social— con folio de un rango interno, estado de emisión y la leyenda visible de que no tiene validez tributaria.
   - *Criterio:* El folio deberá asignarse desde el rango configurado por el administrador, sin repetición y sin huecos injustificados.
 - **RF-24 — Emisión simulada no bloqueante.** Si la emisión simulada falla, entonces el sistema deberá conservar la venta como pendiente de emisión, mostrar un comprobante provisorio y permitir reintentar.
@@ -164,11 +166,11 @@ Notación EARS. "El sistema" es el POS.
 - Pago mixto (parte efectivo, parte tarjeta) y pago en cuotas.
 - Integración real con terminal de tarjetas (el POS sólo registra el medio de pago declarado).
 - **Emisión tributaria real ante el SII, certificación, firma electrónica y proveedores de facturación.** Sólo existe la simulación descrita en RF-23 a RF-26.
-- **Cierre de caja y arqueo por turno:** se especifican aparte en `specs/004-reportes/` y quedan fuera de esta spec.
+- **Cierre de caja y arqueo por turno:** ~~fuera de esta spec~~ → **trasladado a la spec 002** (`specs/002-dashboard/`, RF-56 a RF-62 y decisión D-6).
 - Operación sin conexión a internet.
 - Tienda en línea, reservas de productos y venta a domicilio.
 - Fidelización, puntos y promociones automáticas distintas de los convenios de RF-39 y RF-40.
-- Reportes gerenciales y tableros analíticos (sólo consulta de RF-37 y RF-38).
+- ~~Reportes gerenciales y tableros analíticos (sólo consulta de RF-37 y RF-38)~~ → los **paneles por rol** se especifican en la spec 002 (RF-41 a RF-67).
 - Gestión de usuarios, roles y autenticación (se asume existente y fuera de esta spec).
 - Receta médica electrónica y validación con registros externos de profesionales.
 - Multi-sucursal: una sola farmacia con varias cajas.
@@ -190,7 +192,7 @@ Notación EARS. "El sistema" es el POS.
 
 - **D-1 — DTE simulado (RF-23 a RF-26, RF-34).** Se simula el ciclo de emisión dentro del sistema: folio interno, estados pendiente/emitido/rechazado, no duplicación y comprobante reimprimible. No hay servicios externos ni certificadores, en cumplimiento del principio 1 de la constitución.
 - **D-2 — Tope de descuento (RF-14 a RF-16).** Tope general del 10% por transacción, configurable. Los convenios de salud tienen porcentaje propio, definido por el administrador, y nunca pueden dejar el total en cero o negativo.
-- **D-3 — Cierre de caja (RF-37).** Se especifica en `specs/004-reportes/`, fuera del alcance de esta spec. La consulta de ventas de RF-37 no calcula arqueos.
+- **D-3 — Cierre de caja (RF-37).** ~~Se especifica en `specs/004-reportes/`, fuera del alcance de esta spec.~~ **Reemplazada por D-6 de la spec 002** (v1.1, 2026-11-17): el cierre de caja y el arqueo pasan a `specs/002-dashboard/`; `specs/004-reportes/` queda para reportes históricos y exportaciones. La consulta de ventas de RF-37 no calcula arqueos.
 
 **Supuestos adoptados para cerrar el resto de las dudas (revisables por el equipo):**
 
