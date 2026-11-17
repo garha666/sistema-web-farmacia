@@ -125,6 +125,27 @@ final class CheckoutFlowTest extends TestCase
         $receipt->assertSee('$1.990');
     }
 
+    /**
+     * B3 (RNF-10, RF-25): el comprobante se imprime en una térmica de 80 mm,
+     * sin márgenes de hoja A4 y sin los botones de pantalla.
+     */
+    public function test_receipt_declares_an_80mm_page_for_thermal_printing(): void
+    {
+        $product = Product::factory()->create(['price' => 1990]);
+        $this->post('/pos/cart', ['product_id' => $product->id]);
+
+        $response = $this->post('/pos/checkout', ['payment_method' => 'debit']);
+        $response->assertRedirect();
+
+        $receipt = $this->get($response->headers->get('Location'));
+
+        $receipt->assertOk();
+        $receipt->assertSee('@page', false);
+        $receipt->assertSee('size: 80mm', false);
+        $receipt->assertSee('print:hidden', false);
+        $receipt->assertSee('Documento simulado');
+    }
+
     public function test_sale_lines_freeze_the_price_at_confirmation_time(): void
     {
         $product = Product::factory()->create(['price' => 1990]);

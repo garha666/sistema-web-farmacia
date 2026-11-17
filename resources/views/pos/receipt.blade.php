@@ -8,8 +8,40 @@
 @endphp
 
 @section('content')
-    <div class="mx-auto max-w-2xl">
-        <article class="rounded-xl bg-white p-6 shadow-sm print:shadow-none">
+    {{-- B3 (RNF-10): ticket de 80 mm. El layout no expone un stack de estilos,
+         así que la regla de impresión vive con la vista que la necesita. --}}
+    <style>
+        @media print {
+            @page {
+                size: 80mm auto;
+                margin: 4mm;
+            }
+
+            body {
+                font-size: 11pt;
+            }
+
+            /* El encabezado y la navegación del layout no van en el papel. */
+            body > header {
+                display: none;
+            }
+
+            main {
+                padding: 0;
+            }
+
+            .receipt-page,
+            .receipt-ticket {
+                width: 100%;
+                max-width: none;
+                margin: 0;
+                padding: 0;
+            }
+        }
+    </style>
+
+    <div class="mx-auto max-w-2xl receipt-page">
+        <article class="rounded-xl bg-white p-6 shadow-sm print:shadow-none receipt-ticket">
             <header class="border-b border-dashed border-slate-300 pb-4 text-center">
                 <p class="text-lg font-bold">{{ $issuer['name'] }}</p>
                 <p class="text-sm text-slate-600">{{ __('pos.receipt.issuer_rut', ['rut' => $issuer['rut']]) }}</p>
