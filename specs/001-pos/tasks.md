@@ -2,7 +2,7 @@
 
 **Spec:** \specs/001-pos/spec.md\ v1.0 (aprobada) · **Plan:** \specs/001-pos/plan.md\
 **Metodología:** TDD — test rojo primero, código después, \php artisan test\ en verde.
-**Estado:** T1–T10 cerradas; correcciones Vuelta 1 (S1–S5) cerradas; correcciones Vuelta 2 (S6–S12) cerradas, S13–S14 pendientes.
+**Estado:** T1–T10 cerradas; correcciones Vuelta 1 (S1–S5) cerradas; correcciones Vuelta 2 (S6–S13) cerradas, S14 pendiente.
 
 > Nota: la skill \sdd\ no está instalada; el formato sigue lo acordado en \AGENTS.md\ y la constitución.
 
@@ -151,9 +151,10 @@ RF-1 a RF-40: **cobertura nominal completa**; huecos reales que corrigen S1–S5
   - *Hecho cuando:* AuditService registra discount.authorization y prescription.reuse con autor, motivo, timestamp; admin/audit/index muestra estos eventos; test verifica registro en audit_logs.
   - *Cierre (2026-11-03):* la receta repetida (`sale.prescription_reuse`) y el descuento global sobre el tope (`sale.discount_authorized`) ya se auditaban desde T3/S4; S12 cierra el hueco del descuento **por línea**. La autorización ocurre en la caja (la venta aún no existe), así que `CartService` guarda el id del supervisor junto al descuento de la línea (`pos.line_discounts[...]['authorized_by']`) y `CheckoutService` registra `sale.line_discount_authorized` al confirmar el cobro, ligado a la `SaleLine` real, con `discount_type` y `discount_value` (migración `2026_11_03_000000_extend_audit_logs_table`: dos columnas nullable, sin `sale_line_id` para no duplicar el morph ni borrar auditoría en cascada). `admin/audit/index` gana las columnas Tipo/Producto/Monto y resuelve la venta también para las líneas; paginación a 50. RBAC se mantiene Químico+Admin (decisión T10). 8 tests en `AuditTest` (222 en total). Verificado en Chrome DevTools a 375 px (Tipo `%`, «Ibuprofeno 400 mg», Monto `-$298`, Motivo), `scrollWidth = 375` y sin errores de consola.
 
-- [ ] **S13. Test de filtro por convenio en historial (RF-37).**
+- [x] **S13. Test de filtro por convenio en historial (RF-37).**
   - *Depende de:* T10
   - *Hecho cuando:* AdministrationTest::test_history_filters_by_convention pasa; admin/sales/index filtra por convenio correctamente.
+  - *Cierre (2026-11-17):* el filtro por convenio ya existía desde T10 en `SaleController::query()` (`convention_id`) y en el `<select id="convention_id">` de `admin/sales/index.blade.php`; S13 era el hueco de cobertura. `AdministrationTest::test_history_filters_by_convention` cobra una venta con convenio activo y otra sin él, filtra por `convention_id` y verifica que sólo aparece la venta con convenio, que la otra no aparece y que el `<select>` conserva la opción elegida. Se comprobó que el test detecta la regresión: al neutralizar el `where` del controlador falla con «2 ventas en vez de 1». No se tocó código de producción salvo quitar un import sin uso (`PaymentMethod`) que Pint marcaba en el archivo de test. 228 tests (971 aserciones).
 
 - [ ] **S14. Detalle de venta completo (RF-38 complemento + RNF-9).**
   - *Depende de:* S7, S8
@@ -181,8 +182,9 @@ RF-1 a RF-40: **cobertura nominal completa**; huecos reales que corrigen S1–S5
 | T1–T10 | ✅ Cerradas |
 | S1–S5 (Vuelta 1) | ✅ Cerradas |
 | S6–S12 (Vuelta 2) | ✅ Cerradas |
-| **S13–S14 (Vuelta 2)** | ⬜ **Pendientes** |
+| **S13 (Vuelta 2)** | ✅ **Cerrada** |
+| **S14 (Vuelta 2)** | ⬜ **Pendiente** |
 
 ---
 
-*Actualizado: 2026-11-17. Suite completa: 227 tests, 964 aserciones, 0 fallos.*
+*Actualizado: 2026-11-17. Suite completa: 228 tests, 971 aserciones, 0 fallos.*

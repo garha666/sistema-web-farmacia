@@ -13,7 +13,6 @@ use App\Models\Sale;
 use App\Models\User;
 use App\Pos\Enum\DocumentStatus;
 use App\Pos\Enum\DocumentType;
-use App\Pos\Enum\PaymentMethod;
 use App\Pos\Enum\SaleStatus;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -222,6 +221,39 @@ final class AdministrationTest extends TestCase
         $response->assertOk();
         $this->assertSame(1, $this->countSales($response->getContent()));
         $response->assertSee("data-sale-id=\"{$mine->id}\"", false);
+    }
+
+    public function test_history_filters_by_convention(): void
+    {
+        $this->signIn('tecnico');
+
+        $convention = Convention::factory()->create([
+            'name' => 'Banmédica',
+            'percent' => 10,
+            'valid_from' => now()->subDay()->toDateString(),
+            'valid_until' => now()->addDay()->toDateString(),
+        ]);
+
+        $this->addToCart();
+        $this->post('/pos/checkout', [
+            'payment_method' => 'debit',
+            'convention_id' => $convention->id,
+        ])->assertSessionHasNoErrors();
+
+        $withConvention = Sale::query()->latest('id')->firstOrFail();
+        $withoutConvention = $this->sell();
+
+        $this->signIn('admin');
+
+        $response = $this->get(route('admin.sales.index', ['convention_id' => $convention->id]));
+
+        $response->assertOk();
+        $this->assertSame(1, $this->countSales($response->getContent()));
+        $response->assertSee("data-sale-id=\"{$withConvention->id}\"", false);
+        $response->assertDontSee("data-sale-id=\"{$withoutConvention->id}\"", false);
+
+        // El select conserva el convenio elegido al recargar (RF-37).
+        $response->assertSee("value=\"{$convention->id}\" selected", false);
     }
 
     public function test_history_filters_by_sale_status(): void
