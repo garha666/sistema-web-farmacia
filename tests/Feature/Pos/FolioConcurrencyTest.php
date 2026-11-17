@@ -13,6 +13,7 @@ use App\Pos\Enum\SaleStatus;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use RuntimeException;
 use Tests\TestCase;
+use Throwable;
 
 /**
  * S9 - RF-24/RF-26: dos conexiones reales asignando folios del mismo tipo.
@@ -26,6 +27,16 @@ use Tests\TestCase;
 final class FolioConcurrencyTest extends TestCase
 {
     use DatabaseMigrations;
+
+    /**
+     * Tiempo máximo de espera de los workers (F0.1).
+     *
+     * Cada worker arranca una aplicación Laravel completa, así que bajo carga
+     * el arranque puede tardar más que el trabajo útil. El valor anterior (30 s)
+     * quedaba al límite y rompía la corrida completa; 90 s deja margen de sobra
+     * sin volver lento el caso normal, que termina en pocos segundos.
+     */
+    private const WORKER_DEADLINE_SECONDS = 90.0;
 
     public function test_two_real_connections_get_unique_folios_without_losing_sales(): void
     {
@@ -95,86 +106,143 @@ final class FolioConcurrencyTest extends TestCase
     private function launchWorkers(array $groups, float $startAt): array
     {
         $workers = [];
+        $failure = null;
 
-        foreach ($groups as $index => $ids) {
-            $command = [
-                PHP_BINARY,
-                base_path('tests/Fixtures/concurrent-retry.php'),
-                implode(',', $ids),
-                (string) $startAt,
-            ];
+        try {
+            foreach ($groups as $index => $ids) {
+                $command = [
+                    PHP_BINARY,
+                    base_path('tests/Fixtures/concurrent-retry.php'),
+                    implode(',', $ids),
+                    (string) $startAt,
+                ];
 
-            $descriptors = [
-                1 => ['pipe', 'w'],
-                2 => ['pipe', 'w'],
-            ];
+                $descriptors = [
+                    1 => ['pipe', 'w'],
+                    2 => ['pipe', 'w'],
+                ];
 
-            $process = proc_open($command, $descriptors, $pipes, base_path(), $this->workerEnvironment());
+                $process = proc_open($command, $descriptors, $pipes, base_path(), $this->workerEnvironment());
 
-            if (! is_resource($process)) {
-                throw new RuntimeException("No se pudo lanzar el worker {$index}.");
+                if (! is_resource($process)) {
+                    throw new RuntimeException("No se pudo lanzar el worker {$index}.");
+                }
+
+                stream_set_blocking($pipes[1], false);
+                stream_set_blocking($pipes[2], false);
+
+                $workers[$index] = [
+                    'process' => $process,
+                    'pipes' => $pipes,
+                    'stdout' => '',
+                    'stderr' => '',
+                    'exit' => null,
+                ];
             }
 
-            stream_set_blocking($pipes[1], false);
-            stream_set_blocking($pipes[2], false);
+            $deadline = microtime(true) + self::WORKER_DEADLINE_SECONDS;
 
-            $workers[$index] = [
-                'process' => $process,
-                'pipes' => $pipes,
-                'stdout' => '',
-                'stderr' => '',
-                'exit' => null,
-            ];
+            do {
+                $running = false;
+
+                foreach ($workers as $index => $worker) {
+                    $workers[$index]['stdout'] .= $this->drain($worker['pipes'][1]);
+                    $workers[$index]['stderr'] .= $this->drain($worker['pipes'][2]);
+
+                    $status = proc_get_status($worker['process']);
+
+                    if ($status['running']) {
+                        $running = true;
+                    } elseif ($workers[$index]['exit'] === null) {
+                        $workers[$index]['exit'] = (int) $status['exitcode'];
+                    }
+                }
+
+                if ($running && microtime(true) > $deadline) {
+                    throw new RuntimeException(sprintf(
+                        'Los workers de concurrencia no terminaron a tiempo (%d s).',
+                        self::WORKER_DEADLINE_SECONDS,
+                    ));
+                }
+
+                if ($running) {
+                    usleep(20000);
+                }
+            } while ($running);
+        } catch (Throwable $exception) {
+            $failure = $exception;
+        } finally {
+            $workers = $this->closeWorkers($workers);
         }
 
-        $deadline = microtime(true) + 30.0;
+        if ($failure !== null) {
+            throw $failure;
+        }
 
-        do {
-            $running = false;
+        return $workers;
+    }
 
-            foreach ($workers as $index => $worker) {
-                $workers[$index]['stdout'] .= (string) stream_get_contents($worker['pipes'][1]);
-                $workers[$index]['stderr'] .= (string) stream_get_contents($worker['pipes'][2]);
+    /**
+     * Cierra pipes y procesos aunque el test falle, para no dejar huérfanos.
+     *
+     * @param  array<int, array{process?: resource, pipes?: array<int, resource>, stdout: string, stderr: string, exit: int|null}>  $workers
+     * @return array<int, array{exit: int, stdout: string, stderr: string}>
+     */
+    private function closeWorkers(array $workers): array
+    {
+        foreach ($workers as $index => $worker) {
+            $process = $worker['process'] ?? null;
+            $pipes = $worker['pipes'] ?? [];
 
-                $status = proc_get_status($worker['process']);
+            if (is_resource($process)) {
+                $status = proc_get_status($process);
 
                 if ($status['running']) {
-                    $running = true;
-                } elseif ($workers[$index]['exit'] === null) {
+                    proc_terminate($process);
+                }
+
+                if ($workers[$index]['exit'] === null) {
                     $workers[$index]['exit'] = (int) $status['exitcode'];
                 }
             }
 
-            if (microtime(true) > $deadline) {
-                foreach ($workers as $worker) {
-                    proc_terminate($worker['process']);
+            $workers[$index]['stdout'] .= $this->drain($pipes[1] ?? null);
+            $workers[$index]['stderr'] .= $this->drain($pipes[2] ?? null);
+
+            foreach ($pipes as $pipe) {
+                if (is_resource($pipe)) {
+                    fclose($pipe);
                 }
-
-                throw new RuntimeException('Los workers de concurrencia no terminaron a tiempo.');
             }
 
-            if ($running) {
-                usleep(20000);
+            if (is_resource($process)) {
+                $closed = (int) proc_close($process);
+
+                if ($workers[$index]['exit'] === null || $workers[$index]['exit'] < 0) {
+                    $workers[$index]['exit'] = $closed;
+                }
             }
-        } while ($running);
-
-        foreach ($workers as $index => $worker) {
-            $workers[$index]['stdout'] .= (string) stream_get_contents($worker['pipes'][1]);
-            $workers[$index]['stderr'] .= (string) stream_get_contents($worker['pipes'][2]);
-
-            fclose($worker['pipes'][1]);
-            fclose($worker['pipes'][2]);
-
-            $closed = proc_close($worker['process']);
 
             if ($workers[$index]['exit'] === null) {
-                $workers[$index]['exit'] = (int) $closed;
+                $workers[$index]['exit'] = -1;
             }
 
             unset($workers[$index]['process'], $workers[$index]['pipes']);
         }
 
         return $workers;
+    }
+
+    /**
+     * Lee lo disponible en un pipe sin bloquear.
+     */
+    private function drain(mixed $pipe): string
+    {
+        if (! is_resource($pipe)) {
+            return '';
+        }
+
+        return (string) stream_get_contents($pipe);
     }
 
     /**
