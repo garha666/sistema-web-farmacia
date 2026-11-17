@@ -1,19 +1,21 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tests\Feature;
 
-// use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
-class ExampleTest extends TestCase
+/**
+ * Raíz del sitio (F0.2): la caja es la pantalla de entrada del sistema, así que
+ * `GET /` no sirve una página propia sino que redirige al POS.
+ */
+final class ExampleTest extends TestCase
 {
-    /**
-     * A basic test example.
-     */
-    public function test_the_application_returns_a_successful_response(): void
+    public function test_root_redirects_to_the_cash_screen(): void
     {
-        $response = $this->get('/');
+        $this->get('/')->assertRedirect(route('pos.index'));
 
-        $response->assertRedirect(route('pos.index'));
+        $this->assertSame('/pos', route('pos.index', absolute: false));
     }
 }
