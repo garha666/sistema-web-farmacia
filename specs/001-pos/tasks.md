@@ -172,8 +172,9 @@ RF-1 a RF-40: **cobertura nominal completa**; huecos reales que corrigen S1–S5
 | Tasks | ✅ Aprobada |
 | T1–T10 | ✅ Cerradas |
 | S1–S5 (Vuelta 1) | ✅ Cerradas |
-| **S6–S14 (Vuelta 2)** | ⬜ **Pendientes de aprobación** |
+| S6–S12 (Vuelta 2) | ✅ Cerradas |
+| **S13–S14 (Vuelta 2)** | ⬜ **Pendientes** |
 
 ---
 
-*Actualizado: 2026-11-01 tras veredicto de validación Fase 7 (172 tests, 523 assertions).*
+*Actualizado: 2026-11-17. Suite completa: 221 tests, 931 aserciones, 0 fallos.*

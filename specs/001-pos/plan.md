@@ -352,25 +352,32 @@ FIN
 
 | Test | Tipo | RF que cubre |
 |---|---|---|
-| `tests/Unit/Pos/PriceCalculatorTest.php` | Unit | RF-4, RF-12, RF-19 (IVA incluido, descuentos, redondeo, total = suma de líneas) |
-| `tests/Unit/Pos/CartTest.php` | Unit | RF-2, RF-3, RF-5 (duplicados incrementan, cantidad inválida, carrito vacío) |
+| `tests/Feature/ExampleTest.php` | Feature | Raíz del sitio: `GET /` redirige a `pos.index` (sin RF propio) |
+| `tests/Feature/I18nTest.php` | Feature | RNF-4, RNF-9 y P6 (interfaz y mensajes en español, textos centralizados) |
+| `tests/Unit/Pos/MoneyTest.php` | Unit | RF-19 (pesos enteros, sin flotantes) |
+| `tests/Unit/Pos/CartTest.php` | Unit | RF-2, RF-3, RF-5 (agregar e incrementar, cantidad y quitar, carrito vacío) |
+| `tests/Unit/Pos/PriceCalculatorTest.php` | Unit | RF-4, RF-12, RF-19 (IVA incluido, totales en vivo, redondeo) |
 | `tests/Unit/Pos/DiscountPolicyTest.php` | Unit | RF-13 a RF-18, RF-39, RF-40 (tope 10%, convenio, autorización, total no negativo) |
-| `tests/Unit/Pos/PrescriptionPolicyTest.php` | Unit | RF-7, RF-8, RF-9, RF-11 (categorías, datos faltantes, vencimiento a 30 días, reutilización) |
-| `tests/Unit/Pos/StockPolicyTest.php` | Unit | RF-3, RF-27, RF-29 (faltantes, cantidad mayor al stock) |
-| `tests/Unit/Pos/CashChangeCalculatorTest.php` | Unit | RF-21 (vuelto exacto, monto insuficiente) |
-| `tests/Unit/Pos/FolioAllocatorTest.php` | Unit | RF-23, RF-24, RF-26 (folio único, rango agotado, no repetir) |
-| `tests/Unit/Pos/VoidPolicyTest.php` | Unit | RF-32, RF-35 (anulación única, motivo obligatorio) |
-| `tests/Feature/Pos/CartFlowTest.php` | Feature | RF-1 a RF-6 (búsqueda, agregar, quitar, totales, carrito vacío, persistencia tras recarga) |
-| `tests/Feature/Pos/PrescriptionFlowTest.php` | Feature | RF-8 a RF-11 (bloqueo de cobro, registro de controlados, receta repetida) |
-| `tests/Feature/Pos/DiscountFlowTest.php` | Feature | RF-13 a RF-19, RF-39, RF-40 (aplicación, autorización, convenios activos e inactivos) |
-| `tests/Feature/Pos/CheckoutFlowTest.php` | Feature | RF-20 a RF-26 (medios de pago, vuelto, venta registrada, documento, reimpresión) |
-| `tests/Feature/Pos/StockConcurrencyTest.php` | Feature | RF-27 a RF-31 (dos cajas, última unidad, conflicto, descuento único, reposición) |
-| `tests/Feature/Pos/VoidSaleTest.php` | Feature | RF-31 a RF-36 (anulación, inmutabilidad, reversa, auditoría) |
-| `tests/Feature/Pos/SessionDurabilityTest.php` | Feature | RF-6, RNF-6 (recarga y error no pierden carrito ni sesión) |
-| `tests/Feature/Admin/SaleQueryTest.php` | Feature | RF-37, RF-38 (filtros, detalle completo) |
-| `tests/Feature/Admin/ConventionManagementTest.php` | Feature | RF-39, RF-40 (alta, desactivación, vigencia) |
-| `tests/Feature/Admin/DocumentRetryTest.php` | Feature | RF-24, RF-26 (pendiente, reintento, no duplicar folio) |
-| `tests/Feature/Admin/PermissionTest.php` | Feature | RNF-8, RF-16, RF-32, RF-36 (cajero no anula ni autoriza) |
+| `tests/Unit/Pos/PrescriptionPolicyTest.php` | Unit | RF-7 a RF-11 (categorías, datos faltantes, vigencia, reutilización) |
+| `tests/Unit/Pos/StockPolicyTest.php` | Unit | RF-3, RF-27, RF-29 (faltantes, cantidad mayor al stock, stock cambiado) |
+| `tests/Unit/Pos/VoidPolicyTest.php` | Unit | RF-32, RF-35 (motivo obligatorio, anulación única) |
+| `tests/Feature/Pos/AuthTest.php` | Feature | RF-22 (el POS exige sesión y la venta guarda al cajero) |
+| `tests/Feature/Pos/CartFlowTest.php` | Feature | RF-1 a RF-6, RF-22 (búsqueda, carrito, totales, persistencia) |
+| `tests/Feature/Pos/CheckoutFlowTest.php` | Feature | RF-20 a RF-26 (medios de pago, vuelto, venta, documento, reimpresión) |
+| `tests/Feature/Pos/CheckoutPrescriptionTest.php` | Feature | RF-8 a RF-11 (receta en el cobro, controlados, receta repetida) |
+| `tests/Feature/Pos/ManualDiscountTest.php` | Feature | RF-13, RF-16, RF-17 (descuento manual, tope con supervisor, motivo) |
+| `tests/Feature/Pos/LineDiscountTest.php` | Feature | RF-4, RF-13 (descuento por línea y tope acumulado) |
+| `tests/Feature/Pos/StockChangeAlertTest.php` | Feature | RF-29 (aviso de stock cambiado en el cobro) |
+| `tests/Feature/Pos/ConcurrencyTest.php` | Feature | RF-27 a RF-31 (dos cajas, última unidad, conflicto, descuento único, reposición) |
+| `tests/Feature/Pos/InvoiceTest.php` | Feature | RF-23 (factura simulada con los campos S-2) |
+| `tests/Feature/Pos/DocumentEmissionTest.php` | Feature | RF-24 (emisión fallida, comprobante provisorio, reintento) |
+| `tests/Feature/Pos/FolioConcurrencyTest.php` | Feature | RF-24, RF-26 (dos conexiones reales, folio único sin perder ventas) |
+| `tests/Feature/Pos/VoidSaleTest.php` | Feature | RF-31 a RF-36 (anulación, inmutabilidad, nota de crédito, auditoría) |
+| `tests/Feature/Pos/AuditTest.php` | Feature | RF-36 (auditoría de autorizaciones de descuento por línea) |
+| `tests/Feature/Admin/AdministrationTest.php` | Feature | RF-26, RF-37, RF-38, RF-39, RF-40 (convenios, historial, detalle, documentos, permisos) |
+| `tests/Feature/Admin/ControlledRegisterTest.php` | Feature | RF-10 (libro de controlados consultable y exportable en CSV) |
+
+> Tabla sincronizada con `tests/` el 2026-11-17 (F0.3): enumera sólo archivos existentes. `CashChangeCalculator` y `FolioAllocator` no tienen test unitario propio; el vuelto se verifica en `CheckoutFlowTest` y el folio en `DocumentEmissionTest` y `FolioConcurrencyTest`.
 
 ### 6.3 Pruebas de concurrencia (RF-27, RF-28)
 
