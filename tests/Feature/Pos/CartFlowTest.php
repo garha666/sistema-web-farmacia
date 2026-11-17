@@ -153,6 +153,20 @@ final class CartFlowTest extends TestCase
         }
     }
 
+    /**
+     * B4 (RNF-3, demo): el catálogo de demostración se puede resembrar sin
+     * duplicar productos, para que la base local gane los códigos de barras sin
+     * `migrate:fresh`.
+     */
+    public function test_demo_catalog_seeder_can_run_twice_without_duplicating_products(): void
+    {
+        $this->seed(ProductSeeder::class);
+        $this->seed(ProductSeeder::class);
+
+        $this->assertSame(4, Product::query()->count());
+        $this->assertSame(4, Product::query()->distinct()->count('name'));
+    }
+
     private function isValidEan13(string $code): bool
     {
         if (preg_match('/^\d{13}$/', $code) !== 1) {

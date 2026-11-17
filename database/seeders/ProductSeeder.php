@@ -20,7 +20,13 @@ final class ProductSeeder extends Seeder
         ];
 
         foreach ($products as $product) {
-            Product::query()->create($product + ['sellable' => true]);
+            // B4: la clave del catálogo de demo es el nombre, porque las bases
+            // creadas antes de B1 tienen esos productos con `barcode` nulo: así
+            // se les agrega el código sin duplicar filas ni exigir migrate:fresh.
+            Product::query()->updateOrCreate(
+                ['name' => $product['name']],
+                $product + ['sellable' => true],
+            );
         }
     }
 }
