@@ -177,6 +177,8 @@ RF-1 a RF-40: **cobertura nominal completa**; huecos reales que corrigen S1–S5
 
 - **2026-11-17 — B8 (motivo del descuento de línea).** `CheckoutService` registraba la autorización con un texto generado («Descuento de línea (20%) autorizado por supervisor.») que reemplazaba el motivo del cajero. Ahora guarda `$line->discount()->reason` en `audit_logs.reason` y se eliminó `lineDiscountReason()`; el tipo y el monto siguen en sus columnas. No cambia ningún RF ni RNF: es la corrección del hallazgo de S14. Test nuevo en `AuditTest` (registro y bitácora con el motivo real) y ajuste de la expectativa equivalente en `AdministrationTest`.
 
+- **2026-11-17 — B9 (`#` antepuesto al folio ausente).** `admin/sales/show.blade.php` armaba el documento como `{{ type }} #{{ folio ?? no_folio }}`, así que un documento `pending` sin folio se titulaba «Boleta #sin folio». Ahora un `@if ($sale->document->folio !== null)` imprime `#folio` sólo cuando existe y, si no, el texto de `pos.common.no_folio`, igual que el historial de ventas. No cambia ningún RF ni RNF: es un error de copy de RNF-9. Test nuevo en `AdministrationTest` (el detalle muestra «sin folio» y no «#sin folio»). Verificado en navegador a 375×812.
+
 ---
 
 ## Estado actual del flujo SDD
@@ -194,11 +196,11 @@ RF-1 a RF-40: **cobertura nominal completa**; huecos reales que corrigen S1–S5
 | **S13–S14 (Vuelta 2)** | ✅ **Cerradas** |
 | B0–B5 | ✅ **Cerradas** |
 | B6–B7 | ✅ **Cerradas** |
-| B8 | ✅ **Cerrada** |
+| B8–B9 | ✅ **Cerradas** |
 | Verificación visual 375 px | ✅ **Completada** |
 | Auditoría RF por RF | ✅ **Completada** |
 | Cierre documental | ✅ **Completado** |
 
 ---
 
-*Actualizado: 2026-11-17. Suite completa: 236 tests, 1030 aserciones, 0 fallos. Auditoría RF por RF: `specs/001-pos/rf-audit.md`.*
+*Actualizado: 2026-11-17. Suite completa: 237 tests, 1034 aserciones, 0 fallos. Auditoría RF por RF: `specs/001-pos/rf-audit.md`.*

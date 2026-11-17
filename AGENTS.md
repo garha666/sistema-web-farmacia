@@ -4,7 +4,7 @@ Proyecto académico INACAP, mantenido por estudiantes. Norma superior: `docs/con
 
 ## Contexto
 - Spec activa: `specs/001-pos/spec.md` (POS, aprobada v1.0). Plan: `specs/001-pos/plan.md`. Tareas: `specs/001-pos/tasks.md`.
-- Estado: T1–T10 cerradas y correcciones Vuelta 1–2 (S1–S14) cerradas, junto con las mejoras B0–B8. El POS está implementado en `app/` y la suite se ejecuta con `php artisan test`.
+- Estado: T1–T10 cerradas y correcciones Vuelta 1–2 (S1–S14) cerradas, junto con las mejoras B0–B9. El POS está implementado en `app/` y la suite se ejecuta con `php artisan test`.
 - Toda decisión nueva entra primero a la spec y después al código.
 
 ## Stack y estructura

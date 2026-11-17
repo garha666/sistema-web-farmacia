@@ -132,7 +132,14 @@
             <section class="rounded-xl bg-white p-4 shadow-sm">
                 <h3 class="text-sm font-semibold uppercase tracking-wide text-slate-500">{{ __('pos.admin.sale.document') }}</h3>
                 @if ($sale->document !== null)
-                    <p class="mt-2 font-medium">{{ $sale->document->type->label() }} #{{ $sale->document->folio ?? __('pos.common.no_folio') }}</p>
+                    <p class="mt-2 font-medium">
+                        {{ $sale->document->type->label() }}
+                        @if ($sale->document->folio !== null)
+                            #{{ $sale->document->folio }}
+                        @else
+                            {{ __('pos.common.no_folio') }}
+                        @endif
+                    </p>
                     <p class="text-sm text-slate-600">{{ __('pos.admin.sale.document_status', ['status' => $sale->document->status->label()]) }}</p>
                     <p class="text-sm text-slate-600">{{ __('pos.admin.sale.issued_at', ['date' => $sale->document->issued_at?->format('d-m-Y H:i') ?? __('pos.common.none')]) }}</p>
                 @else

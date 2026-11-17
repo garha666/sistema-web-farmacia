@@ -438,6 +438,21 @@ final class AdministrationTest extends TestCase
         }
     }
 
+    /**
+     * RNF-9: un documento sin folio se muestra con su texto, sin anteponer `#`.
+     */
+    public function test_the_sale_detail_does_not_prefix_the_missing_folio_with_a_hash(): void
+    {
+        $this->signIn('admin');
+        $sale = $this->sell();
+        $sale->document()->update(['folio' => null, 'status' => DocumentStatus::pending]);
+
+        $this->get(route('admin.sales.show', $sale))
+            ->assertOk()
+            ->assertSeeText(__('pos.common.no_folio'))
+            ->assertDontSee('#'.__('pos.common.no_folio'), false);
+    }
+
     // ------------------------------------------------------------------
     // Documentos y reintento (RF-26)
     // ------------------------------------------------------------------

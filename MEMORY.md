@@ -9,7 +9,7 @@
 - **Spec 001 POS:** `specs/001-pos/spec.md` v1.0, **aprobada**, 40 RF y 13 RNF, sin dudas abiertas.
 - **Plan 001 POS:** `specs/001-pos/plan.md`, completo (arquitectura, funciones puras, pseudocódigo, UI, decisiones, tests).
 - **Tareas 001 POS:** `specs/001-pos/tasks.md`, 10 tareas + correcciones Vuelta 1 (S1–S5) + Vuelta 2 (S6–S14). **T1 a T10 cerradas; S1 a S12 cerradas.**
-- **Código:** Laravel 11.57.1. Dominio `app/Pos/` completo. Persistencia: `Product`, `Sale`, `SaleLine`, `Document`, `InvoiceDetail`, `StockMovement`, `AuditLog`, `Convention`, `Prescription`, `ControlledRegisterEntry`. Servicios: `CartService`, `CheckoutService`, `VoidSaleService`, `AuditService`, `ConventionService`, `DocumentService`, `ManualDiscountService`. Emisión simulada: `Pos\Contract\DocumentEmitter`, `Pos\Emission\SimulatedDocumentEmitter`, `Pos\Folio\FolioAllocator`. HTTP: `PosController` y `Admin\{ConventionController, SaleController, DocumentController, AuditController, ControlledRegisterController}`. Vistas: `pos/index`, `pos/checkout`, `pos/receipt`, `admin/*` (layout `layouts.admin`). Traducciones en `lang/es/`. 236 tests en verde (1030 aserciones).
+- **Código:** Laravel 11.57.1. Dominio `app/Pos/` completo. Persistencia: `Product`, `Sale`, `SaleLine`, `Document`, `InvoiceDetail`, `StockMovement`, `AuditLog`, `Convention`, `Prescription`, `ControlledRegisterEntry`. Servicios: `CartService`, `CheckoutService`, `VoidSaleService`, `AuditService`, `ConventionService`, `DocumentService`, `ManualDiscountService`. Emisión simulada: `Pos\Contract\DocumentEmitter`, `Pos\Emission\SimulatedDocumentEmitter`, `Pos\Folio\FolioAllocator`. HTTP: `PosController` y `Admin\{ConventionController, SaleController, DocumentController, AuditController, ControlledRegisterController}`. Vistas: `pos/index`, `pos/checkout`, `pos/receipt`, `admin/*` (layout `layouts.admin`). Traducciones en `lang/es/`. 237 tests en verde (1034 aserciones).
 - **Comandos SDD:** instalados en `.opencode/commands/` (9 comandos).
 
 ## Entorno (2026-10-30)
@@ -110,6 +110,12 @@
   `AuditTest::test_the_line_discount_audit_keeps_the_reason_typed_by_the_cashier` (registro + bitácora muestran «Cliente frecuente»); se ajustó la
   expectativa de `AdministrationTest::test_the_sale_detail_shows_the_line_discount_authorization_in_spanish`, que verificaba el texto viejo, para que
   compruebe el motivo real. Suite: **236 tests, 1030 aserciones**.
+- **B9 (RNF-9, 2026-11-17):** el detalle de venta anteponía `#` al texto del folio ausente (`{{ $type }} #{{ $folio ?? no_folio }}`), así que un documento
+  pendiente se titulaba «Boleta #sin folio». La tarjeta «Documento» ahora usa `@if ($sale->document->folio !== null)` / `@else`, el mismo patrón del
+  historial (`admin/sales/index.blade.php:130-134`): `#folio` cuando existe y sólo el texto cuando no. Test nuevo
+  `AdministrationTest::test_the_sale_detail_does_not_prefix_the_missing_folio_with_a_hash`, que compara en crudo (`assertDontSee('#sin folio', false)`).
+  Verificado en navegador a 375×812: la tarjeta muestra «Boleta sin folio», `scrollWidth = 375` y sin mensajes de consola. Suite: **237 tests, 1034
+  aserciones**.
 - **S14 (RF-38, RNF-9, 2026-11-17):** el detalle de venta mostraba sólo las autorizaciones registradas sobre la `Sale`, pero S12 registra el descuento de línea sobre la `SaleLine`; el morph `auditLogs()` no las veía. `Sale::authorizationLogs()` une ambos orígenes con su autor y la vista los lista en «Autorizaciones aplicadas» con etiqueta traducida (Descuento de línea, Descuento global sobre el tope, Reutilización de receta), autor, monto, motivo y fecha; una acción desconocida cae en «Otra autorización» para no mostrar inglés. `SaleController::show()` pasa `$authorizations` (ya no carga `auditLogs.user`). Receta, convenio y estados del documento ya estaban resueltos y quedan con test propio. **Trampa de Blade detectada:** la vista tenía `@php($prescription = $sale->prescription)` inline; al añadir un bloque `@php ... @endphp`, Blade emparejó el bloque desde ese `@php` inline y dejó media vista como texto literal (los tests fallaban con «Expected» mostrando Blade sin compilar). Se convirtió en bloque cerrado. **Hallazgo corregido en B8:** `lineDiscountReason()` descartaba el motivo escrito por el cajero y guardaba el texto generado «Descuento de línea (20%) autorizado por supervisor.».
 - **S12 (RF-36):** cerrada. La autorización del descuento por línea ya se audita con su autor (`sale.line_discount_authorized`). El pendiente heredado (revalidar el tope acumulado de las líneas al confirmar el cobro) quedó cerrado en B7.
 - `layouts/pos.blade.php` carga `@vite` **y** `<script src="https://cdn.tailwindcss.com">`. Sin internet el CDN no responde y la pantalla depende del CSS compilado local: hay que correr `npm run build` después de tocar clases de Tailwind (pasó en S11 con `h-3.5`/`group-open:`). Conviene quitar el CDN en una limpieza posterior.
@@ -190,6 +196,15 @@ Misma técnica por CDP (375×812) contra `127.0.0.1:8001`, flujo real de caja: a
 
 Sin errores de consola y `scrollWidth = 375` en todas las pantallas.
 
+### B9 — `#` ante el folio ausente (2026-11-17)
+
+MCP `chrome-devtools` (375×812×2 mobile/touch) contra `php artisan serve --port=8002`, reutilizando la sesión admin de desarrollo. Se puso el documento de la venta 5 en `pending` con `folio = null` (script temporal fuera del repo), se abrió `admin/sales/5` y se restauró el documento (`folio = 3`, `issued`) al terminar; la fila `sessions` de la verificación se eliminó.
+
+| Pantalla | Resultado |
+| --- | --- |
+| `admin/sales/5`, tarjeta «Documento» | «Boleta sin folio», sin el `#` antepuesto. Antes decía «Boleta #sin folio». |
+| Medidas | `scrollWidth = 375`, sin desbordes y sin mensajes de consola. |
+
 ### Vuelta 2 (S7, 2026-11-02)
 
 Esta vez con el MCP `chrome-devtools` (`emulate` 375×812×2 mobile/touch, cookie de sesión admin inyectada, `evaluate_script`, `take_screenshot`, `list_console_messages`), contra `127.0.0.1:8001` y la BD demo.
@@ -239,4 +254,4 @@ Datos demo usados para la verificación eliminados al terminar (venta, línea y 
 
 ## Próximo paso
 
-S12 (auditoría de autorizaciones de descuento) cerrada. Cola en curso: **B0–B8, S13 y S14 cerradas con 236 tests en verde. Auditoría RF por RF completa en `specs/001-pos/rf-audit.md`.** Pendientes de mejora (no bloqueantes): quitar el CDN de Tailwind del layout, formalizar `BarcodeScanPolicy` en la spec, paginación explícita en `SaleController::query()` y extraer los iconos SVG del menú de administración.
+S12 (auditoría de autorizaciones de descuento) cerrada. Cola en curso: **B0–B9, S13 y S14 cerradas con 237 tests en verde. Auditoría RF por RF completa en `specs/001-pos/rf-audit.md`.** Pendientes de mejora (no bloqueantes): quitar el CDN de Tailwind del layout, formalizar `BarcodeScanPolicy` en la spec, paginación explícita en `SaleController::query()`, extraer los iconos SVG del menú de administración, `tabular-nums` y `focus-visible` en las tablas de administración, y el `??` de la celda de motivo en `admin/audit` (un motivo vacío deja la celda en blanco en vez de «—»).
