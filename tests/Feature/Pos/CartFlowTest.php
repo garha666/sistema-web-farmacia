@@ -113,6 +113,28 @@ final class CartFlowTest extends TestCase
     }
 
     /**
+     * B5 (RF-1, RF-2): escanear el código exacto de un producto que no se vende
+     * avisa y no lo agrega al carrito.
+     */
+    public function test_scanning_a_non_sellable_barcode_does_not_reach_the_cart(): void
+    {
+        Product::factory()->create([
+            'name' => 'Vitamina C',
+            'barcode' => '7801234567894',
+            'sellable' => false,
+            'stock' => 5,
+        ]);
+
+        $response = $this->get('/pos?q=7801234567894');
+
+        $response->assertRedirect('/pos');
+        $response->assertSessionHasErrors('barcode');
+        $this->assertNull(session('pos.cart'));
+
+        $this->followRedirects($response)->assertSee('El producto no está disponible para la venta.');
+    }
+
+    /**
      * B2: un código incompleto sigue siendo búsqueda normal, sin agregar nada.
      */
     public function test_a_partial_barcode_still_lists_results_without_adding(): void

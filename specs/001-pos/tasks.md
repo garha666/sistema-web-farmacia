@@ -169,6 +169,8 @@ RF-1 a RF-40: **cobertura nominal completa**; huecos reales que corrigen S1–S5
 
 - **2026-11-17 — B4 (seeder idempotente).** `ProductSeeder` usa `updateOrCreate()` por nombre, así que la BD demo recibe los códigos de barras de B1 sin duplicar filas. No cambia RF ni RNF; cierra el bloqueo de la verificación del escaneo en navegador.
 
+- **2026-11-17 — B5 (cobertura).** `CartFlowTest::test_scanning_a_non_sellable_barcode_does_not_reach_the_cart`: escanear el código exacto de un producto no vendible redirige, deja el error `barcode` y no toca el carrito. La regla ya existía en `BarcodeScanPolicy`; se comprobó que el test falla si se neutraliza esa rama (500 por `ProductNotSellable`). No cambia RF ni RNF.
+
 ---
 
 ## Estado actual del flujo SDD
@@ -187,4 +189,4 @@ RF-1 a RF-40: **cobertura nominal completa**; huecos reales que corrigen S1–S5
 
 ---
 
-*Actualizado: 2026-11-17. Suite completa: 231 tests, 994 aserciones, 0 fallos.*
+*Actualizado: 2026-11-17. Suite completa: 232 tests, 1000 aserciones, 0 fallos.*
