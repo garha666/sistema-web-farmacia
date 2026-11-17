@@ -11,7 +11,6 @@ use App\Models\Product;
 use App\Models\Sale;
 use App\Models\StockMovement;
 use App\Pos\Calculator\PriceCalculator;
-use App\Pos\Enum\DiscountType;
 use App\Pos\Enum\DocumentStatus;
 use App\Pos\Enum\DocumentType;
 use App\Pos\Enum\PaymentMethod;
@@ -278,7 +277,7 @@ final class CheckoutService
                     authorizedBy: (int) $authorizedBy,
                     type: $line->discount()->type,
                     discountValue: $applied,
-                    reason: $this->lineDiscountReason($line->discount(), $applied),
+                    reason: $line->discount()->reason,
                 );
             }
 
@@ -480,18 +479,6 @@ final class CheckoutService
         }
 
         return [$convention, $decision->discount(), $decision->requiresSupervisor()];
-    }
-
-    /**
-     * Motivo legible de la autorización de un descuento de línea (S12, RF-36).
-     */
-    private function lineDiscountReason(Discount $discount, int $appliedPesos): string
-    {
-        $detail = $discount->type === DiscountType::percent
-            ? rtrim(rtrim(number_format($discount->value, 2, ',', '.'), '0'), ',').'%'
-            : '$'.number_format($appliedPesos, 0, ',', '.');
-
-        return "Descuento de línea ({$detail}) autorizado por supervisor.";
     }
 
     /**

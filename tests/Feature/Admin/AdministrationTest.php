@@ -377,7 +377,8 @@ final class AdministrationTest extends TestCase
             ->assertSee('Descuento de línea')
             ->assertSee('Autorizó: Supervisora Demo')
             ->assertSee('Monto autorizado: $200')
-            ->assertSee('autorizado por supervisor')
+            // RF-17: el detalle muestra el motivo real del cajero.
+            ->assertSee('Convenio interno')
             // RNF-9: la acción interna no se muestra en inglés.
             ->assertDontSee('sale.line_discount_authorized');
     }

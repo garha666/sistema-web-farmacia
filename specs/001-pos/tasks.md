@@ -175,6 +175,8 @@ RF-1 a RF-40: **cobertura nominal completa**; huecos reales que corrigen S1–S5
 
 - **2026-11-17 — B7 (tope de línea al cobrar).** `CheckoutService::assertLineDiscountsAuthorized()` revalida los descuentos de línea contra el tope acumulado del carrito final, en `checkout()` y en `totalsFor()` (antes de validar el efectivo recibido). Si el carrito cambió desde que se aplicó el descuento y el ahorro vigente supera el 10 %, la venta se rechaza con `line_discount_supervisor`; el cobro muestra «El descuento de línea ya no es válido» con vuelta a la caja para reautorizar. Una línea con supervisor recordado (S12) conserva su autorización, y una que quedó en cero tras el cambio se rechaza con `line_value` (RF-18). No cambia ningún RF ni RNF: cierra el pendiente que S12 dejó abierto. 3 tests nuevos en `LineDiscountTest`.
 
+- **2026-11-17 — B8 (motivo del descuento de línea).** `CheckoutService` registraba la autorización con un texto generado («Descuento de línea (20%) autorizado por supervisor.») que reemplazaba el motivo del cajero. Ahora guarda `$line->discount()->reason` en `audit_logs.reason` y se eliminó `lineDiscountReason()`; el tipo y el monto siguen en sus columnas. No cambia ningún RF ni RNF: es la corrección del hallazgo de S14. Test nuevo en `AuditTest` (registro y bitácora con el motivo real) y ajuste de la expectativa equivalente en `AdministrationTest`.
+
 ---
 
 ## Estado actual del flujo SDD
@@ -192,10 +194,11 @@ RF-1 a RF-40: **cobertura nominal completa**; huecos reales que corrigen S1–S5
 | **S13–S14 (Vuelta 2)** | ✅ **Cerradas** |
 | B0–B5 | ✅ **Cerradas** |
 | B6–B7 | ✅ **Cerradas** |
+| B8 | ✅ **Cerrada** |
 | Verificación visual 375 px | ✅ **Completada** |
 | Auditoría RF por RF | ✅ **Completada** |
 | Cierre documental | ✅ **Completado** |
 
 ---
 
-*Actualizado: 2026-11-17. Suite completa: 235 tests, 1024 aserciones, 0 fallos. Auditoría RF por RF: `specs/001-pos/rf-audit.md`.*
+*Actualizado: 2026-11-17. Suite completa: 236 tests, 1030 aserciones, 0 fallos. Auditoría RF por RF: `specs/001-pos/rf-audit.md`.*

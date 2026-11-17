@@ -68,6 +68,39 @@ final class AuditTest extends TestCase
         $this->assertSame(200, $log->discount_value);
     }
 
+    public function test_the_line_discount_audit_keeps_the_reason_typed_by_the_cashier(): void
+    {
+        $product = Product::factory()->create(['price' => 1000, 'name' => 'Ibuprofeno 400 mg']);
+        $this->post('/pos/cart', ['product_id' => $product->id]);
+
+        $supervisor = User::factory()->create(['role' => 'quimico']);
+
+        $this->post(route('pos.cart.discount', $product), [
+            'line_type' => 'percent',
+            'line_value' => '20',
+            'line_reason' => 'Cliente frecuente',
+            'line_supervisor_email' => $supervisor->email,
+            'line_supervisor_password' => 'password',
+        ])->assertRedirect(route('pos.index'));
+
+        $this->post('/pos/checkout', ['payment_method' => 'debit'])->assertRedirect();
+
+        $log = AuditLog::query()
+            ->where('action', 'sale.line_discount_authorized')
+            ->firstOrFail();
+
+        // RF-17/RF-36: se conserva el motivo que escribió el cajero.
+        $this->assertSame('Cliente frecuente', $log->reason);
+
+        $admin = User::factory()->create(['role' => 'admin']);
+        $this->actingAs($admin);
+
+        // La bitácora muestra el motivo real, no un texto generado.
+        $this->get(route('admin.audit.index'))
+            ->assertOk()
+            ->assertSeeText('Cliente frecuente');
+    }
+
     public function test_the_audit_entry_resolves_its_sale_line_and_product(): void
     {
         $product = Product::factory()->create(['price' => 1000, 'name' => 'Ibuprofeno 400 mg']);
