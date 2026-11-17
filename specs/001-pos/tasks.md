@@ -161,6 +161,12 @@ RF-1 a RF-40: **cobertura nominal completa**; huecos reales que corrigen S1–S5
 
 ---
 
+## Enmiendas
+
+- **2026-11-17 — B0 (sólo documentación).** `specs/001-pos/spec.md`: RF-1 gana el criterio de escaneo (código de barras exacto de un producto vendible con existencia → agregar con cantidad 1 y limpiar la búsqueda, sin clic adicional); RNF-10 declara la regla de impresión de 80 mm con `@page size: 80mm`; §9 suma el supuesto **S-7** (el lector de códigos funciona como teclado: envía el código seguido de Enter, y el campo de búsqueda de la caja recibe el foco al cargar la pantalla). No cambia ningún RF ni RNF existente, no toca código ni tests.
+
+---
+
 ## Estado actual del flujo SDD
 
 | Fase | Estado |

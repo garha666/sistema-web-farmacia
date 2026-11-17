@@ -43,6 +43,7 @@ Notación EARS. "El sistema" es el POS.
 
 - **RF-1 — Buscar producto.** Cuando el cajero ingresa texto o escanea un código, el sistema deberá mostrar los productos coincidentes por nombre comercial, principio activo o código de barras.
   - *Criterio:* Cuando la búsqueda no encuentra coincidencias, el sistema deberá mostrar "Sin resultados" y permitir editar el término sin perder el carrito.
+  - *Criterio:* Cuando el término buscado coincide exactamente con el código de barras de un producto vendible con existencia, entonces el sistema deberá agregarlo al carrito con cantidad 1 y limpiar la búsqueda, sin exigir un clic adicional.
 - **RF-2 — Agregar al carrito.** Cuando el cajero selecciona un producto vendible, el sistema deberá agregarlo con cantidad 1, o incrementar en 1 la cantidad si ya está en el carrito.
   - *Criterio:* Si el producto está marcado como no vendible o descontinuado, entonces el sistema deberá impedir agregarlo e informar el motivo.
 - **RF-3 — Modificar cantidad.** El cajero deberá poder fijar una cantidad entera mayor o igual a 1 y eliminar una línea del carrito.
@@ -127,7 +128,7 @@ Notación EARS. "El sistema" es el POS.
 - **RNF-7 — Trazabilidad.** Toda venta, anulación, autorización y documento deberá ser auditable; nada se borra físicamente.
 - **RNF-8 — Permisos.** Cada acción deberá estar disponible sólo para el rol que la spec le atribuye; ningún rol podrá ejecutar acciones de otro sin sus credenciales.
 - **RNF-9 — Claridad de errores.** Todo mensaje de error deberá indicar qué pasó y qué hacer a continuación, en lenguaje del cajero.
-- **RNF-10 — Impresión.** El comprobante deberá ser legible en impresora térmica de 80 mm y en hoja A4.
+- **RNF-10 — Impresión.** El comprobante deberá ser legible en impresora térmica de 80 mm y en hoja A4. La regla de impresión de 80 mm se declara con `@page size: 80mm` en el comprobante.
 - **RNF-11 — Accesibilidad mínima.** La interfaz deberá tener foco visible, etiquetas en los campos y contraste suficiente para uso prolongado en mostrador.
 - **RNF-12 — Volumen.** El sistema deberá sostener al menos 5 cajas operando simultáneamente y 20.000 ventas por mes sin degradar los tiempos de RNF-1.
 - **RNF-13 — Simulación declarada.** Todo comprobante, pantalla de estado y exportación deberá indicar que el documento es simulado y carece de validez tributaria.
@@ -199,3 +200,4 @@ Notación EARS. "El sistema" es el POS.
 - **S-4 — Libro de controlados.** Se cumple con el registro de RF-10 más una exportación mensual en CSV; no se reproduce un formato legal específico.
 - **S-5 — Nota de crédito.** La anulación con documento generado produce una nota de crédito simulada, autorizada por supervisor y registrada en RF-36.
 - **S-6 — RUT del cliente.** Es opcional en la boleta; si se ingresa, queda asociado a la venta para futuras consultas.
+- **S-7 — Lector de códigos.** Funciona como teclado: envía el código seguido de Enter. El campo de búsqueda de la caja recibe el foco al cargar la pantalla.
