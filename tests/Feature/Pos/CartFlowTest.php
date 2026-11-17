@@ -63,9 +63,72 @@ final class CartFlowTest extends TestCase
             'barcode' => '7801234567890',
         ]);
 
-        $response = $this->get('/pos?q=7801234567890');
+        // B2: un código incompleto sigue siendo búsqueda y muestra la lista; el
+        // escaneo del código completo lo cubre el test de más abajo.
+        $response = $this->get('/pos?q=780123456');
 
         $response->assertSee('Vitamina C');
+    }
+
+    /**
+     * B2 (RF-1, RF-2, RNF-3): el lector envía el código y Enter, así que el
+     * acierto exacto agrega al carrito sin exigir un clic y limpia la búsqueda.
+     */
+    public function test_scanning_an_exact_barcode_adds_the_product_and_clears_the_search(): void
+    {
+        $product = Product::factory()->create([
+            'name' => 'Vitamina C',
+            'barcode' => '7801234567894',
+            'stock' => 5,
+        ]);
+
+        $response = $this->get('/pos?q=7801234567894');
+
+        // Sin ?q: la caja vuelve a la pantalla limpia con el producto ya dentro.
+        $response->assertRedirect('/pos');
+        $this->assertCount(1, (array) session('pos.cart'));
+        $this->assertSame(1, session('pos.cart.'.$product->id));
+
+        $this->followRedirects($response)->assertSee('Vitamina C');
+    }
+
+    /**
+     * B2: escanear un producto sin existencia avisa y no lo agrega.
+     */
+    public function test_scanning_a_barcode_without_stock_does_not_reach_the_cart(): void
+    {
+        Product::factory()->create([
+            'name' => 'Vitamina C',
+            'barcode' => '7801234567894',
+            'stock' => 0,
+        ]);
+
+        $response = $this->get('/pos?q=7801234567894');
+
+        $response->assertRedirect('/pos');
+        $response->assertSessionHasErrors('barcode');
+        $this->assertNull(session('pos.cart'));
+
+        $this->followRedirects($response)->assertSee('El producto no tiene stock disponible.');
+    }
+
+    /**
+     * B2: un código incompleto sigue siendo búsqueda normal, sin agregar nada.
+     */
+    public function test_a_partial_barcode_still_lists_results_without_adding(): void
+    {
+        Product::factory()->create([
+            'name' => 'Vitamina C',
+            'barcode' => '7801234567894',
+            'stock' => 5,
+        ]);
+
+        $this->get('/pos?q=780123456')
+            ->assertOk()
+            ->assertSee('Vitamina C')
+            ->assertSee('7801234567894');
+
+        $this->assertNull(session('pos.cart'));
     }
 
     /**

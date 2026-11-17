@@ -15,6 +15,7 @@ use App\Pos\Exception\DiscountRejected;
 use App\Pos\Exception\InsufficientStock;
 use App\Pos\Exception\PrescriptionRejected;
 use App\Pos\Money;
+use App\Pos\Policy\BarcodeScanPolicy;
 use App\Pos\Policy\DiscountPolicy;
 use App\Pos\Policy\PrescriptionPolicy;
 use App\Pos\Policy\StockPolicy;
@@ -55,11 +56,30 @@ final class PosController extends Controller
         private readonly DiscountPolicy $discountPolicy,
         private readonly ManualDiscountService $manualDiscountService,
         private readonly StockPolicy $stockPolicy,
+        private readonly BarcodeScanPolicy $barcodeScanPolicy,
     ) {}
 
-    public function index(Request $request): View
+    public function index(Request $request): View|RedirectResponse
     {
         $term = trim((string) $request->query('q', ''));
+
+        // B2 (RF-1, RF-2, RNF-3): el lector entrega el código completo seguido
+        // de Enter. El acierto exacto agrega al carrito y vuelve a la caja sin
+        // ?q; un código que no puede venderse avisa y tampoco deja el término.
+        if ($term !== '') {
+            $scan = $this->barcodeScanPolicy->evaluate($term, $this->barcodeCandidates($term));
+
+            if ($scan['product_id'] !== null) {
+                return $this->addScannedProduct($scan['product_id']);
+            }
+
+            if ($scan['error'] !== null) {
+                return redirect()
+                    ->route('pos.index')
+                    ->withErrors(['barcode' => __('pos.errors.'.$scan['error'])]);
+            }
+        }
+
         $cart = $this->cartService->load();
         $manualDiscount = $this->manualDiscountService->load();
 
@@ -569,6 +589,43 @@ final class PosController extends Controller
         }
 
         return $changes;
+    }
+
+    /**
+     * Candidatos del escaneo: sólo la fila con ese código exacto, incluidos los
+     * productos no vendibles, para poder explicar por qué no se agregan (B2).
+     *
+     * @return array<int, array{id: int, barcode: string|null, sellable: bool, stock: int}>
+     */
+    private function barcodeCandidates(string $term): array
+    {
+        return Product::query()
+            ->where('barcode', $term)
+            ->get()
+            ->map(fn (Product $product): array => [
+                'id' => (int) $product->id,
+                'barcode' => $product->barcode,
+                'sellable' => (bool) $product->sellable,
+                'stock' => (int) $product->stock,
+            ])
+            ->all();
+    }
+
+    /**
+     * Agrega el producto escaneado con cantidad 1 (RF-2, B2).
+     */
+    private function addScannedProduct(int $productId): RedirectResponse
+    {
+        $product = Product::query()->find($productId);
+
+        if ($product === null) {
+            return redirect()->route('pos.index');
+        }
+
+        $cart = $this->cartService->load()->add($this->cartService->snapshot($product));
+        $this->cartService->persist($cart);
+
+        return redirect()->route('pos.index');
     }
 
     /**
