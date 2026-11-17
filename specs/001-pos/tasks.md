@@ -171,6 +171,8 @@ RF-1 a RF-40: **cobertura nominal completa**; huecos reales que corrigen S1–S5
 
 - **2026-11-17 — B5 (cobertura).** `CartFlowTest::test_scanning_a_non_sellable_barcode_does_not_reach_the_cart`: escanear el código exacto de un producto no vendible redirige, deja el error `barcode` y no toca el carrito. La regla ya existía en `BarcodeScanPolicy`; se comprobó que el test falla si se neutraliza esa rama (500 por `ProductNotSellable`). No cambia RF ni RNF.
 
+- **2026-11-17 — B6 (identidad visual).** `specs/001-pos/spec.md` §9 suma el supuesto **S-8**: paleta única con esmeralda de acento y navegación lateral en el panel de administración, como desarrollo de RNF-11 (foco visible, etiquetas y contraste). Sólo se editan vistas y layouts: no cambia ningún RF, regla de negocio, ruta ni dato, y los textos siguen saliendo de `lang/es/pos.php`.
+
 ---
 
 ## Estado actual del flujo SDD

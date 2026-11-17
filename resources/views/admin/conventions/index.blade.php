@@ -27,7 +27,7 @@
                     <th class="px-4 py-3 text-right">{{ __('pos.admin.conventions.actions') }}</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-slate-100">
+            <tbody class="divide-y divide-slate-100 [&>tr:hover]:bg-slate-50">
                 @forelse ($conventions as $convention)
                     <tr>
                         <td class="px-4 py-3 font-medium">{{ $convention->name }}</td>

@@ -46,7 +46,7 @@
                     <th class="px-4 py-3">{{ __('pos.admin.controlled.sale') }}</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-slate-100">
+            <tbody class="divide-y divide-slate-100 [&>tr:hover]:bg-slate-50">
                 @forelse ($entries as $entry)
                     <tr>
                         <td class="px-4 py-3 text-slate-600">{{ $entry->sold_at->format('d-m-Y') }}</td>

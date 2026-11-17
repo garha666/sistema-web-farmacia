@@ -107,7 +107,7 @@
                     <th class="px-4 py-3 text-right">{{ __('pos.admin.sales.actions') }}</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-slate-100">
+            <tbody class="divide-y divide-slate-100 [&>tr:hover]:bg-slate-50">
                 @forelse ($sales as $sale)
                     <tr data-sale-id="{{ $sale->id }}">
                         <td class="px-4 py-3 font-medium">#{{ $sale->id }}</td>

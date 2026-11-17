@@ -201,3 +201,4 @@ Notación EARS. "El sistema" es el POS.
 - **S-5 — Nota de crédito.** La anulación con documento generado produce una nota de crédito simulada, autorizada por supervisor y registrada en RF-36.
 - **S-6 — RUT del cliente.** Es opcional en la boleta; si se ingresa, queda asociado a la venta para futuras consultas.
 - **S-7 — Lector de códigos.** Funciona como teclado: envía el código seguido de Enter. El campo de búsqueda de la caja recibe el foco al cargar la pantalla.
+- **S-8 — Identidad visual (RNF-11).** Una sola paleta en toda la aplicación: esmeralda como color de acento y gris pizarra para texto, bordes y fondos. El panel de administración usa navegación lateral fija en escritorio y una barra horizontal desplazable en pantallas angostas; la caja conserva su encabezado propio. El cambio es sólo presentacional: no altera rutas, reglas de negocio, datos ni textos, que siguen saliendo de `lang/es/pos.php`.

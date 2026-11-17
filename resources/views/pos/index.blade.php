@@ -7,12 +7,15 @@
 @endphp
 
 @section('content')
-    <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
-        <section aria-labelledby="search-title" class="rounded-xl bg-white p-4 shadow-sm">
+    <div class="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
+        <section aria-labelledby="search-title" class="rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200/70">
             <h2 id="search-title" class="text-base font-semibold">{{ __('pos.cash.search') }}</h2>
 
-            <form method="GET" action="{{ route('pos.index') }}" class="mt-3">
+            <form method="GET" action="{{ route('pos.index') }}" class="relative mt-3">
                 <label for="q" class="sr-only">{{ __('pos.cash.search') }}</label>
+                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" class="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400">
+                    <path d="m21 21-4.35-4.35M17 10.5a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z" />
+                </svg>
                 <input
                     id="q"
                     name="q"
@@ -21,7 +24,7 @@
                     autofocus
                     autocomplete="off"
                     placeholder="{{ __('pos.cash.search_placeholder') }}"
-                    class="w-full rounded-lg border border-slate-300 px-4 py-3 text-base focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                    class="w-full rounded-lg border border-slate-300 py-3 pl-10 pr-4 text-base transition-colors focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-200"
                 >
             </form>
 
@@ -33,7 +36,7 @@
                 @endif
 
                 @foreach ($results as $product)
-                    <div class="flex items-center justify-between gap-3 rounded-lg border border-slate-200 p-3">
+                    <div class="flex items-center justify-between gap-3 rounded-lg border border-slate-200 p-3 transition-colors hover:border-emerald-200 hover:bg-emerald-50/40">
                         <div class="min-w-0">
                             <p class="truncate font-medium">{{ $product->name }}</p>
                             <p class="text-sm text-slate-500">
@@ -71,7 +74,7 @@
             </div>
         </section>
 
-        <aside aria-labelledby="cart-title" class="rounded-xl bg-white p-4 shadow-sm">
+        <aside aria-labelledby="cart-title" class="rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200/70 lg:sticky lg:top-24">
             <h2 id="cart-title" class="text-base font-semibold">{{ __('pos.cash.cart') }}</h2>
 
             @if ($cart->isEmpty())
@@ -235,9 +238,9 @@
                         <dt>{{ __('pos.cash.iva_included', ['rate' => config('pos.iva_rate')]) }}</dt>
                         <dd>{{ $money($totals->iva()->pesos()) }}</dd>
                     </div>
-                    <div class="mt-2 flex justify-between border-t border-slate-200 pt-2 text-lg font-bold">
-                        <dt>{{ __('pos.common.total') }}</dt>
-                        <dd data-testid="cart-total">{{ $money($totals->total()->pesos()) }}</dd>
+                    <div class="mt-3 flex items-center justify-between rounded-lg bg-slate-900 px-3 py-2.5 text-white">
+                        <dt class="text-xs font-semibold uppercase tracking-wide text-slate-300">{{ __('pos.common.total') }}</dt>
+                        <dd class="text-xl font-bold tabular-nums" data-testid="cart-total">{{ $money($totals->total()->pesos()) }}</dd>
                     </div>
                 </dl>
 
@@ -321,7 +324,7 @@
 
             <a
                 href="{{ route('pos.checkout') }}"
-                class="mt-4 block w-full rounded-lg bg-emerald-600 px-4 py-3 text-center text-base font-semibold text-white aria-disabled:pointer-events-none aria-disabled:bg-slate-300"
+                class="mt-4 block w-full rounded-lg bg-emerald-600 px-4 py-3 text-center text-base font-semibold text-white shadow-sm shadow-emerald-900/20 transition-colors hover:bg-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 aria-disabled:pointer-events-none aria-disabled:bg-slate-300 aria-disabled:shadow-none"
                 @if ($cart->isEmpty()) aria-disabled="true" tabindex="-1" @endif
             >
                 {{ __('pos.cash.charge') }}

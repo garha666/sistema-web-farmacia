@@ -30,11 +30,11 @@
     </div>
 
     <div class="mt-4 grid gap-4 lg:grid-cols-3">
-        <section class="rounded-xl bg-white p-4 shadow-sm lg:col-span-2">
+        <section class="min-w-0 rounded-xl bg-white p-4 shadow-sm lg:col-span-2">
             <h3 class="text-sm font-semibold uppercase tracking-wide text-slate-500">{{ __('pos.admin.sale.lines') }}</h3>
 
             <div class="mt-3 overflow-x-auto">
-                <table class="min-w-full divide-y divide-slate-200 text-sm">
+                <table class="min-w-[30rem] divide-y divide-slate-200 text-sm">
                     <thead class="text-left text-xs uppercase tracking-wide text-slate-500">
                         <tr>
                             <th class="py-2">{{ __('pos.admin.sale.product') }}</th>
@@ -82,7 +82,7 @@
             </dl>
         </section>
 
-        <div class="space-y-4">
+        <div class="min-w-0 space-y-4">
             <section class="rounded-xl bg-white p-4 shadow-sm">
                 <h3 class="text-sm font-semibold uppercase tracking-wide text-slate-500">{{ __('pos.admin.sale.status') }}</h3>
                 <p class="mt-2">

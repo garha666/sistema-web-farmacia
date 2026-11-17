@@ -26,7 +26,7 @@
                     <th class="px-4 py-3">{{ __('pos.admin.audit.reason') }}</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-slate-100">
+            <tbody class="divide-y divide-slate-100 [&>tr:hover]:bg-slate-50">
                 @forelse ($logs as $log)
                     @php
                         $isLine = str_ends_with($log->auditable_type ?? '', 'SaleLine');

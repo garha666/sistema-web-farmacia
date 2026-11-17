@@ -7,7 +7,7 @@
 @endphp
 
 @section('content')
-    <div class="mx-auto max-w-2xl rounded-xl bg-white p-6 shadow-sm">
+    <div class="mx-auto max-w-2xl rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200/70">
         <h2 class="text-lg font-semibold">{{ __('pos.checkout.heading') }}</h2>
 
         <ul class="mt-4 divide-y divide-slate-100 text-sm">
@@ -44,9 +44,9 @@
             </div>
         </div>
 
-        <div class="mt-3 flex justify-between border-t border-slate-200 pt-3 text-lg font-bold">
-            <span>{{ __('pos.checkout.total_to_pay') }}</span>
-            <span>{{ $money($totals->total()->pesos()) }}</span>
+        <div class="mt-3 flex items-center justify-between rounded-lg bg-slate-900 px-3 py-2.5 text-white">
+            <span class="text-xs font-semibold uppercase tracking-wide text-slate-300">{{ __('pos.checkout.total_to_pay') }}</span>
+            <span class="text-xl font-bold tabular-nums">{{ $money($totals->total()->pesos()) }}</span>
         </div>
 
         @if ($manualDiscount)
