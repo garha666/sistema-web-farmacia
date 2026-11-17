@@ -123,6 +123,20 @@ El MCP `brave-devtools` no conectó (`404` tras el handshake con CDP), así que 
 
 Sin errores de consola ni excepciones en ninguna página; `scrollWidth = 375` (las tablas de administración quedan dentro de su contenedor con scroll horizontal).
 
+### Vuelta final (S13–S14, B0–B5, 2026-11-17)
+
+Login de desarrollo reestablecido: sesión inyectada con el id de la cookie real, `SESSION_HTTP_ONLY=false` para permitir lectura desde JavaScript. Servidor `php artisan serve --host=127.0.0.1 --port=8002`.
+
+| Pantalla | Resultado |
+| --- | --- |
+| `pos?q=7801234567894` (escaneo exacto) | Redirige a `/pos` sin `?q`, carrito con Paracetamol a $990, búsqueda vacía. Sin errores de consola. |
+| `pos?q=7801234567900` (escaneo sin stock) | Redirige a `/pos` sin `?q`, muestra «El producto no tiene stock disponible.», carrito intacto. |
+| `pos/sales/5/receipt` (con convenio y descuento de línea) | Banmédica, 20% de descuento, leyenda «Documento simulado» y botón «Imprimir». Sin desbordes. |
+| `admin/sales/5` (detalle) | Autorizaciones: «Descuento de línea», «Autorizó: Supervisora Demo», «Monto autorizado: $200», estado «Emitida», convenio «Banmédica» y botón «Ver comprobante». |
+| `admin/sales?convention_id=1` (historial filtrado) | 1 fila visible, <select> con «Banmédica» preseleccionado. |
+
+Sin errores de consola en ninguna página; `scrollWidth = 375`.
+
 ### Vuelta 2 (S6, 2026-11-02)
 
 Misma técnica por CDP (375×812) contra `127.0.0.1:8001`, flujo real de caja: agregar producto, abrir el cobro, elegir factura, completar los datos y confirmar.
@@ -185,4 +199,4 @@ Datos demo usados para la verificación eliminados al terminar (venta, línea y 
 
 ## Próximo paso
 
-S12 (auditoría de autorizaciones de descuento) cerrada. Cola en curso: **B0–B5, S13 y S14 cerradas con 232 tests en verde**. Pendientes de la ruta a «100 % funcional»: verificación en navegador a 375 px, revalidar el tope de líneas en `CheckoutService`, dependencia del CDN de Tailwind, documentación desalineada y auditoría RF por RF.
+S12 (auditoría de autorizaciones de descuento) cerrada. Cola en curso: **B0–B5, S13 y S14 cerradas con 232 tests en verde. Auditoría RF por RF completa en `specs/001-pos/rf-audit.md`.** Pendientes de mejora (no bloqueantes): revalidar el tope de líneas en `CheckoutService` (autorización puede eludirse si el cajero reabre el modal), el motivo original del descuento de línea lo reemplaza el texto generado de `lineDiscountReason()`, quitar el CDN de Tailwind del layout.

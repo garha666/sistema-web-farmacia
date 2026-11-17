@@ -186,7 +186,11 @@ RF-1 a RF-40: **cobertura nominal completa**; huecos reales que corrigen S1–S5
 | S1–S5 (Vuelta 1) | ✅ Cerradas |
 | S6–S12 (Vuelta 2) | ✅ Cerradas |
 | **S13–S14 (Vuelta 2)** | ✅ **Cerradas** |
+| B0–B5 | ✅ **Cerradas** |
+| Verificación visual 375 px | ✅ **Completada** |
+| Auditoría RF por RF | ✅ **Completada** |
+| Cierre documental | ✅ **Completado** |
 
 ---
 
-*Actualizado: 2026-11-17. Suite completa: 232 tests, 1000 aserciones, 0 fallos.*
+*Actualizado: 2026-11-17. Suite completa: 232 tests, 1000 aserciones, 0 fallos. Auditoría RF por RF: `specs/001-pos/rf-audit.md`.*

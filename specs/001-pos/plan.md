@@ -50,7 +50,7 @@ Nada aquí conoce HTTP, sesión, base de datos ni Blade.
 | `app/Pos/Enum/DocumentType.php` | `receipt`, `invoice`, `credit_note`. | RF-23, RF-34 |
 | `app/Pos/Enum/PaymentMethod.php` | `cash`, `debit`, `credit`, `transfer`. | RF-20 |
 | `app/Pos/Calculator/PriceCalculator.php` | Subtotal por línea, descuento, neto, IVA y total; redondeo a peso. | RF-4, RF-12, RF-19 |
-| `app/Pos/Calculator/CashChangeCalculator.php` | Vuelto y validación de monto recibido. | RF-21 |
+| *Vuelto* (inline en `CheckoutService`) | Cálculo de vuelto y validación de monto recibido (no hay clase `CashChangeCalculator`). | RF-21 |
 | `app/Pos/Policy/DiscountPolicy.php` | Tope general del 10%, descuento por convenio (RF-15), autorización de supervisor y total no negativo. | RF-13 a RF-18, RF-39, RF-40 |
 | `app/Pos/Policy/PrescriptionPolicy.php` | Categoría, datos obligatorios, vigencia y receta repetida. | RF-7 a RF-11 |
 | `app/Pos/Policy/StockPolicy.php` | Disponibilidad, faltantes y detección de conflicto de stock. | RF-3, RF-27, RF-29 |
@@ -173,8 +173,8 @@ public function isReused(string $number, array $usedPrescriptionNumbers): bool;
 public function canSell(int $available, int $requested): bool;
 public function shortages(Cart $cart, array $availableByProductId): array; // Shortage[]
 
-// app/Pos/Calculator/CashChangeCalculator.php — RF-21
-public function change(int $total, int $received): int;             // lanza si received < total
+// Vuelto (inline en CheckoutService, no hay clase CashChangeCalculator) — RF-21
+// public function change(int $total, int $received): int;             // lanza si received < total
 
 // app/Pos/Folio/FolioAllocator.php         — RF-23, RF-24, RF-26
 public function next(int $rangeFrom, int $rangeTo, array $usedFolios): ?int; // null si se agotó
@@ -232,7 +232,7 @@ PROCEDIMIENTO vender(cajero, carrito, pago, hoy = ahora_en(America/Santiago))
   6. validar_pago(pago, resumen.total)                                  // RF-20
      SI pago.medio == efectivo:
         SI pago.recibido < resumen.total ENTONCES error("Monto insuficiente") // RF-21
-        vuelto = CashChangeCalculator.change(resumen.total, pago.recibido)
+        vuelto = total_recibido - resumen.total // RF-21, inline en CheckoutService
 
   7. INICIAR TRANSACCIÓN
        a. PARA CADA línea: leer stock del producto CON BLOQUEO   // RF-28
@@ -385,7 +385,7 @@ Se ejecutan con dos conexiones reales a PostgreSQL: la primera abre la transacci
 
 ### 6.4 Orden de implementación
 
-1. **Fase A — Dominio:** `Money`, `Cart`, `PriceCalculator`, `DiscountPolicy`, `PrescriptionPolicy`, `StockPolicy`, `CashChangeCalculator`, `FolioAllocator`, `VoidPolicy` con sus tests unitarios (verde antes de seguir).
+1. **Fase A — Dominio:** `Money`, `Cart`, `PriceCalculator`, `DiscountPolicy`, `PrescriptionPolicy`, `StockPolicy`, `FolioAllocator`, `VoidPolicy` con sus tests unitarios (verde antes de seguir). Nota: no existe `CashChangeCalculator`; el vuelto se calcula inline en `CheckoutService`.
 2. **Fase B — Persistencia:** migraciones, modelos, factories y seeders de productos y convenios.
 3. **Fase C — Caja:** búsqueda, carrito, totales y receta (RF-1 a RF-11).
 4. **Fase D — Cobro:** checkout transaccional, documento simulado, comprobante (RF-20 a RF-26).

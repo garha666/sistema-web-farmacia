@@ -11,8 +11,8 @@ Proyecto académico INACAP, mantenido por estudiantes. Norma superior: `docs/con
 - Backend: Laravel 11 (PHP 8.2+), MVC con controladores RESTful.
 - Frontend: Blade + Tailwind CSS, responsive para cajas POS y tablets.
 - Base de datos: PostgreSQL 16 en Tercera Forma Normal (3FN).
-- Autenticación: Laravel Sanctum + middlewares RBAC (Químico, Técnico, Bodeguero, Admin).
-- Almacenamiento: `storage/app/private/`, hash SHA-256 en BD (sin BLOBs).
+- Autenticación: Laravel Auth SessionGuard + middlewares RBAC (Químico, Técnico, Bodeguero, Admin).
+- Almacenamiento: `storage/app/private/` (fuera del alcance del POS).
 - Entorno: Docker / Docker Compose (Laravel + PostgreSQL + Nginx + SSL).
 
 ## Convenciones
