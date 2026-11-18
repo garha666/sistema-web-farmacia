@@ -12,6 +12,8 @@ use App\Http\Controllers\Dashboard\ChemistDashboardController;
 use App\Http\Controllers\Dashboard\DashboardController;
 use App\Http\Controllers\Dashboard\WarehouseDashboardController;
 use App\Http\Controllers\Inventory\ProductController;
+use App\Http\Controllers\Inventory\StockAdjustmentController;
+use App\Http\Controllers\Inventory\StockMovementController;
 use App\Http\Controllers\PosController;
 use Illuminate\Support\Facades\Route;
 
@@ -49,6 +51,16 @@ Route::prefix('inventory/products')->name('inventory.products.')->middleware('au
     Route::post('/', [ProductController::class, 'store'])->middleware('role:admin')->name('store');
     Route::get('/{product}/edit', [ProductController::class, 'edit'])->middleware('role:admin')->name('edit');
     Route::patch('/{product}', [ProductController::class, 'update'])->middleware('role:admin')->name('update');
+});
+
+// T17 - RF-65, RF-66, RF-73, RF-74: ajuste de stock y libro de movimientos.
+Route::prefix('inventory')->name('inventory.')->middleware('auth')->group(function (): void {
+    Route::get('/movements', [StockMovementController::class, 'index'])
+        ->middleware('role:admin,bodeguero')
+        ->name('movements.index');
+    Route::post('/adjustments', [StockAdjustmentController::class, 'store'])
+        ->middleware('role:admin,bodeguero')
+        ->name('adjustments.store');
 });
 
 // T11 - RF-42: el Bodeguero no entra al POS ni a las pantallas de venta.
@@ -96,10 +108,14 @@ Route::prefix('admin')->name('admin.')->middleware('auth')->group(function (): v
 
         Route::get('/documents', [DocumentController::class, 'index'])->name('documents.index');
         Route::post('/documents/{document}/retry', [DocumentController::class, 'retry'])->name('documents.retry');
-
-        Route::get('/controlled-register', [ControlledRegisterController::class, 'index'])
-            ->name('controlled-register.index');
-        Route::get('/controlled-register/export', [ControlledRegisterController::class, 'export'])
-            ->name('controlled-register.export');
     });
+
+    // T17 - RF-67: el Bodeguero lee el libro de controlados; exportar sigue
+    // siendo exclusivo del Administrador.
+    Route::get('/controlled-register', [ControlledRegisterController::class, 'index'])
+        ->middleware('role:admin,bodeguero')
+        ->name('controlled-register.index');
+    Route::get('/controlled-register/export', [ControlledRegisterController::class, 'export'])
+        ->middleware('role:admin')
+        ->name('controlled-register.export');
 });

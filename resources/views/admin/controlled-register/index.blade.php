@@ -26,10 +26,12 @@
                 </button>
             </form>
 
-            <a href="{{ route('admin.controlled-register.export', $filters) }}"
-               class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
-                {{ __('pos.admin.controlled.export') }}
-            </a>
+            @if (auth()->user()->role === 'admin')
+                <a href="{{ route('admin.controlled-register.export', $filters) }}"
+                   class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
+                    {{ __('pos.admin.controlled.export') }}
+                </a>
+            @endif
         </div>
     </div>
 
@@ -59,9 +61,13 @@
                         <td class="px-4 py-3 font-medium">{{ $entry->medication }}</td>
                         <td class="px-4 py-3 text-right tabular-nums">{{ $entry->quantity }}</td>
                         <td class="px-4 py-3">
-                            <a href="{{ route('admin.sales.show', $entry->sale) }}" class="rounded tabular-nums text-emerald-700 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2">
-                                #{{ $entry->sale_id }}
-                            </a>
+                            @if (auth()->user()->role === 'admin')
+                                <a href="{{ route('admin.sales.show', $entry->sale) }}" class="rounded tabular-nums text-emerald-700 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2">
+                                    #{{ $entry->sale_id }}
+                                </a>
+                            @else
+                                <span class="tabular-nums text-slate-600">#{{ $entry->sale_id }}</span>
+                            @endif
                         </td>
                     </tr>
                 @empty
