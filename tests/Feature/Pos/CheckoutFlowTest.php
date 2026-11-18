@@ -194,7 +194,8 @@ final class CheckoutFlowTest extends TestCase
 
         $this->assertCount(1, $movements);
         $this->assertSame(-2, $movements[0]->quantity);
-        $this->assertSame('sale', $movements[0]->reason);
+        $this->assertSame('sale', $movements[0]->type->value);
+        $this->assertSame(8, $movements[0]->resulting_stock);
         $this->assertSame(8, $product->fresh()->stock);
     }
 

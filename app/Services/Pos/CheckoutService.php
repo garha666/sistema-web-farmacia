@@ -16,6 +16,7 @@ use App\Pos\Enum\DocumentType;
 use App\Pos\Enum\PaymentMethod;
 use App\Pos\Enum\SaleCategory;
 use App\Pos\Enum\SaleStatus;
+use App\Pos\Enum\StockMovementType;
 use App\Pos\Exception\DiscountRejected;
 use App\Pos\Exception\EmissionFailed;
 use App\Pos\Exception\EmptyCart;
@@ -138,7 +139,11 @@ final class CheckoutService
             // RF-27/RF-28: bloqueo pesimista de las filas de producto en orden
             // de id (mismo orden que VoidSaleService) para serializar la venta
             // de la última unidad y evitar deadlocks.
-            $this->lockProducts($cart);
+            $lockedStock = $this->lockProducts($cart);
+
+            // RF-74: existencia resultante por producto, calculada con la
+            // existencia bloqueada antes de descontar.
+            $resultingStock = [];
 
             // RF-11: la receta se guarda una sola vez y se reutiliza la existente
             // cuando un supervisor autorizó su repetición.
@@ -166,6 +171,8 @@ final class CheckoutService
                 if ($affected === 0) {
                     throw new InsufficientStock($this->shortageMessage($line));
                 }
+
+                $resultingStock[$line->productId()] = $lockedStock[$line->productId()] - $line->quantity();
             }
 
             $changeAmount = $method->requiresReceivedAmount() && $receivedAmount !== null
@@ -212,8 +219,10 @@ final class CheckoutService
                 StockMovement::query()->create([
                     'product_id' => $line->productId(),
                     'sale_id' => $sale->id,
+                    'user_id' => $sale->user_id,
+                    'type' => StockMovementType::sale,
                     'quantity' => -$line->quantity(),
-                    'reason' => 'sale',
+                    'resulting_stock' => $resultingStock[$line->productId()],
                 ]);
             }
 
@@ -507,8 +516,10 @@ final class CheckoutService
      * El orden por `id` es estable entre cajas: dos carritos con productos
      * distintos pero cruzados toman los locks en el mismo orden, lo que evita
      * el deadlock clásico de bloqueos cruzados.
+     *
+     * @return array<int, int> existencia bloqueada antes de descontar, por id de producto
      */
-    private function lockProducts(Cart $cart): void
+    private function lockProducts(Cart $cart): array
     {
         $ids = array_map(
             fn (CartLine $line): int => $line->productId(),
@@ -517,10 +528,12 @@ final class CheckoutService
 
         sort($ids);
 
-        Product::query()
+        return Product::query()
             ->whereIn('id', $ids)
             ->orderBy('id')
             ->lockForUpdate()
-            ->get();
+            ->get()
+            ->pluck('stock', 'id')
+            ->all();
     }
 }

@@ -5,14 +5,36 @@ use App\Http\Controllers\Admin\ControlledRegisterController;
 use App\Http\Controllers\Admin\ConventionController;
 use App\Http\Controllers\Admin\DocumentController;
 use App\Http\Controllers\Admin\SaleController;
+use App\Http\Controllers\Dashboard\AdminDashboardController;
+use App\Http\Controllers\Dashboard\CashierDashboardController;
+use App\Http\Controllers\Dashboard\ChemistDashboardController;
+use App\Http\Controllers\Dashboard\DashboardController;
+use App\Http\Controllers\Dashboard\WarehouseDashboardController;
 use App\Http\Controllers\PosController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return redirect()->route('pos.index');
+// T11 - RF-41: la raíz y /panel llevan a cada rol a su panel.
+Route::middleware('auth')->group(function (): void {
+    Route::get('/', [DashboardController::class, 'home'])->name('dashboard.home');
+    Route::get('/panel', [DashboardController::class, 'home'])->name('dashboard.index');
+
+    // T11 - RF-43: cada panel exige el rol que le corresponde.
+    Route::get('/panel/admin', AdminDashboardController::class)
+        ->middleware('role:admin')
+        ->name('dashboard.admin');
+    Route::get('/panel/quimico', ChemistDashboardController::class)
+        ->middleware('role:quimico')
+        ->name('dashboard.quimico');
+    Route::get('/panel/tecnico', CashierDashboardController::class)
+        ->middleware('role:tecnico')
+        ->name('dashboard.tecnico');
+    Route::get('/panel/bodeguero', WarehouseDashboardController::class)
+        ->middleware('role:bodeguero')
+        ->name('dashboard.bodeguero');
 });
 
-Route::prefix('pos')->name('pos.')->middleware('auth')->group(function (): void {
+// T11 - RF-42: el Bodeguero no entra al POS ni a las pantallas de venta.
+Route::prefix('pos')->name('pos.')->middleware(['auth', 'role:tecnico,quimico,admin'])->group(function (): void {
     Route::get('/', [PosController::class, 'index'])->name('index');
     Route::post('/cart', [PosController::class, 'add'])->name('cart.add');
     Route::patch('/cart/{product}', [PosController::class, 'update'])->name('cart.update');

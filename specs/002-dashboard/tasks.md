@@ -21,11 +21,11 @@
 
 ## Tareas (T11–T18)
 
-- [ ] **T11. Base de datos, rol Bodeguero y aterrizaje por rol.** RF-41, RF-42, RF-43, RF-45
+- [x] **T11. Base de datos, rol Bodeguero y aterrizaje por rol.** RF-41, RF-42, RF-43, RF-45
   - *Depende de:* —
   - *Alcance:* las cuatro migraciones del plan (§1.2), `CashRegister`, `StockMovement` con `type`/`note`/`user_id`/`resulting_stock`, `Product` con `min_stock`/`active`, `User::ROLE_BODEGUERO`, `CashRegisterFactory`, `UserSeeder` con los cuatro roles, `LandingPolicy` y `DashboardController`.
   - *Hecho cuando:* `LandingPolicyTest` y `RoleLandingTest` pasan; cada uno de los cuatro roles aterriza en su panel, un rol desconocido recibe 403 con el mensaje de acceso, un Bodeguero recibe 403 en `/pos` y en el historial, y un Químico recibe 403 en `/panel/admin`; `migrate:fresh --seed` deja cuatro usuarios y cuatro movimientos históricos con `resulting_stock` correcto.
-  - *Cierre:* pendiente.
+  - *Cierre:* **cerrada el 2026-11-18.** `LandingPolicyTest` (5 tests) y `RoleLandingTest` (7 tests) escritos en rojo (11 failed, 1 passed) y luego en verde. Suite completa: **259 tests, 1179 aserciones, 0 fallos** (30,17 s); la partida era 246/1131. Migración aplicada sobre la base demo: `movimientos=4 nulos=0 inconsistentes=0`, índice `cash_registers_open_unique` presente, `sales.cash_register_id` y `products.active` en su sitio; `db:seed` deja los cuatro roles. Verificación visual con Chrome DevTools MCP a 375×812: `/panel/admin` muestra el grupo «Administración» con sus 5 secciones y 2 enlaces al POS, `/panel/bodeguero` muestra sólo «Inicio», 0 enlaces al POS, `scrollWidth=375` y sin errores de consola.
 
 - [ ] **T12. Turnos de caja: apertura, cierre y arqueo.** RF-58, RF-59
   - *Depende de:* T11
@@ -134,10 +134,10 @@ RF-41 a RF-77: **cobertura nominal completa, sin repeticiones y sin huecos.**
 | Spec 002-dashboard | ✅ Aprobada v1.0 |
 | Plan 002 | ✅ Completo (`specs/002-dashboard/plan.md`) |
 | Tasks 002 | ✅ Definidas (T11–T18) |
-| T11–T18 | ⏳ Pendientes |
-| Verificación visual 375 px | ⏳ Pendiente |
+| T11–T18 | 🔄 T11 cerrada · T12–T18 pendientes |
+| Verificación visual 375 px | 🔄 T11 verificada; el resto se valida al cerrar cada tarea con interfaz |
 | Auditoría RF por RF 002 | ⏳ Pendiente |
 
 ---
 
-*Actualizado: 2026-11-18. Suite de partida: 246 tests, 1131 aserciones, 0 fallos.*
+*Actualizado: 2026-11-18. Suite actual: 259 tests, 1179 aserciones, 0 fallos.*

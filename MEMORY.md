@@ -10,7 +10,7 @@
 - **Plan 001 POS:** `specs/001-pos/plan.md`, completo (arquitectura, funciones puras, pseudocódigo, UI, decisiones, tests).
 - **Tareas 001 POS:** `specs/001-pos/tasks.md`, 10 tareas + correcciones Vuelta 1 (S1–S5) + Vuelta 2 (S6–S14). **T1 a T10 cerradas; S1 a S14 cerradas.**
 - **Código:** Laravel 11.57.1. Dominio `app/Pos/` completo. Persistencia: `Product`, `Sale`, `SaleLine`, `Document`, `InvoiceDetail`, `StockMovement`, `AuditLog`, `Convention`, `Prescription`, `ControlledRegisterEntry`. Servicios: `CartService`, `CheckoutService`, `VoidSaleService`, `AuditService`, `ConventionService`, `DocumentService`, `ManualDiscountService`. Emisión simulada: `Pos\Contract\DocumentEmitter`, `Pos\Emission\SimulatedDocumentEmitter`, `Pos\Folio\FolioAllocator`. HTTP: `PosController` y `Admin\{ConventionController, SaleController, DocumentController, AuditController, ControlledRegisterController}`. Vistas: `pos/index`, `pos/checkout`, `pos/receipt`, `admin/*` (layout `layouts.admin`). Traducciones en `lang/es/`. 246 tests en verde (1131 aserciones).
-- **Spec 002 paneles/inventario/caja:** `specs/002-dashboard/spec.md` v1.0, **aprobada** (2026-11-17). 37 RF (RF-41 a RF-77), 9 RNF (RNF-14 a RNF-22). Cubre los cuatro paneles por rol, el catálogo de productos con ajuste de stock auditado y el cierre de caja con diferencia declarada. Introduce el rol Bodeguero y absorbe dos temas que 001 delegaba o excluía: el arqueo (antes en `004-reportes`) y los tableros por rol. Las 5 enmiendas que necesitaba la spec 001 ya están aplicadas (v1.1), así que las dos specs no se contradicen. **Plan y tareas definidos:** `specs/002-dashboard/plan.md` y `specs/002-dashboard/tasks.md` (T11–T18, ocho tareas en orden de dependencia). **Pendiente:** implementación, desde T11.
+- **Spec 002 paneles/inventario/caja:** `specs/002-dashboard/spec.md` v1.0, **aprobada** (2026-11-17). 37 RF (RF-41 a RF-77), 9 RNF (RNF-14 a RNF-22). Cubre los cuatro paneles por rol, el catálogo de productos con ajuste de stock auditado y el cierre de caja con diferencia declarada. Introduce el rol Bodeguero y absorbe dos temas que 001 delegaba o excluía: el arqueo (antes en `004-reportes`) y los tableros por rol. Las 5 enmiendas que necesitaba la spec 001 ya están aplicadas (v1.1), así que las dos specs no se contradicen. **Plan y tareas definidos:** `specs/002-dashboard/plan.md` y `specs/002-dashboard/tasks.md` (T11–T18, ocho tareas en orden de dependencia). **T11 cerrada el 2026-11-18; la implementación sigue con T12.**
 - **Comandos SDD:** instalados en `.opencode/commands/` (9 comandos).
 
 ## Entorno (2026-10-30)
@@ -91,6 +91,17 @@
 - **Los paneles reutilizan `layouts/admin.blade.php`** con un `$navGroup`; renombrar el layout queda como deuda sin RF.
 - **RNF-14 se mide a mano** y se documenta; RNF-15 se automatiza contando consultas con `DB::listen`.
 - **RF-60 deja en rojo los tests de cobro existentes**: se corrige declarando la precondición con `openCashRegister()` en `tests/TestCase.php`, nunca relajando aserciones.
+
+## T11 cerrada — base de datos y aterrizaje por rol (2026-11-18)
+
+RF-41, RF-42, RF-43 y RF-45. Tests escritos primero en rojo (11 failed, 1 passed) y luego implementados.
+
+- **Esquema:** las cuatro migraciones del plan aplicadas. `products.min_stock` (umbral de reposición) y `products.active` (fuera de catálogo); `cash_registers` con índice único parcial `cash_registers_open_unique … WHERE closed_at IS NULL`; `stock_movements.reason` renombrado a `type` con `note`, `user_id` y `resulting_stock` obligatorio (rellenado con `SUM(quantity) OVER (PARTITION BY product_id ORDER BY id)`); `sales.cash_register_id` nullable con índice.
+- **Rol Bodeguero:** `User::ROLE_BODEGUERO`, `isBodeguero()`, `UserFactory::bodeguero()` y `UserSeeder` idempotente con los cuatro roles (`admin@farmacia.test`, etc., contraseña de desarrollo). `DatabaseSeeder` lo invoca.
+- **Aterrizaje:** `App\Pos\Policy\LandingPolicy` (mapa rol → ruta, `panelRoute()`/`canOpen()`, sin Eloquent) y `DashboardController::home()`; `/` y `/panel` redirigen al panel del rol, y un rol ausente o desconocido recibe 403 con la vista `dashboard.unsupported`.
+- **Acceso:** `/pos` queda con `role:tecnico,quimico,admin`; cada `/panel/{rol}` exige su rol. Los paneles reutilizan `layouts/admin.blade.php` con `$navGroup` y ocultan «Ir al POS» al Bodeguero.
+- **Movimientos de stock:** `CheckoutService::lockProducts()` ahora devuelve la existencia bloqueada por id y ambos servicios (cobro y anulación) escriben `type` (`App\Pos\Enum\StockMovementType`) y `resulting_stock` con autor.
+- **Verificación:** suite completa **259 tests, 1179 aserciones, 0 fallos** (30,17 s), desde 246/1131. Base demo: `movimientos=4 nulos=0 inconsistentes=0`, índice parcial presente, columnas nuevas en su sitio. Chrome DevTools a 375×812: `/panel/admin` con grupo «Administración» (5 secciones, 2 enlaces al POS), `/panel/bodeguero` con sólo «Inicio» y 0 enlaces al POS, `scrollWidth=375`, sin errores de consola.
 
 ## Pendientes conocidos
 
@@ -322,4 +333,4 @@ Datos demo usados para la verificación eliminados al terminar (venta, línea y 
 
 ## Próximo paso
 
-S12 (auditoría de autorizaciones de descuento) cerrada. Cola cerrada completa: **B0–B14, S13 y S14, con 246 tests en verde. Auditoría RF por RF completa en `specs/001-pos/rf-audit.md`.** Los pendientes de mejora que quedaban (paginación propia en español, CDN de Tailwind, iconos del menú, `tabular-nums`, `focus-visible`, la celda de motivo vacía y `BarcodeScanPolicy`) se cerraron en B10–B14. **Nueva spec 002** (paneles por rol, inventario y cierre de caja) aprobada en `specs/002-dashboard/spec.md`, con plan y tareas ya escritos (`plan.md`, `tasks.md`, T11–T18). **Siguiente paso: T11** (cuatro migraciones, rol Bodeguero y aterrizaje por rol), con test rojo primero.
+S12 (auditoría de autorizaciones de descuento) cerrada. Cola cerrada completa: **B0–B14, S13 y S14, con 246 tests en verde. Auditoría RF por RF completa en `specs/001-pos/rf-audit.md`.** Los pendientes de mejora que quedaban (paginación propia en español, CDN de Tailwind, iconos del menú, `tabular-nums`, `focus-visible`, la celda de motivo vacía y `BarcodeScanPolicy`) se cerraron en B10–B14. **Nueva spec 002** (paneles por rol, inventario y cierre de caja) aprobada en `specs/002-dashboard/spec.md`, con plan y tareas ya escritos (`plan.md`, `tasks.md`, T11–T18). **T11 cerrada** (migraciones, rol Bodeguero y aterrizaje por rol) con **259 tests, 1179 aserciones**. **Siguiente paso: T12** (turnos de caja: apertura, cierre y arqueo), con test rojo primero.

@@ -1,5 +1,5 @@
 {{--
-    Enlaces de la administración (B12).
+    Enlaces del panel (B12, extendido en T11 con el grupo por rol).
 
     Variantes:
       - sidebar: barra lateral de escritorio, con icono y fondo oscuro.
@@ -7,8 +7,12 @@
 
     Se usa desde layouts/admin.blade.php con:
       @include('partials.nav-links', ['variant' => 'sidebar'])
+
+    El grupo lo elige el panel (`admin`, `quimico`, `tecnico` o `bodeguero`) y
+    vive en config/navigation.php: sólo se renderizan las secciones del rol
+    (RF-44).
 --}}
-@foreach (config('navigation.admin', []) as $item)
+@foreach (config('navigation.'.($navGroup ?? 'admin'), []) as $item)
     @php
         $isActive = request()->routeIs($item['active']);
     @endphp

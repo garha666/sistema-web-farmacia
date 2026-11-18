@@ -49,4 +49,41 @@ return [
         ],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Navegación de los demás paneles (T11)
+    |--------------------------------------------------------------------------
+    |
+    | Cada rol ve sólo su panel. Las secciones propias de cada panel se suman
+    | en T18, cuando existan sus rutas.
+    |
+    */
+
+    'quimico' => [
+        [
+            'route' => 'dashboard.quimico',
+            'active' => 'dashboard.quimico',
+            'label' => 'pos.nav.panel',
+            'icon' => 'M3 12l9-9 9 9M5 10v10h14V10',
+        ],
+    ],
+
+    'tecnico' => [
+        [
+            'route' => 'dashboard.tecnico',
+            'active' => 'dashboard.tecnico',
+            'label' => 'pos.nav.panel',
+            'icon' => 'M3 12l9-9 9 9M5 10v10h14V10',
+        ],
+    ],
+
+    'bodeguero' => [
+        [
+            'route' => 'dashboard.bodeguero',
+            'active' => 'dashboard.bodeguero',
+            'label' => 'pos.nav.panel',
+            'icon' => 'M3 12l9-9 9 9M5 10v10h14V10',
+        ],
+    ],
+
 ];

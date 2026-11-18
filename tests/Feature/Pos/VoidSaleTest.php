@@ -64,7 +64,7 @@ final class VoidSaleTest extends TestCase
         $this->assertSame(10, $product->fresh()->stock);
         $this->assertSame(0, (int) StockMovement::query()->sum('quantity'));
 
-        $voidMovements = StockMovement::query()->where('reason', 'void')->get();
+        $voidMovements = StockMovement::query()->where('type', 'void')->get();
         $this->assertCount(1, $voidMovements);
         $this->assertSame(2, $voidMovements[0]->quantity);
     }

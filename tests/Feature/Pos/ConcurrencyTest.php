@@ -262,7 +262,7 @@ final class ConcurrencyTest extends TestCase
         $this->assertSame(SaleStatus::voided, $sale->fresh()->status);
         $this->assertSame(0, (int) StockMovement::query()->sum('quantity'));
 
-        $voidMovements = StockMovement::query()->where('reason', 'void')->get();
+        $voidMovements = StockMovement::query()->where('type', 'void')->get();
         $this->assertCount(1, $voidMovements);
         $this->assertSame(2, $voidMovements[0]->quantity);
     }

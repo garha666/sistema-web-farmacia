@@ -22,6 +22,44 @@ return [
         'admin' => 'Administración',
     ],
 
+    'role' => [
+        'admin' => 'Administrador',
+        'quimico' => 'Químico',
+        'tecnico' => 'Técnico',
+        'bodeguero' => 'Bodeguero',
+    ],
+
+    'panel' => [
+        'group' => [
+            'admin' => 'Administración',
+            'quimico' => 'Supervisión',
+            'tecnico' => 'Caja',
+            'bodeguero' => 'Bodega',
+        ],
+        'role' => 'Tu rol',
+        'date' => 'Hoy',
+        'admin' => [
+            'title' => 'Panel del Administrador',
+            'lead' => 'Resumen de las ventas del día, documentos por resolver, inventario y estado de la caja.',
+        ],
+        'quimico' => [
+            'title' => 'Panel del Químico',
+            'lead' => 'Ventas y autorizaciones del día, y anulaciones registradas hoy.',
+        ],
+        'tecnico' => [
+            'title' => 'Panel del Técnico',
+            'lead' => 'Estado de tu caja, resumen del turno y acceso directo al punto de venta.',
+        ],
+        'bodeguero' => [
+            'title' => 'Panel del Bodeguero',
+            'lead' => 'Existencia del inventario, prioridad de reposición y ajustes de stock.',
+        ],
+        'unsupported' => [
+            'title' => 'Sin acceso a un panel',
+            'message' => 'Tu usuario no tiene un rol reconocido o no tiene rol asignado. Solicita acceso a un administrador.',
+        ],
+    ],
+
     'nav' => [
         'sales' => 'Historial',
         'documents' => 'Documentos',
@@ -29,6 +67,7 @@ return [
         'conventions' => 'Convenios',
         'audit' => 'Auditoría',
         'pos' => 'Ir al POS',
+        'panel' => 'Inicio',
     ],
 
     'common' => [
@@ -55,6 +94,15 @@ return [
         'debit' => 'Débito',
         'credit' => 'Crédito',
         'transfer' => 'Transferencia',
+    ],
+
+    'inventory' => [
+        'movement_type' => [
+            'sale' => 'Venta',
+            'void' => 'Anulación',
+            'in' => 'Entrada',
+            'out' => 'Salida',
+        ],
     ],
 
     'document' => [

@@ -44,6 +44,7 @@ final class Sale extends Model
         'status',
         'sold_at',
         'user_id',
+        'cash_register_id',
     ];
 
     /**
@@ -84,6 +85,16 @@ final class Sale extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Turno de caja en que se cobró la venta (RF-56, RF-59).
+     *
+     * @return BelongsTo<CashRegister, $this>
+     */
+    public function cashRegister(): BelongsTo
+    {
+        return $this->belongsTo(CashRegister::class);
     }
 
     /**

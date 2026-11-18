@@ -10,6 +10,7 @@ use App\Models\StockMovement;
 use App\Pos\Enum\DocumentStatus;
 use App\Pos\Enum\DocumentType;
 use App\Pos\Enum\SaleStatus;
+use App\Pos\Enum\StockMovementType;
 use App\Pos\Policy\VoidPolicy;
 use Illuminate\Support\Facades\DB;
 
@@ -27,8 +28,7 @@ final class VoidSaleService
         private readonly VoidPolicy $policy,
         private readonly AuditService $audit,
         private readonly DocumentService $documents,
-    ) {
-    }
+    ) {}
 
     public function void(Sale $sale, string $reason, ?int $userId = null): Sale
     {
@@ -48,13 +48,17 @@ final class VoidSaleService
             // Bloqueo pesimista en orden de id: mismo orden que el cobro.
             $productIds = $lines->pluck('product_id')->unique()->sort()->values()->all();
 
-            Product::query()
+            $lockedProducts = Product::query()
                 ->whereIn('id', $productIds)
                 ->orderBy('id')
                 ->lockForUpdate()
-                ->get();
+                ->get()
+                ->keyBy('id');
 
             foreach ($lines as $line) {
+                // RF-74: la existencia resultante se toma de la fila bloqueada.
+                $resultingStock = (int) $lockedProducts->get($line->product_id)?->stock + $line->quantity;
+
                 Product::query()
                     ->whereKey($line->product_id)
                     ->increment('stock', $line->quantity);
@@ -62,8 +66,10 @@ final class VoidSaleService
                 StockMovement::query()->create([
                     'product_id' => $line->product_id,
                     'sale_id' => $locked->id,
+                    'user_id' => $userId,
+                    'type' => StockMovementType::void,
                     'quantity' => $line->quantity,
-                    'reason' => 'void',
+                    'resulting_stock' => $resultingStock,
                 ]);
             }
 
