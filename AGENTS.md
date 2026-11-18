@@ -4,7 +4,7 @@ Proyecto académico INACAP, mantenido por estudiantes. Norma superior: `docs/con
 
 ## Contexto
 - Spec activa: `specs/001-pos/spec.md` (POS, aprobada v1.1) y `specs/002-dashboard/spec.md` (paneles por rol, inventario y cierre de caja, aprobada v1.0). Planes: `specs/001-pos/plan.md` y `specs/002-dashboard/plan.md`. Tareas: `specs/001-pos/tasks.md` y `specs/002-dashboard/tasks.md`.
-- Estado: T1–T10 cerradas y correcciones Vuelta 1–2 (S1–S14) cerradas, junto con las mejoras B0–B14. El POS está implementado en `app/` y la suite se ejecuta con `php artisan test`. La spec 002 tiene plan y tareas definidas (T11–T18); **T11 cerrada** (migraciones, rol Bodeguero y aterrizaje por rol) y el siguiente paso es T12 (turnos de caja: apertura, cierre y arqueo).
+- Estado: T1–T10 cerradas y correcciones Vuelta 1–2 (S1–S14) cerradas, junto con las mejoras B0–B14. El POS está implementado en `app/` y la suite se ejecuta con `php artisan test`. La spec 002 tiene plan y tareas definidas (T11–T18); **T11 y T12 cerradas** (migraciones, rol Bodeguero, aterrizaje por rol y turnos de caja) y el siguiente paso es T13 (panel del Técnico y bloqueo del cobro).
 - Toda decisión nueva entra primero a la spec y después al código.
 
 ## Stack y estructura

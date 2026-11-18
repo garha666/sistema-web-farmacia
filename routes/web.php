@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\ControlledRegisterController;
 use App\Http\Controllers\Admin\ConventionController;
 use App\Http\Controllers\Admin\DocumentController;
 use App\Http\Controllers\Admin\SaleController;
+use App\Http\Controllers\Cash\CashRegisterController;
 use App\Http\Controllers\Dashboard\AdminDashboardController;
 use App\Http\Controllers\Dashboard\CashierDashboardController;
 use App\Http\Controllers\Dashboard\ChemistDashboardController;
@@ -31,6 +32,13 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/panel/bodeguero', WarehouseDashboardController::class)
         ->middleware('role:bodeguero')
         ->name('dashboard.bodeguero');
+});
+
+// T12 - RF-58, RF-59: apertura, cierre y arqueo del turno del Técnico.
+Route::prefix('cash-registers')->name('cash.')->middleware(['auth', 'role:tecnico'])->group(function (): void {
+    Route::post('/', [CashRegisterController::class, 'open'])->name('open');
+    Route::get('/close', [CashRegisterController::class, 'showClose'])->name('close.show');
+    Route::patch('/{cashRegister}/close', [CashRegisterController::class, 'close'])->name('close');
 });
 
 // T11 - RF-42: el Bodeguero no entra al POS ni a las pantallas de venta.

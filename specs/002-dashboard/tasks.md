@@ -27,11 +27,11 @@
   - *Hecho cuando:* `LandingPolicyTest` y `RoleLandingTest` pasan; cada uno de los cuatro roles aterriza en su panel, un rol desconocido recibe 403 con el mensaje de acceso, un Bodeguero recibe 403 en `/pos` y en el historial, y un Químico recibe 403 en `/panel/admin`; `migrate:fresh --seed` deja cuatro usuarios y cuatro movimientos históricos con `resulting_stock` correcto.
   - *Cierre:* **cerrada el 2026-11-18.** `LandingPolicyTest` (5 tests) y `RoleLandingTest` (7 tests) escritos en rojo (11 failed, 1 passed) y luego en verde. Suite completa: **259 tests, 1179 aserciones, 0 fallos** (30,17 s); la partida era 246/1131. Migración aplicada sobre la base demo: `movimientos=4 nulos=0 inconsistentes=0`, índice `cash_registers_open_unique` presente, `sales.cash_register_id` y `products.active` en su sitio; `db:seed` deja los cuatro roles. Verificación visual con Chrome DevTools MCP a 375×812: `/panel/admin` muestra el grupo «Administración» con sus 5 secciones y 2 enlaces al POS, `/panel/bodeguero` muestra sólo «Inicio», 0 enlaces al POS, `scrollWidth=375` y sin errores de consola.
 
-- [ ] **T12. Turnos de caja: apertura, cierre y arqueo.** RF-58, RF-59
+- [x] **T12. Turnos de caja: apertura, cierre y arqueo.** RF-58, RF-59
   - *Depende de:* T11
   - *Alcance:* `CashArqueo`, `CashRegisterService`, `CashRegisterController` y sus FormRequest.
   - *Hecho cuando:* `CashArqueoTest` pasa con esperado y diferencia a favor, en contra y en cero; `CashRegisterTest` pasa: una segunda apertura del mismo usuario se rechaza, el cierre sin ventas da diferencia cero, el cierre con anulaciones descuenta el efectivo, el cierre con diferencia distinta de cero se registra, y una anulación posterior al cierre no reescribe el turno.
-  - *Cierre:* pendiente.
+  - *Cierre:* **cerrada el 2026-11-18.** Tests en rojo primero (22 failed: 6 unitarios y 16 de feature) y luego en verde: **22 tests, 96 aserciones** en el objetivo. Suite completa: **281 tests, 1275 aserciones, 0 fallos** (29,46 s), desde 259/1179. Cubre apertura con monto, responsable y hora local; segunda apertura rechazada por el índice único parcial; cierre sin ventas con diferencia cero; cierre con ventas en efectivo, débito y una anulación en efectivo (esperado 56.000); faltante y sobrante registrados y permitidos; cierre negado a otro cajero (403), a una caja ya cerrada y a un invitado; y anulación posterior al cierre que no reescribe el acta. Verificación visual con Chrome DevTools MCP a 375×812: efectivo esperado `$56.000`, desglose Efectivo `$10.000` y Débito `$6.000`, diferencia en vivo `$3.000 (En contra)` al declarar 53.000, `scrollWidth=375` y sin errores de consola.
 
 - [ ] **T13. Panel del Técnico y bloqueo del cobro.** RF-56, RF-57, RF-60, RF-61, RF-62
   - *Depende de:* T12
@@ -134,10 +134,10 @@ RF-41 a RF-77: **cobertura nominal completa, sin repeticiones y sin huecos.**
 | Spec 002-dashboard | ✅ Aprobada v1.0 |
 | Plan 002 | ✅ Completo (`specs/002-dashboard/plan.md`) |
 | Tasks 002 | ✅ Definidas (T11–T18) |
-| T11–T18 | 🔄 T11 cerrada · T12–T18 pendientes |
-| Verificación visual 375 px | 🔄 T11 verificada; el resto se valida al cerrar cada tarea con interfaz |
+| T11–T18 | 🔄 T11 y T12 cerradas · T13–T18 pendientes |
+| Verificación visual 375 px | 🔄 T11 y T12 verificadas; el resto se valida al cerrar cada tarea con interfaz |
 | Auditoría RF por RF 002 | ⏳ Pendiente |
 
 ---
 
-*Actualizado: 2026-11-18. Suite actual: 259 tests, 1179 aserciones, 0 fallos.*
+*Actualizado: 2026-11-18. Suite actual: 281 tests, 1275 aserciones, 0 fallos.*
