@@ -72,6 +72,18 @@ return [
             'label' => 'pos.nav.panel',
             'icon' => 'M3 12l9-9 9 9M5 10v10h14V10',
         ],
+        [
+            'route' => 'admin.conventions.index',
+            'active' => 'admin.conventions.*',
+            'label' => 'pos.nav.conventions',
+            'icon' => 'M17 20h5v-2a3 3 0 0 0-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 0 1 5.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 0 1 9.288 0M15 7a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z',
+        ],
+        [
+            'route' => 'admin.audit.index',
+            'active' => 'admin.audit.*',
+            'label' => 'pos.nav.audit',
+            'icon' => 'M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2m-6 9 2 2 4-4',
+        ],
     ],
 
     'tecnico' => [
@@ -95,6 +107,18 @@ return [
             'active' => 'inventory.products.*',
             'label' => 'pos.nav.products',
             'icon' => 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4',
+        ],
+        [
+            'route' => 'inventory.movements.index',
+            'active' => 'inventory.movements.*',
+            'label' => 'pos.nav.movements',
+            'icon' => 'M7 16V4m0 0L3 8m4-4 4 4m6 0v12m0 0 4-4m-4 4-4-4',
+        ],
+        [
+            'route' => 'admin.controlled-register.index',
+            'active' => 'admin.controlled-register.*',
+            'label' => 'pos.nav.controlled',
+            'icon' => 'M12 15v2m-6 4h12a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2Zm10-10V7a4 4 0 0 0-8 0v4',
         ],
     ],
 

@@ -7,8 +7,8 @@ namespace App\Services\Dashboard;
 use App\Models\Product;
 use App\Models\StockMovement;
 use App\Pos\Value\InventorySnapshot;
+use Carbon\CarbonImmutable;
 use DateTimeImmutable;
-use DateTimeZone;
 use Illuminate\Database\Eloquent\Collection;
 
 /**
@@ -28,7 +28,7 @@ final class WarehousePanelService
      */
     public function for(?DateTimeImmutable $day = null): array
     {
-        $today = $day ?? new DateTimeImmutable('now', new DateTimeZone(config('pos.timezone')));
+        $today = $day ?? CarbonImmutable::now(config('pos.timezone'));
 
         return [
             'summary' => $this->summary($today->format('Y-m-d')),

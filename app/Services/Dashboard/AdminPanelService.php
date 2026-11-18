@@ -11,8 +11,8 @@ use App\Models\Document;
 use App\Models\Product;
 use App\Pos\Enum\DocumentStatus;
 use App\Pos\Value\SalesDaySummary;
+use Carbon\CarbonImmutable;
 use DateTimeImmutable;
-use DateTimeZone;
 use Illuminate\Database\Eloquent\Collection;
 
 /**
@@ -40,7 +40,7 @@ final class AdminPanelService
      */
     public function for(?DateTimeImmutable $day = null): array
     {
-        $today = $day ?? new DateTimeImmutable('now', new DateTimeZone(config('pos.timezone')));
+        $today = $day ?? CarbonImmutable::now(config('pos.timezone'));
 
         return [
             'summary' => $this->sales->forDay($today),

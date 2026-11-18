@@ -192,6 +192,7 @@ return [
         'sales' => 'Historial',
         'documents' => 'Documentos',
         'products' => 'Productos',
+        'movements' => 'Movimientos',
         'controlled' => 'Controlados',
         'conventions' => 'Convenios',
         'audit' => 'Auditoría',

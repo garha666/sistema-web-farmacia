@@ -7,8 +7,8 @@ namespace App\Services\Dashboard;
 use App\Models\AuditLog;
 use App\Models\User;
 use App\Pos\Value\SalesDaySummary;
+use Carbon\CarbonImmutable;
 use DateTimeImmutable;
-use DateTimeZone;
 use Illuminate\Database\Eloquent\Collection;
 
 /**
@@ -42,7 +42,7 @@ final class ChemistPanelService
      */
     public function for(User $chemist, ?DateTimeImmutable $day = null): array
     {
-        $today = $day ?? new DateTimeImmutable('now', new DateTimeZone(config('pos.timezone')));
+        $today = $day ?? CarbonImmutable::now(config('pos.timezone'));
         $date = $today->format('Y-m-d');
 
         return [
