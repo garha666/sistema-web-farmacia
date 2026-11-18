@@ -1,7 +1,7 @@
 # Especificación 003 — Autenticación y acceso
 
 **Proyecto:** Sistema Web de Gestión y Simulación de Farmacia Privada Comercial (Grupo A)
-**Estado:** aprobada · **Versión:** 1.0 · **Ámbito:** sólo el QUÉ y el POR QUÉ
+**Estado:** aprobada · **Versión:** 1.1 (2026-11-18: agrega RF-83 y RNF-26, el freno a la autorización de supervisor, tras la auditoría de seguridad) · **Ámbito:** sólo el QUÉ y el POR QUÉ
 
 > **Relación con las specs anteriores.** La spec 001 (§7) y la 002 (§7) declararon la autenticación **fuera de alcance** «porque se asume existente». Las dos specs siguen vigentes en todo lo demás; esta spec 003 **agrega** la pantalla de inicio de sesión y el cierre de sesión, que hasta ahora sólo existían como precondición (el RBAC de `role:*` y el aterrizaje por rol de RF-41 a RF-45 ya funcionaban, pero no había forma de iniciar sesión desde el navegador: un invitado terminaba en error al ser enviado a `/login`).
 
@@ -53,6 +53,11 @@ Notación EARS. «El sistema» es el módulo de acceso. La numeración continúa
 - **RF-82 — Protección contra fuerza bruta.** Si un mismo correo desde una misma dirección acumula intentos fallidos, entonces el sistema deberá frenar nuevos intentos e indicar cuánto esperar antes de reintentar.
   - *Criterio:* Un inicio de sesión correcto deberá limpiar el contador de intentos fallidos de ese correo.
 
+- **RF-83 — Freno a la autorización de supervisor.** Si un usuario acumula intentos fallidos de autorización de supervisor —descuento sobre el tope o reutilización de receta—, entonces el sistema deberá frenar nuevos intentos e indicar cuánto esperar antes de reintentar.
+  - *Criterio:* Una autorización correcta deberá limpiar el contador de intentos fallidos de ese usuario.
+  - *Criterio:* El freno deberá cubrir las tres vías de autorización en línea: el cobro, el descuento global y el descuento de línea (spec 001, RF-16 y RF-11).
+  - *Criterio:* La autorización de supervisor **no** es un inicio de sesión: no deberá cambiar la sesión ni el rol de quien la pide.
+
 ## 5. Requisitos no funcionales
 
 Numeración continua con la spec 002.
@@ -60,6 +65,7 @@ Numeración continua con la spec 002.
 - **RNF-23 — Almacenamiento de contraseñas.** Las contraseñas deberán guardarse sólo como hash y nunca mostrarse, registrarse en bitácora ni viajar de vuelta al navegador.
 - **RNF-24 — Higiene de sesión.** El identificador de sesión deberá regenerarse al autenticar, y al cerrar sesión se deberá invalidar la sesión y regenerar el token CSRF.
 - **RNF-25 — Idioma, formato y accesibilidad.** La pantalla deberá estar en español de Chile (RNF-16), con etiquetas en los campos, foco visible y utilizable a 375 px (RNF-17).
+- **RNF-26 — Credenciales de supervisor.** La contraseña de supervisor deberá compararse sólo contra su hash y nunca deberá registrarse, mostrarse ni devolverse al navegador; el límite de intentos es el de RF-83.
 
 ## 6. Casos límite
 
@@ -73,6 +79,8 @@ Numeración continua con la spec 002.
 8. Usuario autenticado que abre la pantalla de inicio de sesión: va a su panel.
 9. Usuario con un rol no reconocido que inicia sesión: no llega a ningún panel.
 10. Cierre de sesión y botón «atrás»: no debe volver a mostrarse una pantalla autenticada.
+11. Muchos intentos fallidos de autorización de supervisor seguidos: se frena y se indica cuándo reintentar.
+12. Autorización de supervisor correcta después de varios intentos fallidos: se limpia el contador.
 
 ## 7. Fuera de alcance
 
@@ -89,7 +97,8 @@ Numeración continua con la spec 002.
 3. Los casos límite de la sección 6 están cubiertos por tests o por una verificación manual documentada.
 4. Demo manual: iniciar sesión con cada uno de los cuatro roles desde el navegador y comprobar que cada uno aterriza en su panel; cerrar sesión y comprobar que una ruta protegida vuelve a pedir credenciales.
 5. La pantalla de inicio de sesión se ve sin desbordes ni errores de consola a 375 px y en escritorio.
-6. Esta spec queda marcada como aprobada y anotada en `AGENTS.md`.
+6. Se comprueba que, tras varios intentos fallidos de autorización de supervisor, el sistema frena e indica cuándo reintentar (RF-83).
+7. Esta spec queda marcada como aprobada y anotada en `AGENTS.md`.
 
 ## 9. Decisiones cerradas
 
@@ -100,6 +109,7 @@ Numeración continua con la spec 002.
 - **D-13 — Freno por correo y dirección.** El contador de intentos se lleva por la pareja correo + dirección de origen, con ventana de un minuto y cinco intentos; un acierto limpia el contador.
 - **D-14 — Aterrizaje siempre en el panel del rol.** Tras autenticar, el destino se calcula con `LandingPolicy`; el sistema no arrastra una pantalla pedida antes de entrar, para que nadie termine en un panel ajeno.
 - **D-15 — Sesión sin «recordarme».** No se ofrece la casilla «mantener la sesión» en esta versión.
+- **D-16 — Freno por actor y dirección.** El contador de intentos de autorización de supervisor se lleva por el usuario en sesión y su dirección de origen, con la misma ventana que el inicio de sesión (cinco intentos por minuto); un acierto limpia el contador. La autorización de supervisor no es un inicio de sesión: no cambia la sesión ni el rol del cajero, sólo deja registrado quién autorizó.
 
 **Supuestos adoptados (revisables por el equipo):**
 
@@ -111,3 +121,4 @@ Numeración continua con la spec 002.
 Se aplican en el mismo commit que apruebe esta spec, para que ninguna spec se contradiga.
 
 1. **Spec 001 §7 y spec 002 §7 («Fuera de alcance»):** la línea «Autenticación y pantalla de inicio de sesión» pasa a remitir a esta spec 003, igual que el cierre de caja remite a la 002.
+2. **RF-16 y RF-11 de la spec 001:** se complementan con el freno de RF-83. Ninguna cambia su regla —quien autoriza sobre el tope sigue siendo el supervisor y la reutilización de receta sigue exigiendo confirmación—; lo que se agrega es el límite de intentos de autorización, que hasta ahora era ilimitado y permitía al cajero probar contraseñas de supervisor sin freno.
