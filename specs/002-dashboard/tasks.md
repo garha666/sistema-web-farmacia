@@ -2,7 +2,7 @@
 
 **Spec:** `specs/002-dashboard/spec.md` v1.0 (aprobada) · **Plan:** `specs/002-dashboard/plan.md`
 **Metodología:** TDD — test rojo primero, código después, `php artisan test` en verde.
-**Estado:** T11–T14 cerradas; T15–T18 pendientes.
+**Estado:** T11–T15 cerradas; T16–T18 pendientes.
 
 > Nota: la skill `sdd` no está instalada; el formato sigue lo acordado en `AGENTS.md` y la constitución. La spec 001 v1.1 ya absorbió las enmiendas de la §10 de esta spec.
 
@@ -45,11 +45,11 @@
   - *Hecho cuando:* `AdminPanelTest` pasa con ventas confirmadas y anuladas del día, desglose por medio de pago, documentos pendientes y rechazados con reintento en línea, alertas de inventario, auditoría reciente, convenios próximos a vencer y vencidos con interruptor, y cortes del día con diferencia; un documento rechazado que se reintenta y vuelve a fallar se informa sin salir del panel; un convenio vencido no se puede activar.
   - *Cierre:* **cerrada el 2026-11-18.** `AdminPanelTest` (10 tests) escrito en rojo (9 failed, 1 passed) y luego en verde: **10 tests, 70 aserciones**. Suite completa: **302 tests, 1396 aserciones, 0 fallos**; la partida era 292/1326. `SalesDayQuery` es la única consulta agregada del día y `SalesDaySummary` su valor; las anuladas quedan fuera del monto vendido. El panel muestra los cuatro indicadores, el desglose por medio de pago, los documentos pendientes y rechazados con reintento en línea, las alertas de inventario (`belowMinimum` y `outOfStock` sobre productos activos), la auditoría reciente con acción traducida, los convenios activos próximos a vencer y los vencidos, y los cortes del día con diferencia firmada. `ConventionService::activate()` rechaza un convenio vencido con `DomainException` y `ConventionController::toggle()` traduce el rechazo sin salir del panel; la ruta nueva es `PATCH /admin/conventions/{convention}/toggle`. Un documento rechazado que vuelve a fallar deja el documento en `rejected` y muestra el error en el panel. Verificación visual con Chrome DevTools MCP a 375×812: `$20.000` vendidos, `$4.000` anulados, desglose Efectivo `$12.000` y Débito `$8.000`, 2 reintentos visibles, alertas 2 y 1, acción «Anulación de venta» con autor y motivo, convenio «Banmédica» próximo a vencer con «Desactivar», vencido sin activación, corte cerrado `$58.000`/`$54.000` con diferencia `-$4.000` y turno abierto; `scrollWidth=375` y sin errores de consola. Se corrigió el desborde de la tabla en la rejilla con `min-w-0` y la fecha de documentos se oculta bajo `sm` para dejar visible «Reintentar emisión». Datos de demo borrados después.
 
-- [ ] **T15. Panel del Químico.** RF-52, RF-53, RF-54, RF-55
+- [x] **T15. Panel del Químico.** RF-52, RF-53, RF-54, RF-55
   - *Depende de:* T14
   - *Alcance:* `ChemistPanelService`, `ChemistDashboardController`, `dashboard/quimico.blade.php`, enlaces de lectura a convenios y auditoría.
   - *Hecho cuando:* el panel muestra ventas y monto del día con el mismo desglose que el panel del Administrador, lista las autorizaciones de hoy del usuario en sesión (descuento global, descuento de línea y receta reutilizada) con venta, motivo y monto, y las anulaciones de hoy con motivo y autor; no ofrece ningún botón de escritura; un Químico sigue recibiendo 403 en las rutas de edición de convenios.
-  - *Cierre:* pendiente.
+  - *Cierre:* **cerrada el 2026-11-18.** `ChemistPanelTest` (5 tests) escrito en rojo (5 failed, 10 assertions) y luego en verde: **5 tests, 39 assertions**. Suite completa: **307 tests, 1435 aserciones, 0 fallos**; la partida era 302/1396. `ChemistPanelService::for()` toma el resumen de `SalesDayQuery`, las autorizaciones de hoy del usuario en sesión (`sale.discount_authorized`, `sale.line_discount_authorized` y `sale.prescription_reuse`) y las anulaciones del día (`sale.void`), todo acotado con `whereDate('created_at', ...)`. El monto autorizado usa el descuento global de la venta o el `discount_value` de la línea; la reutilización de receta se muestra como «—». El panel reutiliza `payment-breakdown` con el sufijo de traducciones del Químico y añade `authorizations-table` y `voids-table`; no incluye ningún `<form>`. Las salidas de lectura enlazan `admin.conventions.index` y `admin.audit.index`, rutas que el Químico ya comparte con el Admin; el 403 en las rutas de gestión sigue cubierto por `AdministrationTest::test_quimico_can_void_and_read_conventions_but_cannot_manage_them`. Verificación visual con Chrome DevTools MCP a 375×812: 3 ventas confirmadas por `$23.000`, Efectivo 2 por `$15.000` y Débito 1 por `$8.000`, tres autorizaciones con venta, monto (`$900`, `$500`, «—») y motivo, anulación `#43` con motivo y autora, enlaces «Ver convenios» y «Ver auditoría», cero formularios; `scrollWidth=375` y sin errores de consola. Se ocultó la fecha bajo `sm` y se acortaron los encabezados a «Acción» y «Monto» para que las cuatro columnas quepan a 375 px sin scroll interno. Datos de demo borrados después.
 
 - [ ] **T16. Catálogo de productos.** RF-68, RF-69, RF-70, RF-71, RF-72
   - *Depende de:* T11
@@ -134,10 +134,10 @@ RF-41 a RF-77: **cobertura nominal completa, sin repeticiones y sin huecos.**
 | Spec 002-dashboard | ✅ Aprobada v1.0 |
 | Plan 002 | ✅ Completo (`specs/002-dashboard/plan.md`) |
 | Tasks 002 | ✅ Definidas (T11–T18) |
-| T11–T18 | 🔄 T11, T12, T13 y T14 cerradas · T15–T18 pendientes |
+| T11–T18 | 🔄 T11, T12, T13, T14 y T15 cerradas · T16–T18 pendientes |
 | Verificación visual 375 px | 🔄 T11, T12, T13 y T14 verificadas; el resto se valida al cerrar cada tarea con interfaz |
 | Auditoría RF por RF 002 | ⏳ Pendiente |
 
 ---
 
-*Actualizado: 2026-11-18. Suite actual: 302 tests, 1396 aserciones, 0 fallos.*
+*Actualizado: 2026-11-18. Suite actual: 307 tests, 1435 aserciones, 0 fallos.*
