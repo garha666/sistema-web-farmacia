@@ -94,3 +94,18 @@
 - **246 tests, 1131 aserciones, 0 fallos.**
 - **Verificación visual a 375 px completada** el 2026-11-17: escaneo, error de escaneo, comprobante 80 mm, detalle de venta (incluido el folio ausente, B9) e historial con filtro.
 - **Pendientes documentados:** sin huecos funcionales abiertos. Los dos heredados de S12 quedaron cerrados: el tope acumulado de líneas se revalida en `CheckoutService` (B7) y la auditoría conserva el motivo original del descuento (B8).
+
+---
+
+## Cierre de `BarcodeScanPolicy` (B14, 2026-11-18)
+
+El pendiente decía «formalizar `BarcodeScanPolicy` en la spec». Se cierra **sin tocar la spec**: la conducta ya está exigida por RF-1 y RF-2, y la clase sólo la implementa.
+
+| Desenlace del escaneo | Regla de la spec | Dónde se implementa | Test |
+|---|---|---|---|
+| Acierto exacto de un producto vendible con existencia → se agrega al carrito y la búsqueda se limpia | RF-1, criterio añadido en B0 | `BarcodeScanPolicy::evaluate()` devuelve `product_id` | `CartFlowTest::test_scanning_an_exact_barcode_adds_the_product_and_clears_the_search` |
+| Acierto exacto de un producto **no vendible** → no entra y se avisa | RF-2 (impedir si no vendible/descontinuado) | `BarcodeScanPolicy::NOT_SELLABLE` | `CartFlowTest::test_scanning_a_non_sellable_barcode_does_not_reach_the_cart` |
+| Acierto exacto de un producto **sin existencia** → no entra y se avisa | RF-2 + RF-15 (no vender sin stock) | `BarcodeScanPolicy::OUT_OF_STOCK` | `CartFlowTest::test_scanning_a_barcode_without_stock_does_not_reach_the_cart` |
+| Texto parcial o sin coincidencia → no agrega nada y sigue siendo búsqueda | RF-1 (mostrar coincidencias / «Sin resultados») | `evaluate()` devuelve `null`/`null` | `CartFlowTest::test_a_partial_barcode_still_lists_results_without_adding`, `test_search_without_matches_shows_empty_message` |
+
+`app/Pos/Policy/BarcodeScanPolicy.php` es una función pura (no conoce Eloquent, sesión ni request) y `PosController` sólo orquesta. Por eso no hace falta un RF nuevo ni un supuesto: la spec 001 sigue en v1.1 y este documento registra el cierre.
