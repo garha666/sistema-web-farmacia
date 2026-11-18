@@ -209,11 +209,22 @@ H1 del informe de revisión. `EnvironmentTest` escrito primero en rojo y despué
 - **El guard:** `EnvironmentTest` comprueba que `config('app.timezone') === config('pos.timezone')` y que el archivo de ejemplo declare el huso del negocio, PostgreSQL y la sesión en base. Se verificó que **no es vacío**: con `APP_TIMEZONE=UTC` el primer test falla con el mensaje que explica el descuadre.
 - **Verificación:** objetivo **4 tests, 9 aserciones** (rojo: 2 failed, 2 passed, 7 assertions); suite completa **377 tests, 1939 aserciones, 0 fallos** (64,53 s), desde 373/1930.
 
+## T24 cerrada — freno a la autorización de supervisor (2026-11-18)
+
+RF-83 y RNF-26 (spec 003 v1.1), S1 del informe de seguridad. `SupervisorAuthorizationTest` escrito primero en rojo y después el freno.
+
+- **El agujero:** `PosController::supervisorId()` comparaba con `Hash::check` las credenciales que llegan del formulario **sin ningún límite de intentos**, en las tres vías que exigen supervisor (confirmar el cobro, descuento global y descuento de línea). Cualquier usuario autenticado —incluido un Técnico— podía probar contraseñas de supervisor indefinidamente hasta dar con una y aplicar descuentos sobre el tope del 10% sin autorización real (RF-16). Con bcrypt a 12 rondas cada intento costaba ~250 ms de CPU, así que además era un sumidero de CPU trivial.
+- **El arreglo:** antes de comparar la contraseña se consulta el `RateLimiter` con la clave `supervisor-auth|{cajero}|{ip}` (compartida por las tres vías, D-16): cinco intentos por minuto, `RateLimiter::hit()` en cada fallo y `RateLimiter::clear()` al acertar. El freno da un mensaje propio (`pos.errors.supervisor_throttled`, con los segundos de espera) distinto del de credenciales inválidas, y **no** toca la sesión ni el rol del cajero: la autorización de supervisor no es un inicio de sesión. Las constantes viven en `PosController` (`SUPERVISOR_MAX_ATTEMPTS`, `SUPERVISOR_DECAY_SECONDS`).
+- **Scope decidido:** el *registro* del intento fallido se dejó para T28 (bitácora de seguridad). Meterlo aquí habría metido una acción sin traducir en la actividad reciente del panel del Administrador (RF-49).
+- **Verificación:** objetivo **5 tests, 50 aserciones** (rojo: 2 failed, 3 passed, 47 assertions — los dos fallos demostraban el agujero: la sexta vez con la contraseña correcta autorizaba). Suite completa: **382 tests, 1989 aserciones, 0 fallos** (53,88 s), desde 377/1939; ningún test existente se rompió, así que el freno no estorba al uso legítimo.
+
 ## Pendientes conocidos
 
 - La skill `sdd` referenciada por los comandos **no existe**; los comandos la invocan igual.
 - `specs/004-reportes/` (reportes históricos y exportaciones) no ha sido redactada; el cierre de caja y el arqueo pasaron a la spec 002 (D-6).
 - **Resuelto (T20):** `.env.example` declara `America/Santiago`, PostgreSQL y sesión en base, con un guard (`EnvironmentTest`) que falla si el huso de la aplicación no es el del negocio.
+- **Resuelto (T24):** la autorización de supervisor tenía intentos ilimitados, así que el tope del 10% era evadible; ahora hay freno por cajero y dirección (RF-83).
+- **Abierto (seguridad, T25 a T29):** `composer audit` reporta avisos de Symfony (7.4.22 → 7.4.23, parche) y cuatro de `laravel/framework` 11.57.1 (exigen 12.x); sin cabeceras de seguridad ni proxies de confianza; `User::$fillable` incluye `role`; no se registran los eventos de seguridad; siete textos de usuario hardcodeados en `app/`.
 - Tras cerrar la caja, el panel del Técnico muestra la etiqueta del botón «Cerrar caja» como mensaje de éxito y nunca muestra la diferencia declarada (T21).
 - «Anulación del día» se calcula por fecha de venta en el panel del Administrador y por fecha de anulación en el del Químico: falta fijarlo en la spec 002 (T22).
 - El libro de controlados desborda a 375 px porque su filtro de fechas no envuelve (spec 001).
@@ -443,12 +454,19 @@ Datos demo usados para la verificación eliminados al terminar (venta, línea y 
 
 ## Próximo paso
 
-**T19 y T20 cerradas.** T19: pantalla de inicio de sesión, autenticación real, freno por fuerza bruta y cierre de sesión con su botón en la interfaz. T20: `.env.example` con el stack real (zona horaria del negocio, PostgreSQL, sesión en base) y un guard que falla si el huso de la aplicación deja de coincidir con el del negocio. Suite actual: **377 tests, 1939 aserciones, 0 fallos**.
+**T19, T20 y T24 cerradas.** T19: pantalla de inicio de sesión, autenticación real, freno por fuerza bruta y cierre de sesión con su botón. T20: `.env.example` con el stack real y un guard de zona horaria. T24: freno a la autorización de supervisor, que hasta ahora permitía probar contraseñas sin límite y evadir el tope del 10%. Suite actual: **382 tests, 1989 aserciones, 0 fallos**.
 
-Queda la cola de mejora del informe de revisión, en `specs/003-auth/tasks.md`:
+Cola de mejora (informes de revisión y de seguridad), en `specs/003-auth/tasks.md`:
 
 - **T21.** Mensaje de cierre de caja con la diferencia declarada (hoy muestra la etiqueta del botón «Cerrar caja»).
 - **T22.** Fijar en la spec 002 si «anulación del día» es por fecha de venta o de anulación, y alinear los paneles del Administrador y del Químico.
 - **T23.** Ajustes menores: `SaleFactory` inexistente, filtro `active` en `CartService::load()`, control de pertenencia en `PosController::receipt()`, `active` en `AdjustStockRequest`, inyección de `VoidSaleService` y las nueve etiquetas `RF-nn` que faltan en los tests de la spec 002.
+- **T25.** `composer update` acotado a `symfony/*` (7.4.22 → 7.4.23). Los cuatro avisos de `laravel/framework` 11.57.1 exigen el salto a 12.x y quedan como decisión aparte.
+- **T26.** Cabeceras de seguridad, proxies de confianza y HTTPS fuera de local.
+- **T27.** Sacar `role` de `User::$fillable`.
+- **T28.** Bitácora de seguridad (intentos fallidos de supervisor y de inicio de sesión).
+- **T29.** Mover los siete textos de usuario hardcodeados en `app/` a `lang/es/pos.php`.
+
+Pendientes de mayor alcance (fuera de la cola actual): `specs/004-reportes/` sin redactar, desborde a 375 px del libro de controlados (spec 001) y los archivos de despliegue (Docker, Nginx, SSL) que `AGENTS.md` declara como stack y que no están en el repositorio.
 
 Pendientes de mayor alcance (fuera de la cola actual): `specs/004-reportes/` sin redactar, desborde a 375 px del libro de controlados (spec 001) y los archivos de despliegue (Docker, Nginx, SSL) que `AGENTS.md` declara como stack y que no están en el repositorio.

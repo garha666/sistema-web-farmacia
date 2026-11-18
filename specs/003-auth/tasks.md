@@ -51,6 +51,38 @@
   - *Hecho cuando:* cada ajuste entra con su test o con su corrección documentada y la suite sigue en verde.
   - *Cierre:* (pendiente)
 
+- [x] **T24. Freno a la autorización de supervisor.** RF-83, RNF-26 (spec 003)
+  - *Depende de:* T19
+  - *Alcance:* freno por `RateLimiter` al resolver las credenciales de supervisor en `PosController` (las tres vías: cobro, descuento global y descuento de línea) y clave `pos.errors.supervisor_throttled`. El registro del intento fallido pasa a T28.
+  - *Hecho cuando:* tras varios intentos fallidos, ni siquiera la contraseña correcta del supervisor autoriza; una autorización correcta limpia el contador; el freno no cambia la sesión ni el rol del cajero; el mensaje indica cuánto esperar.
+  - *Cierre:* **cerrada el 2026-11-18.** `SupervisorAuthorizationTest` (5 tests) escrito primero en rojo (**2 failed, 3 passed, 47 assertions**: los dos fallos demostraban el agujero, la sexta vez con la contraseña correcta autorizaba) y después el freno: verde en **5 tests, 50 aserciones**. Suite completa: **382 tests, 1989 aserciones, 0 fallos** (53,88 s); la partida era 377/1939, sin tests existentes rotos. La clave `supervisor-auth|{cajero}|{ip}` se comparte entre las tres vías con cinco intentos por minuto (`SUPERVISOR_MAX_ATTEMPTS`, `SUPERVISOR_DECAY_SECONDS`), `hit()` en cada fallo y `clear()` al acertar; el mensaje de freno (`pos.errors.supervisor_throttled`, con los segundos) es distinto del de credenciales inválidas y no cambia la sesión ni el rol. El registro del intento fallido quedó para T28.
+
+- [ ] **T25. Parche de dependencias (Symfony 7.4.23).** S2 del informe de seguridad
+  - *Depende de:* —
+  - *Alcance:* `composer update` acotado a `symfony/*` y verificación de la suite. Los cuatro avisos de `laravel/framework` quedan para una decisión aparte, porque exigen el salto a 12.x.
+  - *Hecho cuando:* `composer audit` no reporta avisos de Symfony y la suite sigue en verde.
+  - *Cierre:* (pendiente)
+
+- [ ] **T26. Cabeceras de seguridad, proxies de confianza y HTTPS.** S4 y S5
+  - *Depende de:* —
+  - *Alcance:* middleware de cabeceras (CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy), `trusted_proxies` y forzado de HTTPS fuera de local.
+  - *Cierre:* (pendiente)
+
+- [ ] **T27. Sacar `role` de `$fillable`.** S3
+  - *Depende de:* —
+  - *Alcance:* `User::$fillable` sin `role`; el seeder y los tests asignan el rol de forma explícita.
+  - *Cierre:* (pendiente)
+
+- [ ] **T28. Bitácora de seguridad.** S7
+  - *Depende de:* T24
+  - *Alcance:* registrar los intentos fallidos de autorización de supervisor y de inicio de sesión, sin credenciales, y traducir sus etiquetas en el panel.
+  - *Cierre:* (pendiente)
+
+- [ ] **T29. Textos de usuario fuera de `lang`.** S8
+  - *Depende de:* —
+  - *Alcance:* mover los siete literales en español de `RoleMiddleware`, `VoidPolicy`, `CheckoutService`, `ConventionService` y `DocumentService` a `lang/es/pos.php`.
+  - *Cierre:* (pendiente)
+
 ---
 
 ## Cobertura RF por tarea
@@ -62,6 +94,8 @@
 | T21 | 59 (spec 002) | 22 (spec 002) |
 | T22 | 46, 54, 75 (spec 002) | — |
 | T23 | — | — |
+| T24 | 83 | 26 |
+| T25–T29 | — | — |
 
 ---
 
@@ -72,13 +106,14 @@
 | Constitución | ✅ v1.0 |
 | Spec 001-pos | ✅ v1.1 |
 | Spec 002-dashboard | ✅ v1.0 implementada (360 tests, 1847 aserciones) |
-| Spec 003-auth | ✅ Aprobada v1.0 |
+| Spec 003-auth | ✅ Aprobada v1.1 (RF-83 y RNF-26) |
 | Plan 003 | ✅ Completo (`specs/003-auth/plan.md`) |
 | T19 | ✅ Cerrada |
 | T20 | ✅ Cerrada |
-| T21–T23 | ⏳ Planificadas (mejoras del informe de revisión) |
+| T24 | ✅ Cerrada |
+| T21–T23, T25–T29 | ⏳ Planificadas (mejoras de los informes de revisión y seguridad) |
 | Auditoría RF por RF 002 | ⏳ Pendiente |
 
 ---
 
-*Actualizado: 2026-11-18. Suite actual: 377 tests, 1939 aserciones, 0 fallos.*
+*Actualizado: 2026-11-18. Suite actual: 382 tests, 1989 aserciones, 0 fallos.*

@@ -693,6 +693,7 @@ return [
         'prescription_invalid' => 'Dato de receta inválido.',
         'received_below_total' => 'El monto recibido es menor que el total a pagar.',
         'supervisor_invalid' => 'Credenciales de supervisor inválidas.',
+        'supervisor_throttled' => 'Demasiados intentos de autorización fallidos. Vuelve a intentarlo en :seconds segundos.',
         'emission_failed' => 'La emisión simulada volvió a fallar. El documento sigue pendiente y puedes reintentar.',
         'voided_sale_document' => 'La venta está anulada: su documento pendiente ya no se puede emitir.',
     ],

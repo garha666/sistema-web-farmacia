@@ -37,6 +37,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Enum;
 use Illuminate\Validation\ValidationException;
@@ -49,6 +50,14 @@ use Illuminate\View\View;
  */
 final class PosController extends Controller
 {
+    /**
+     * RF-83: cinco intentos de autorización de supervisor por minuto (D-16),
+     * la misma ventana que el inicio de sesión.
+     */
+    private const SUPERVISOR_MAX_ATTEMPTS = 5;
+
+    private const SUPERVISOR_DECAY_SECONDS = 60;
+
     public function __construct(
         private readonly CartService $cartService,
         private readonly PriceCalculator $priceCalculator,
@@ -698,6 +707,11 @@ final class PosController extends Controller
     /**
      * Resuelve la autorización de supervisor por credenciales (RF-11, RF-16).
      *
+     * RF-83: antes de comparar la contraseña se comprueba el freno por fuerza
+     * bruta, que se lleva por el usuario en sesión y su dirección de origen. Sin
+     * él, un cajero podía probar contraseñas de supervisor sin límite y el tope
+     * del 10% quedaba a su merced. Un acierto limpia el contador.
+     *
      * @param  array<string, mixed>  $data
      */
     private function supervisorId(
@@ -713,17 +727,40 @@ final class PosController extends Controller
             return null;
         }
 
+        $throttleKey = $this->supervisorThrottleKey();
+
+        if (RateLimiter::tooManyAttempts($throttleKey, self::SUPERVISOR_MAX_ATTEMPTS)) {
+            throw ValidationException::withMessages([
+                $errorKey => __('pos.errors.supervisor_throttled', [
+                    'seconds' => RateLimiter::availableIn($throttleKey),
+                ]),
+            ]);
+        }
+
         $supervisor = User::query()->where('email', $email)->first();
 
         if ($supervisor === null
             || ! in_array($supervisor->role, [User::ROLE_QUIMICO, User::ROLE_ADMIN], true)
             || ! Hash::check((string) $password, $supervisor->password)) {
+            RateLimiter::hit($throttleKey, self::SUPERVISOR_DECAY_SECONDS);
+
             throw ValidationException::withMessages([
                 $errorKey => __('pos.errors.supervisor_invalid'),
             ]);
         }
 
+        RateLimiter::clear($throttleKey);
+
         return $supervisor->id;
+    }
+
+    /**
+     * Contador de intentos de autorización por cajero y dirección de origen
+     * (RF-83, D-16). Compartido por las tres vías que exigen supervisor.
+     */
+    private function supervisorThrottleKey(): string
+    {
+        return 'supervisor-auth|'.(request()->user()?->getKey() ?? 'guest').'|'.request()->ip();
     }
 
     /**
