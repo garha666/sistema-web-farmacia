@@ -218,13 +218,19 @@ RF-83 y RNF-26 (spec 003 v1.1), S1 del informe de seguridad. `SupervisorAuthoriz
 - **Scope decidido:** el *registro* del intento fallido se dejó para T28 (bitácora de seguridad). Meterlo aquí habría metido una acción sin traducir en la actividad reciente del panel del Administrador (RF-49).
 - **Verificación:** objetivo **5 tests, 50 aserciones** (rojo: 2 failed, 3 passed, 47 assertions — los dos fallos demostraban el agujero: la sexta vez con la contraseña correcta autorizaba). Suite completa: **382 tests, 1989 aserciones, 0 fallos** (53,88 s), desde 377/1939; ningún test existente se rompió, así que el freno no estorba al uso legítimo.
 
+## T25 cerrada — parche de dependencias (2026-11-18)
+
+S2 del informe de seguridad. `composer update "symfony/*"` llevó 12 paquetes de Symfony de 7.4.22 a 7.4.23 (sólo parches, sin altas ni bajas) y `composer.lock` quedó actualizado. `composer audit` ya no reporta avisos de Symfony; sobreviven **5 avisos de `laravel/framework`** (CRLF en la regla `email`, URL firmadas temporales, XSS en la página de depuración y salida de `Concurrency`), todos sin parche en 11.x: exigen el salto a 12.x y quedan como decisión aparte. Suite completa: **382 tests, 1989 aserciones, 0 fallos** (52,71 s), sin regresiones.
+
+**Incidente de entorno:** `php artisan package:discover` falló con «directory must be present and writable» porque OneDrive repuso el atributo `ReadOnly` sobre `bootstrap/cache` (un *placeholder* de OneDrive, no un junction). PHP lo interpreta como no escribible aunque `file_put_contents()` sí escriba. Se resolvió con `attrib -R bootstrap\cache`.
+
 ## Pendientes conocidos
 
 - La skill `sdd` referenciada por los comandos **no existe**; los comandos la invocan igual.
 - `specs/004-reportes/` (reportes históricos y exportaciones) no ha sido redactada; el cierre de caja y el arqueo pasaron a la spec 002 (D-6).
 - **Resuelto (T20):** `.env.example` declara `America/Santiago`, PostgreSQL y sesión en base, con un guard (`EnvironmentTest`) que falla si el huso de la aplicación no es el del negocio.
 - **Resuelto (T24):** la autorización de supervisor tenía intentos ilimitados, así que el tope del 10% era evadible; ahora hay freno por cajero y dirección (RF-83).
-- **Abierto (seguridad, T25 a T29):** `composer audit` reporta avisos de Symfony (7.4.22 → 7.4.23, parche) y cuatro de `laravel/framework` 11.57.1 (exigen 12.x); sin cabeceras de seguridad ni proxies de confianza; `User::$fillable` incluye `role`; no se registran los eventos de seguridad; siete textos de usuario hardcodeados en `app/`.
+- **Abierto (seguridad, T26 a T29):** `composer audit` ya no reporta avisos de Symfony (parcheados en T25); quedan cinco de `laravel/framework` 11.57.1 que exigen 12.x; sin cabeceras de seguridad ni proxies de confianza; `User::$fillable` incluye `role`; no se registran los eventos de seguridad; siete textos de usuario hardcodeados en `app/`.
 - Tras cerrar la caja, el panel del Técnico muestra la etiqueta del botón «Cerrar caja» como mensaje de éxito y nunca muestra la diferencia declarada (T21).
 - «Anulación del día» se calcula por fecha de venta en el panel del Administrador y por fecha de anulación en el del Químico: falta fijarlo en la spec 002 (T22).
 - El libro de controlados desborda a 375 px porque su filtro de fechas no envuelve (spec 001).
@@ -454,14 +460,14 @@ Datos demo usados para la verificación eliminados al terminar (venta, línea y 
 
 ## Próximo paso
 
-**T19, T20 y T24 cerradas.** T19: pantalla de inicio de sesión, autenticación real, freno por fuerza bruta y cierre de sesión con su botón. T20: `.env.example` con el stack real y un guard de zona horaria. T24: freno a la autorización de supervisor, que hasta ahora permitía probar contraseñas sin límite y evadir el tope del 10%. Suite actual: **382 tests, 1989 aserciones, 0 fallos**.
+**T19, T20, T24 y T25 cerradas.** T19: pantalla de inicio de sesión, autenticación real, freno por fuerza bruta y cierre de sesión con su botón. T20: `.env.example` con el stack real y un guard de zona horaria. T24: freno a la autorización de supervisor, que hasta ahora permitía probar contraseñas sin límite y evadir el tope del 10%. T25: parche de Symfony 7.4.22 → 7.4.23. Suite actual: **382 tests, 1989 aserciones, 0 fallos**.
 
 Cola de mejora (informes de revisión y de seguridad), en `specs/003-auth/tasks.md`:
 
 - **T21.** Mensaje de cierre de caja con la diferencia declarada (hoy muestra la etiqueta del botón «Cerrar caja»).
 - **T22.** Fijar en la spec 002 si «anulación del día» es por fecha de venta o de anulación, y alinear los paneles del Administrador y del Químico.
 - **T23.** Ajustes menores: `SaleFactory` inexistente, filtro `active` en `CartService::load()`, control de pertenencia en `PosController::receipt()`, `active` en `AdjustStockRequest`, inyección de `VoidSaleService` y las nueve etiquetas `RF-nn` que faltan en los tests de la spec 002.
-- **T25.** `composer update` acotado a `symfony/*` (7.4.22 → 7.4.23). Los cuatro avisos de `laravel/framework` 11.57.1 exigen el salto a 12.x y quedan como decisión aparte.
+- **T25.** ✅ Cerrada: `composer update` acotado a `symfony/*` (7.4.22 → 7.4.23). Los cinco avisos de `laravel/framework` 11.57.1 exigen el salto a 12.x y quedan como decisión aparte.
 - **T26.** Cabeceras de seguridad, proxies de confianza y HTTPS fuera de local.
 - **T27.** Sacar `role` de `User::$fillable`.
 - **T28.** Bitácora de seguridad (intentos fallidos de supervisor y de inicio de sesión).

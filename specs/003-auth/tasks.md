@@ -57,11 +57,12 @@
   - *Hecho cuando:* tras varios intentos fallidos, ni siquiera la contraseña correcta del supervisor autoriza; una autorización correcta limpia el contador; el freno no cambia la sesión ni el rol del cajero; el mensaje indica cuánto esperar.
   - *Cierre:* **cerrada el 2026-11-18.** `SupervisorAuthorizationTest` (5 tests) escrito primero en rojo (**2 failed, 3 passed, 47 assertions**: los dos fallos demostraban el agujero, la sexta vez con la contraseña correcta autorizaba) y después el freno: verde en **5 tests, 50 aserciones**. Suite completa: **382 tests, 1989 aserciones, 0 fallos** (53,88 s); la partida era 377/1939, sin tests existentes rotos. La clave `supervisor-auth|{cajero}|{ip}` se comparte entre las tres vías con cinco intentos por minuto (`SUPERVISOR_MAX_ATTEMPTS`, `SUPERVISOR_DECAY_SECONDS`), `hit()` en cada fallo y `clear()` al acertar; el mensaje de freno (`pos.errors.supervisor_throttled`, con los segundos) es distinto del de credenciales inválidas y no cambia la sesión ni el rol. El registro del intento fallido quedó para T28.
 
-- [ ] **T25. Parche de dependencias (Symfony 7.4.23).** S2 del informe de seguridad
+- [x] **T25. Parche de dependencias (Symfony 7.4.23).** S2 del informe de seguridad
   - *Depende de:* —
-  - *Alcance:* `composer update` acotado a `symfony/*` y verificación de la suite. Los cuatro avisos de `laravel/framework` quedan para una decisión aparte, porque exigen el salto a 12.x.
+  - *Alcance:* `composer update` acotado a `symfony/*` y verificación de la suite. Los avisos de `laravel/framework` quedan para una decisión aparte, porque exigen el salto a 12.x.
   - *Hecho cuando:* `composer audit` no reporta avisos de Symfony y la suite sigue en verde.
-  - *Cierre:* (pendiente)
+  - *Cierre:* **cerrada el 2026-11-18.** `composer update "symfony/*" --dry-run` mostró 12 actualizaciones de parche (7.4.22 → 7.4.23), sin altas ni bajas de paquetes; se aplicó y `composer.lock` quedó en 7.4.23. `composer audit` ya no reporta ningún aviso de Symfony: sólo sobreviven **5 avisos de `laravel/framework`** (CRLF en la regla `email`, URL firmadas temporales, XSS en la página de depuración y salida de `Concurrency`), todos sin parche en 11.x y que exigen el salto a 12.x — se registran como decisión aparte. Suite completa: **382 tests, 1989 aserciones, 0 fallos** (52,71 s), sin regresiones.
+  - *Incidente de entorno:* `php artisan package:discover` falló con «directory must be present and writable» porque OneDrive repuso el atributo `ReadOnly` sobre `bootstrap/cache` (un *placeholder* de OneDrive, no un junction). PHP interpreta ese atributo como no escribible aunque `file_put_contents()` sí escriba. Se resolvió con `attrib -R bootstrap\cache`; conviene repetirlo si OneDrive vuelve a marcarlo.
 
 - [ ] **T26. Cabeceras de seguridad, proxies de confianza y HTTPS.** S4 y S5
   - *Depende de:* —
@@ -95,7 +96,8 @@
 | T22 | 46, 54, 75 (spec 002) | — |
 | T23 | — | — |
 | T24 | 83 | 26 |
-| T25–T29 | — | — |
+| T25 | — | — |
+| T26–T29 | — | — |
 
 ---
 
@@ -111,7 +113,8 @@
 | T19 | ✅ Cerrada |
 | T20 | ✅ Cerrada |
 | T24 | ✅ Cerrada |
-| T21–T23, T25–T29 | ⏳ Planificadas (mejoras de los informes de revisión y seguridad) |
+| T25 | ✅ Cerrada |
+| T21–T23, T26–T29 | ⏳ Planificadas (mejoras de los informes de revisión y seguridad) |
 | Auditoría RF por RF 002 | ⏳ Pendiente |
 
 ---
