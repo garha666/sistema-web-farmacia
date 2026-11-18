@@ -30,6 +30,7 @@ final class LineDiscountTest extends TestCase
 
         $this->cashier = User::factory()->create(['role' => 'tecnico']);
         $this->actingAs($this->cashier);
+        $this->openCashRegister($this->cashier);
     }
 
     public function test_the_cart_shows_a_per_line_discount_control(): void

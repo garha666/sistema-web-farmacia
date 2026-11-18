@@ -35,6 +35,7 @@ final class AuditTest extends TestCase
 
         $this->cashier = User::factory()->create(['role' => 'tecnico']);
         $this->actingAs($this->cashier);
+        $this->openCashRegister($this->cashier);
     }
 
     public function test_an_authorized_line_discount_is_audited_with_its_author(): void

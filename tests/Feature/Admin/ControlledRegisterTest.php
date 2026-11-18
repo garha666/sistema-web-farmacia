@@ -85,6 +85,7 @@ final class ControlledRegisterTest extends TestCase
         ]);
 
         $this->actingAs($cashier)->post('/pos/cart', ['product_id' => $product->id]);
+        $this->openCashRegister($cashier);
         $this->post('/pos/cart', ['product_id' => $product->id]);
         $this->post('/pos/checkout', [
             'payment_method' => 'debit',

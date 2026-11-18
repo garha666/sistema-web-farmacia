@@ -84,6 +84,15 @@
             </div>
         @endif
 
+        @if ($openRegister === null)
+            {{-- RF-60: sin caja abierta no se puede cobrar; se indica cómo abrirla. --}}
+            <div class="mt-6 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900" role="alert">
+                <p class="font-semibold">{{ __('pos.cash_register.open_warning') }}</p>
+                <a href="{{ route('dashboard.tecnico') }}" class="mt-3 inline-block rounded-lg bg-emerald-600 px-4 py-2 font-semibold text-white hover:bg-emerald-700">
+                    {{ __('pos.cash_register.open_title') }}
+                </a>
+            </div>
+        @else
         <form method="POST" action="{{ route('pos.checkout.store') }}" class="mt-6 space-y-4">
             @csrf
 
@@ -333,6 +342,7 @@
                 </button>
             </div>
         </form>
+        @endif
     </div>
 
     <script>

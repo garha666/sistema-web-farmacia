@@ -2,7 +2,7 @@
 
 **Spec:** `specs/002-dashboard/spec.md` v1.0 (aprobada) · **Plan:** `specs/002-dashboard/plan.md`
 **Metodología:** TDD — test rojo primero, código después, `php artisan test` en verde.
-**Estado:** T11–T18 pendientes.
+**Estado:** T11–T13 cerradas; T14–T18 pendientes.
 
 > Nota: la skill `sdd` no está instalada; el formato sigue lo acordado en `AGENTS.md` y la constitución. La spec 001 v1.1 ya absorbió las enmiendas de la §10 de esta spec.
 
@@ -33,11 +33,11 @@
   - *Hecho cuando:* `CashArqueoTest` pasa con esperado y diferencia a favor, en contra y en cero; `CashRegisterTest` pasa: una segunda apertura del mismo usuario se rechaza, el cierre sin ventas da diferencia cero, el cierre con anulaciones descuenta el efectivo, el cierre con diferencia distinta de cero se registra, y una anulación posterior al cierre no reescribe el turno.
   - *Cierre:* **cerrada el 2026-11-18.** Tests en rojo primero (22 failed: 6 unitarios y 16 de feature) y luego en verde: **22 tests, 96 aserciones** en el objetivo. Suite completa: **281 tests, 1275 aserciones, 0 fallos** (29,46 s), desde 259/1179. Cubre apertura con monto, responsable y hora local; segunda apertura rechazada por el índice único parcial; cierre sin ventas con diferencia cero; cierre con ventas en efectivo, débito y una anulación en efectivo (esperado 56.000); faltante y sobrante registrados y permitidos; cierre negado a otro cajero (403), a una caja ya cerrada y a un invitado; y anulación posterior al cierre que no reescribe el acta. Verificación visual con Chrome DevTools MCP a 375×812: efectivo esperado `$56.000`, desglose Efectivo `$10.000` y Débito `$6.000`, diferencia en vivo `$3.000 (En contra)` al declarar 53.000, `scrollWidth=375` y sin errores de consola.
 
-- [ ] **T13. Panel del Técnico y bloqueo del cobro.** RF-56, RF-57, RF-60, RF-61, RF-62
+- [x] **T13. Panel del Técnico y bloqueo del cobro.** RF-56, RF-57, RF-60, RF-61, RF-62
   - *Depende de:* T12
   - *Alcance:* `CashierPanelService`, `CashierDashboardController`, `dashboard/tecnico.blade.php`, sus parciales, el filtro de caja abierta en `CheckoutService` y el enlace «Ir a mi panel» del POS.
   - *Hecho cuando:* el panel muestra apertura, ventas del turno y enlace al POS; sin caja abierta muestra el formulario y el aviso; `CheckoutGateTest` pasa: un cobro sin turno no crea venta, no descuenta stock y muestra cómo abrirla; los tests de cobro existentes quedan en verde declarando la precondición con `openCashRegister()`.
-  - *Cierre:* pendiente.
+  - *Cierre:* **cerrada el 2026-11-18.** `CheckoutGateTest` (5 tests) y `CashierPanelTest` (6 tests) escritos en rojo (10 failed) y luego en verde: **11 tests, 51 aserciones**. Suite completa: **292 tests, 1326 aserciones, 0 fallos**; la partida era 281/1275. El cobro sin caja abierta no crea venta ni descuenta stock, avisa cómo abrirla y el POS reemplaza el formulario por el aviso con enlace al panel; con caja abierta la venta queda sellada con `cash_register_id`, y una caja ajena o cerrada no autoriza el cobro. Los 16 archivos de test que cobran declaran la precondición con `openCashRegister()` en `tests/TestCase.php`, sin relajar aserciones; las llamadas directas a `CheckoutService` pasan el cajero. El panel muestra apertura, ventas por medio de pago, total, anulaciones y enlaces al POS y al cierre; sin turno muestra el formulario y el aviso; el POS incorpora «Ir a mi panel». Verificación visual con Chrome DevTools MCP a 375×812: panel sin caja con aviso y formulario, panel con caja con `$50.000` inicial, `$16.000` vendidos, Efectivo `$10.000`, Débito `$6.000` y anulaciones `$4.000`, checkout sin caja sin formulario de pago, `scrollWidth=375` y sin errores de consola. Datos de demo borrados después.
 
 - [ ] **T14. Panel del Administrador.** RF-46, RF-47, RF-48, RF-49, RF-50, RF-51
   - *Depende de:* T13
@@ -134,10 +134,10 @@ RF-41 a RF-77: **cobertura nominal completa, sin repeticiones y sin huecos.**
 | Spec 002-dashboard | ✅ Aprobada v1.0 |
 | Plan 002 | ✅ Completo (`specs/002-dashboard/plan.md`) |
 | Tasks 002 | ✅ Definidas (T11–T18) |
-| T11–T18 | 🔄 T11 y T12 cerradas · T13–T18 pendientes |
-| Verificación visual 375 px | 🔄 T11 y T12 verificadas; el resto se valida al cerrar cada tarea con interfaz |
+| T11–T18 | 🔄 T11, T12 y T13 cerradas · T14–T18 pendientes |
+| Verificación visual 375 px | 🔄 T11, T12 y T13 verificadas; el resto se valida al cerrar cada tarea con interfaz |
 | Auditoría RF por RF 002 | ⏳ Pendiente |
 
 ---
 
-*Actualizado: 2026-11-18. Suite actual: 281 tests, 1275 aserciones, 0 fallos.*
+*Actualizado: 2026-11-18. Suite actual: 292 tests, 1326 aserciones, 0 fallos.*

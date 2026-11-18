@@ -830,6 +830,7 @@ final class AdministrationTest extends TestCase
         $user = User::factory()->create(['role' => $role]);
 
         $this->actingAs($user);
+        $this->openCashRegister($user);
 
         return $user;
     }

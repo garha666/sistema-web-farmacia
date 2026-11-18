@@ -27,6 +27,7 @@ final class CheckoutPrescriptionTest extends TestCase
 
         $this->cashier = User::factory()->create(['role' => 'tecnico']);
         $this->actingAs($this->cashier);
+        $this->openCashRegister($this->cashier);
     }
 
     public function test_a_controlled_sale_without_prescription_is_rejected(): void

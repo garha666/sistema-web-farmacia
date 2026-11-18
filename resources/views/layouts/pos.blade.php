@@ -7,6 +7,11 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="min-h-screen bg-slate-100 text-slate-900 antialiased">
+    @php
+        // T13 - RF-62: desde el POS se vuelve al panel del rol en sesión.
+        $panelRoute = app(\App\Pos\Policy\LandingPolicy::class)->panelRoute(auth()->user()?->role);
+    @endphp
+
     <div class="h-1 w-full bg-gradient-to-r from-emerald-700 via-emerald-500 to-teal-400 print:hidden" aria-hidden="true"></div>
 
     <header class="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur">
@@ -23,10 +28,21 @@
                 </span>
             </div>
 
-            <span class="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800 ring-1 ring-inset ring-emerald-200">
-                <span class="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden="true"></span>
-                {{ __('pos.app.register') }}
-            </span>
+            <div class="flex shrink-0 items-center gap-2">
+                @if ($panelRoute !== null)
+                    <a
+                        href="{{ route($panelRoute) }}"
+                        class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+                    >
+                        {{ __('pos.nav.my_panel') }}
+                    </a>
+                @endif
+
+                <span class="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800 ring-1 ring-inset ring-emerald-200">
+                    <span class="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden="true"></span>
+                    {{ __('pos.app.register') }}
+                </span>
+            </div>
         </div>
     </header>
 

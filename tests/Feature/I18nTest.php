@@ -28,6 +28,7 @@ final class I18nTest extends TestCase
 
         $this->cashier = User::factory()->create(['role' => 'tecnico']);
         $this->actingAs($this->cashier);
+        $this->openCashRegister($this->cashier);
     }
 
     public function test_the_application_locale_is_spanish(): void

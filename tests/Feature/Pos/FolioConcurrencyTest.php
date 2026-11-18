@@ -42,6 +42,7 @@ final class FolioConcurrencyTest extends TestCase
     {
         $cashier = User::factory()->create(['role' => 'tecnico']);
         $this->actingAs($cashier);
+        $this->openCashRegister($cashier);
 
         $product = Product::factory()->create(['price' => 1000, 'stock' => 20]);
 

@@ -68,6 +68,7 @@ return [
         'audit' => 'Auditoría',
         'pos' => 'Ir al POS',
         'panel' => 'Inicio',
+        'my_panel' => 'Ir a mi panel',
     ],
 
     'common' => [
@@ -419,6 +420,16 @@ return [
         'confirm' => 'Cerrar caja',
         'cancel' => 'Volver al panel',
         'empty' => 'El turno no tiene ventas registradas.',
+        'status_open' => 'Caja abierta',
+        'summary_title' => 'Resumen del turno',
+        'no_turn' => 'Aún no tienes un turno abierto.',
+        'go_pos' => 'Ir al POS',
+        'go_close' => 'Cerrar caja',
+        'open_title' => 'Abrir caja',
+        'open_lead' => 'Ingresa el monto inicial en efectivo para comenzar el turno.',
+        'open_amount' => 'Monto inicial en efectivo',
+        'open_submit' => 'Abrir caja',
+        'open_warning' => 'Sin una caja abierta no puedes cobrar en el POS.',
         'kind' => [
             'balanced' => 'Cuadra',
             'over' => 'A favor',
@@ -428,6 +439,7 @@ return [
             'already_open' => 'Ya tienes una caja abierta. Ciérrala antes de abrir otra.',
             'none_open' => 'No tienes una caja abierta. Ábrela desde tu panel antes de cerrar.',
             'already_closed' => 'Esta caja ya está cerrada.',
+            'open_to_charge' => 'Sin una caja abierta no puedes cobrar. Ábrela desde tu panel.',
         ],
         'validation' => [
             'opening_required' => 'Ingresa el monto inicial en efectivo.',

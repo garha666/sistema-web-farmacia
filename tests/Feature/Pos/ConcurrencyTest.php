@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Pos;
 
+use App\Models\Document;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Models\StockMovement;
@@ -17,6 +18,7 @@ use App\Pos\Value\ProductSnapshot;
 use App\Services\Pos\CartService;
 use App\Services\Pos\CheckoutService;
 use App\Services\Pos\VoidSaleService;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -33,12 +35,16 @@ final class ConcurrencyTest extends TestCase
 {
     use DatabaseMigrations;
 
+    private User $cashier;
+
     protected function setUp(): void
     {
         parent::setUp();
 
         // S1 - RF-22: el POS exige sesión.
-        $this->actingAs(User::factory()->create(['role' => 'tecnico']));
+        $this->cashier = User::factory()->create(['role' => 'tecnico']);
+        $this->actingAs($this->cashier);
+        $this->openCashRegister($this->cashier);
     }
 
     public function test_two_connections_cannot_sell_the_same_last_unit(): void
@@ -51,7 +57,7 @@ final class ConcurrencyTest extends TestCase
         $token = $cartService->token();
 
         DB::beginTransaction();
-        $saleA = app(CheckoutService::class)->checkout($cart, PaymentMethod::debit, null, null, $token);
+        $saleA = app(CheckoutService::class)->checkout($cart, PaymentMethod::debit, null, null, $token, $this->cashier->id);
         $this->assertNotNull($saleA->id);
 
         config(['database.connections.pgsql_second' => config('database.connections.pgsql')]);
@@ -68,6 +74,7 @@ final class ConcurrencyTest extends TestCase
                 null,
                 null,
                 (string) Str::uuid(),
+                userId: $this->cashier->id,
             );
         } catch (\Throwable $exception) {
             $blockedBy = $exception;
@@ -77,12 +84,12 @@ final class ConcurrencyTest extends TestCase
         }
 
         $this->assertInstanceOf(
-            \Illuminate\Database\QueryException::class,
+            QueryException::class,
             $blockedBy,
             'La segunda conexión debió quedar bloqueada por el lock de la fila.',
         );
         $this->assertSame(1, Sale::query()->count());
-        $this->assertSame(1, \App\Models\Document::query()->count());
+        $this->assertSame(1, Document::query()->count());
         $this->assertSame(0, $product->fresh()->stock);
         $this->assertSame(-1, (int) StockMovement::query()->sum('quantity'));
     }
@@ -110,6 +117,7 @@ final class ConcurrencyTest extends TestCase
             null,
             null,
             (string) Str::uuid(),
+            userId: $this->cashier->id,
         );
     }
 
@@ -129,7 +137,7 @@ final class ConcurrencyTest extends TestCase
         ));
 
         try {
-            app(CheckoutService::class)->checkout($staleCart, PaymentMethod::debit, null, null, (string) Str::uuid());
+            app(CheckoutService::class)->checkout($staleCart, PaymentMethod::debit, null, null, (string) Str::uuid(), $this->cashier->id);
         } catch (InsufficientStock) {
             // esperado
         }
@@ -164,6 +172,7 @@ final class ConcurrencyTest extends TestCase
                 null,
                 null,
                 (string) Str::uuid(),
+                userId: $this->cashier->id,
             );
 
             $this->fail('La venta debió rechazarse por stock insuficiente.');

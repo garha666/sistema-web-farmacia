@@ -30,6 +30,7 @@ final class CheckoutFlowTest extends TestCase
         // S1 - RF-22: el POS exige sesión y la venta guarda al cajero.
         $this->cashier = User::factory()->create(['role' => 'tecnico']);
         $this->actingAs($this->cashier);
+        $this->openCashRegister($this->cashier);
     }
 
     public function test_checkout_with_empty_cart_is_rejected(): void

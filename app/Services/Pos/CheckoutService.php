@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Pos;
 
+use App\Models\CashRegister;
 use App\Models\ControlledRegisterEntry;
 use App\Models\Convention;
 use App\Models\Prescription;
@@ -17,6 +18,7 @@ use App\Pos\Enum\PaymentMethod;
 use App\Pos\Enum\SaleCategory;
 use App\Pos\Enum\SaleStatus;
 use App\Pos\Enum\StockMovementType;
+use App\Pos\Exception\CashRegisterNotOpen;
 use App\Pos\Exception\DiscountRejected;
 use App\Pos\Exception\EmissionFailed;
 use App\Pos\Exception\EmptyCart;
@@ -136,6 +138,10 @@ final class CheckoutService
                 return $existing->load('lines', 'document');
             }
 
+            // RF-60: sin una caja abierta del propio cajero no se confirma el
+            // cobro. El bloqueo serializa el cobro con el cierre del turno.
+            $register = $this->openRegisterFor($userId);
+
             // RF-27/RF-28: bloqueo pesimista de las filas de producto en orden
             // de id (mismo orden que VoidSaleService) para serializar la venta
             // de la última unidad y evitar deadlocks.
@@ -201,6 +207,7 @@ final class CheckoutService
                 'status' => SaleStatus::confirmed,
                 'sold_at' => now(),
                 'user_id' => $userId,
+                'cash_register_id' => $register->id,
             ]);
 
             $createdLines = [];
@@ -535,5 +542,27 @@ final class CheckoutService
             ->get()
             ->pluck('stock', 'id')
             ->all();
+    }
+
+    /**
+     * Turno abierto del cajero (RF-60).
+     *
+     * Se bloquea la fila para que un cierre simultáneo no pueda grabar el acta
+     * mientras la venta todavía no se ha sellado con el turno.
+     */
+    private function openRegisterFor(?int $userId): CashRegister
+    {
+        $register = $userId === null ? null : CashRegister::query()
+            ->where('user_id', $userId)
+            ->whereNull('closed_at')
+            ->orderByDesc('opened_at')
+            ->lockForUpdate()
+            ->first();
+
+        if ($register === null) {
+            throw new CashRegisterNotOpen(__('pos.cash_register.error.open_to_charge'));
+        }
+
+        return $register;
     }
 }

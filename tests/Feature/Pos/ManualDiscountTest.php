@@ -27,6 +27,7 @@ final class ManualDiscountTest extends TestCase
 
         $this->cashier = User::factory()->create(['role' => 'tecnico']);
         $this->actingAs($this->cashier);
+        $this->openCashRegister($this->cashier);
     }
 
     public function test_a_manual_percent_discount_within_the_cap_is_applied_without_supervisor(): void

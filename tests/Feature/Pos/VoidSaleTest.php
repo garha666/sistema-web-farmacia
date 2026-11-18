@@ -33,6 +33,7 @@ final class VoidSaleTest extends TestCase
 
         // S1 - RF-22: el POS exige sesión.
         $this->actingAs(User::factory()->create(['role' => 'tecnico']));
+        $this->openCashRegister();
     }
 
     private function sell(int $quantity = 2, int $stock = 10): array

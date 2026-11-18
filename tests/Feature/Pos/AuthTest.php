@@ -42,6 +42,8 @@ final class AuthTest extends TestCase
             ->post('/pos/cart', ['product_id' => $product->id])
             ->assertRedirect('/pos');
 
+        $this->openCashRegister($cashier);
+
         $this->post('/pos/checkout', ['payment_method' => 'debit'])
             ->assertSessionHasNoErrors();
 

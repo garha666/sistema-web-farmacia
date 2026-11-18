@@ -17,7 +17,6 @@ use App\Pos\Enum\SaleStatus;
 use App\Pos\Exception\EmissionFailed;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
 /**
@@ -40,6 +39,7 @@ final class DocumentEmissionTest extends TestCase
 
         $this->cashier = User::factory()->create(['role' => 'tecnico']);
         $this->actingAs($this->cashier);
+        $this->openCashRegister($this->cashier);
     }
 
     public function test_a_successful_checkout_issues_one_document_with_one_folio(): void

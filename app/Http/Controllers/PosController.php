@@ -11,6 +11,7 @@ use App\Pos\Calculator\PriceCalculator;
 use App\Pos\Enum\DiscountType;
 use App\Pos\Enum\DocumentType;
 use App\Pos\Enum\PaymentMethod;
+use App\Pos\Exception\CashRegisterNotOpen;
 use App\Pos\Exception\DiscountRejected;
 use App\Pos\Exception\InsufficientStock;
 use App\Pos\Exception\PrescriptionRejected;
@@ -23,6 +24,7 @@ use App\Pos\Value\Cart;
 use App\Pos\Value\Discount;
 use App\Pos\Value\InvoiceData;
 use App\Pos\Value\PrescriptionInput;
+use App\Services\Cash\CashRegisterService;
 use App\Services\Pos\CartService;
 use App\Services\Pos\CheckoutService;
 use App\Services\Pos\ConventionService;
@@ -57,6 +59,7 @@ final class PosController extends Controller
         private readonly ManualDiscountService $manualDiscountService,
         private readonly StockPolicy $stockPolicy,
         private readonly BarcodeScanPolicy $barcodeScanPolicy,
+        private readonly CashRegisterService $cashRegisters,
     ) {}
 
     public function index(Request $request): View|RedirectResponse
@@ -366,7 +369,7 @@ final class PosController extends Controller
     /**
      * Pantalla de cobro (RF-20, RF-21).
      */
-    public function checkout(): View|RedirectResponse
+    public function checkout(Request $request): View|RedirectResponse
     {
         $cart = $this->cartService->load();
 
@@ -399,6 +402,7 @@ final class PosController extends Controller
             'methods' => PaymentMethod::cases(),
             'conventions' => $this->conventionService->applicable(),
             'requiresPrescription' => $this->prescriptionPolicy->cartRequiresPrescription($cart),
+            'openRegister' => $this->cashRegisters->openFor($request->user()),
         ]);
     }
 
@@ -504,6 +508,9 @@ final class PosController extends Controller
             throw ValidationException::withMessages($this->prescriptionErrors($exception->errors()));
         } catch (InsufficientStock $exception) {
             throw ValidationException::withMessages(['cart' => $exception->getMessage()]);
+        } catch (CashRegisterNotOpen $exception) {
+            // RF-60: sin caja abierta no se cobra y se indica cómo abrirla.
+            throw ValidationException::withMessages(['cash' => $exception->getMessage()]);
         } catch (DomainException $exception) {
             throw ValidationException::withMessages(['convention_id' => $exception->getMessage()]);
         }

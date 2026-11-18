@@ -29,6 +29,7 @@ final class InvoiceTest extends TestCase
 
         $this->cashier = User::factory()->create(['role' => 'tecnico']);
         $this->actingAs($this->cashier);
+        $this->openCashRegister($this->cashier);
     }
 
     public function test_checkout_offers_the_receipt_and_invoice_selector(): void

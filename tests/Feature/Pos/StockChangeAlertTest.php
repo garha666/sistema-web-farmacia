@@ -22,6 +22,7 @@ final class StockChangeAlertTest extends TestCase
         parent::setUp();
 
         $this->actingAs(User::factory()->create(['role' => 'tecnico']));
+        $this->openCashRegister();
     }
 
     public function test_checkout_alerts_when_the_stock_changed_since_the_cart_was_built(): void
