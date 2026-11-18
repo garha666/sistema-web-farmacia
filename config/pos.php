@@ -26,6 +26,11 @@ return [
         'validity_days' => 30,
     ],
 
+    // Días de aviso de vencimiento próximo en el panel del Administrador (RF-50).
+    'convention' => [
+        'expiring_days' => 30,
+    ],
+
     'folio' => [
         'receipt_from' => 1,
         'receipt_to' => 50000,

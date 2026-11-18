@@ -83,6 +83,25 @@ final class ConventionService
     }
 
     /**
+     * Alta lógica desde el interruptor del panel (RF-50).
+     *
+     * Un convenio vencido no se reactiva: primero hay que extender su vigencia.
+     */
+    public function activate(int $id, ?DateTimeImmutable $today = null): Convention
+    {
+        $convention = Convention::query()->findOrFail($id);
+        $day = ($today ?? new DateTimeImmutable('today'))->setTime(0, 0, 0);
+
+        if ($convention->valid_until->toDateTimeImmutable()->setTime(0, 0, 0) < $day) {
+            throw new DomainException(__('pos.panel.conventions.error.expired'));
+        }
+
+        $convention->update(['active' => true]);
+
+        return $convention;
+    }
+
+    /**
      * Convenio utilizable hoy; si no existe, está inactivo o fuera de
      * vigencia, la venta se rechaza con el motivo (RF-39, RF-40).
      */

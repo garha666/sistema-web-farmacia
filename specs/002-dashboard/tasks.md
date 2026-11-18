@@ -2,7 +2,7 @@
 
 **Spec:** `specs/002-dashboard/spec.md` v1.0 (aprobada) · **Plan:** `specs/002-dashboard/plan.md`
 **Metodología:** TDD — test rojo primero, código después, `php artisan test` en verde.
-**Estado:** T11–T13 cerradas; T14–T18 pendientes.
+**Estado:** T11–T14 cerradas; T15–T18 pendientes.
 
 > Nota: la skill `sdd` no está instalada; el formato sigue lo acordado en `AGENTS.md` y la constitución. La spec 001 v1.1 ya absorbió las enmiendas de la §10 de esta spec.
 
@@ -39,11 +39,11 @@
   - *Hecho cuando:* el panel muestra apertura, ventas del turno y enlace al POS; sin caja abierta muestra el formulario y el aviso; `CheckoutGateTest` pasa: un cobro sin turno no crea venta, no descuenta stock y muestra cómo abrirla; los tests de cobro existentes quedan en verde declarando la precondición con `openCashRegister()`.
   - *Cierre:* **cerrada el 2026-11-18.** `CheckoutGateTest` (5 tests) y `CashierPanelTest` (6 tests) escritos en rojo (10 failed) y luego en verde: **11 tests, 51 aserciones**. Suite completa: **292 tests, 1326 aserciones, 0 fallos**; la partida era 281/1275. El cobro sin caja abierta no crea venta ni descuenta stock, avisa cómo abrirla y el POS reemplaza el formulario por el aviso con enlace al panel; con caja abierta la venta queda sellada con `cash_register_id`, y una caja ajena o cerrada no autoriza el cobro. Los 16 archivos de test que cobran declaran la precondición con `openCashRegister()` en `tests/TestCase.php`, sin relajar aserciones; las llamadas directas a `CheckoutService` pasan el cajero. El panel muestra apertura, ventas por medio de pago, total, anulaciones y enlaces al POS y al cierre; sin turno muestra el formulario y el aviso; el POS incorpora «Ir a mi panel». Verificación visual con Chrome DevTools MCP a 375×812: panel sin caja con aviso y formulario, panel con caja con `$50.000` inicial, `$16.000` vendidos, Efectivo `$10.000`, Débito `$6.000` y anulaciones `$4.000`, checkout sin caja sin formulario de pago, `scrollWidth=375` y sin errores de consola. Datos de demo borrados después.
 
-- [ ] **T14. Panel del Administrador.** RF-46, RF-47, RF-48, RF-49, RF-50, RF-51
+- [x] **T14. Panel del Administrador.** RF-46, RF-47, RF-48, RF-49, RF-50, RF-51
   - *Depende de:* T13
   - *Alcance:* `SalesDayQuery`, `AdminPanelService`, `AdminDashboardController`, `dashboard/admin.blade.php` con sus parciales, y `ConventionController::toggle()` con `ConventionService::activate()`.
   - *Hecho cuando:* `AdminPanelTest` pasa con ventas confirmadas y anuladas del día, desglose por medio de pago, documentos pendientes y rechazados con reintento en línea, alertas de inventario, auditoría reciente, convenios próximos a vencer y vencidos con interruptor, y cortes del día con diferencia; un documento rechazado que se reintenta y vuelve a fallar se informa sin salir del panel; un convenio vencido no se puede activar.
-  - *Cierre:* pendiente.
+  - *Cierre:* **cerrada el 2026-11-18.** `AdminPanelTest` (10 tests) escrito en rojo (9 failed, 1 passed) y luego en verde: **10 tests, 70 aserciones**. Suite completa: **302 tests, 1396 aserciones, 0 fallos**; la partida era 292/1326. `SalesDayQuery` es la única consulta agregada del día y `SalesDaySummary` su valor; las anuladas quedan fuera del monto vendido. El panel muestra los cuatro indicadores, el desglose por medio de pago, los documentos pendientes y rechazados con reintento en línea, las alertas de inventario (`belowMinimum` y `outOfStock` sobre productos activos), la auditoría reciente con acción traducida, los convenios activos próximos a vencer y los vencidos, y los cortes del día con diferencia firmada. `ConventionService::activate()` rechaza un convenio vencido con `DomainException` y `ConventionController::toggle()` traduce el rechazo sin salir del panel; la ruta nueva es `PATCH /admin/conventions/{convention}/toggle`. Un documento rechazado que vuelve a fallar deja el documento en `rejected` y muestra el error en el panel. Verificación visual con Chrome DevTools MCP a 375×812: `$20.000` vendidos, `$4.000` anulados, desglose Efectivo `$12.000` y Débito `$8.000`, 2 reintentos visibles, alertas 2 y 1, acción «Anulación de venta» con autor y motivo, convenio «Banmédica» próximo a vencer con «Desactivar», vencido sin activación, corte cerrado `$58.000`/`$54.000` con diferencia `-$4.000` y turno abierto; `scrollWidth=375` y sin errores de consola. Se corrigió el desborde de la tabla en la rejilla con `min-w-0` y la fecha de documentos se oculta bajo `sm` para dejar visible «Reintentar emisión». Datos de demo borrados después.
 
 - [ ] **T15. Panel del Químico.** RF-52, RF-53, RF-54, RF-55
   - *Depende de:* T14
@@ -134,10 +134,10 @@ RF-41 a RF-77: **cobertura nominal completa, sin repeticiones y sin huecos.**
 | Spec 002-dashboard | ✅ Aprobada v1.0 |
 | Plan 002 | ✅ Completo (`specs/002-dashboard/plan.md`) |
 | Tasks 002 | ✅ Definidas (T11–T18) |
-| T11–T18 | 🔄 T11, T12 y T13 cerradas · T14–T18 pendientes |
-| Verificación visual 375 px | 🔄 T11, T12 y T13 verificadas; el resto se valida al cerrar cada tarea con interfaz |
+| T11–T18 | 🔄 T11, T12, T13 y T14 cerradas · T15–T18 pendientes |
+| Verificación visual 375 px | 🔄 T11, T12, T13 y T14 verificadas; el resto se valida al cerrar cada tarea con interfaz |
 | Auditoría RF por RF 002 | ⏳ Pendiente |
 
 ---
 
-*Actualizado: 2026-11-18. Suite actual: 292 tests, 1326 aserciones, 0 fallos.*
+*Actualizado: 2026-11-18. Suite actual: 302 tests, 1396 aserciones, 0 fallos.*

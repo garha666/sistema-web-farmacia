@@ -79,6 +79,7 @@ Route::prefix('admin')->name('admin.')->middleware('auth')->group(function (): v
         Route::get('/conventions/{convention}/edit', [ConventionController::class, 'edit'])->name('conventions.edit');
         Route::patch('/conventions/{convention}', [ConventionController::class, 'update'])->name('conventions.update');
         Route::delete('/conventions/{convention}', [ConventionController::class, 'destroy'])->name('conventions.destroy');
+        Route::patch('/conventions/{convention}/toggle', [ConventionController::class, 'toggle'])->name('conventions.toggle');
 
         Route::get('/sales', [SaleController::class, 'index'])->name('sales.index');
         Route::get('/sales/{sale}', [SaleController::class, 'show'])->name('sales.show');

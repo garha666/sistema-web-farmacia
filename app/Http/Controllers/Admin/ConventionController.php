@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Convention;
 use App\Services\Pos\ConventionService;
+use DomainException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -19,8 +20,7 @@ final class ConventionController extends Controller
 {
     public function __construct(
         private readonly ConventionService $conventions,
-    ) {
-    }
+    ) {}
 
     public function index(): View
     {
@@ -70,6 +70,26 @@ final class ConventionController extends Controller
         return redirect()
             ->route('admin.conventions.index')
             ->with('success', __('pos.admin.conventions.deactivated', ['name' => $convention->name]));
+    }
+
+    /**
+     * Interruptor del panel del Administrador (RF-50): activa o desactiva.
+     */
+    public function toggle(Convention $convention): RedirectResponse
+    {
+        try {
+            if ($convention->active) {
+                $convention = $this->conventions->deactivate($convention->id);
+                $message = __('pos.panel.conventions.deactivated', ['name' => $convention->name]);
+            } else {
+                $convention = $this->conventions->activate($convention->id);
+                $message = __('pos.panel.conventions.activated', ['name' => $convention->name]);
+            }
+        } catch (DomainException $exception) {
+            return back()->withErrors(['convention' => $exception->getMessage()]);
+        }
+
+        return back()->with('success', $message);
     }
 
     /**
