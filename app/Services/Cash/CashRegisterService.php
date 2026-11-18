@@ -79,6 +79,11 @@ final class CashRegisterService
 
     /**
      * Totales del turno (RF-56, RF-61).
+     *
+     * `cashSales` es el efectivo **cobrado** en el turno, incluidas las ventas
+     * que después se anularon; `cashVoids` es el efectivo devuelto. El arqueo
+     * los combina como `opening + cashSales − cashVoids`, de modo que una venta
+     * anulada se descuente una sola vez.
      */
     public function summary(CashRegister $register): TurnSummary
     {
@@ -121,6 +126,10 @@ final class CashRegisterService
             $totalVoids += $amount;
 
             if ($row->payment_method === PaymentMethod::cash->value) {
+                // El efectivo de una venta anulada entró al cajón antes de la
+                // devolución: se cuenta como cobrado y se descuenta una sola
+                // vez como anulación (RF-59).
+                $cashSales += $amount;
                 $cashVoids += $amount;
             }
         }

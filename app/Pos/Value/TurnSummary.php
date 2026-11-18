@@ -9,7 +9,10 @@ namespace App\Pos\Value;
  *
  * Sólo describe lo que ya ocurrió: no calcula ni consulta. El desglose por
  * medio de pago corresponde a las ventas confirmadas, mientras que las
- * anulaciones se informan aparte para no inflar el total cobrado.
+ * anulaciones se informan aparte para no inflar el total cobrado. `cashSales`
+ * es el efectivo cobrado —incluidas las ventas luego anuladas— y `cashVoids`
+ * el efectivo devuelto, para que el arqueo descuente cada anulación una sola
+ * vez.
  */
 final readonly class TurnSummary
 {

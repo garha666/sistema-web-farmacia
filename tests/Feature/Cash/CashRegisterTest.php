@@ -157,7 +157,9 @@ final class CashRegisterTest extends TestCase
         $response = $this->get(route('cash.close.show'));
 
         $response->assertOk();
-        $response->assertSee('$56.000');
+        // Efectivo esperado: apertura + lo cobrado en efectivo (la anulación
+        // se descuenta una sola vez).
+        $response->assertSee('$60.000');
         $response->assertSee('$10.000');
         $response->assertSee('$6.000');
         $response->assertSee(__('pos.cash_register.declared_amount'));
@@ -170,24 +172,45 @@ final class CashRegisterTest extends TestCase
             ->assertSessionHasErrors('cash');
     }
 
-    public function test_closing_subtracts_cash_voids_from_the_expected_cash(): void
+    public function test_the_expected_cash_is_the_cash_collected_net_of_refunds(): void
     {
         $register = $this->openRegister(50000);
         $this->saleOf($register, 10000, 'cash');
         $this->saleOf($register, 4000, 'cash', SaleStatus::voided);
         $this->saleOf($register, 6000, 'debit');
 
-        $this->patch(route('cash.close', $register), ['declared_amount' => 56000])
+        // El efectivo real del cajón es la apertura más lo cobrado en efectivo:
+        // la venta de 4.000 entró y se devolvió al anularse, así que se cuenta
+        // en `cash_sales` y se descuenta una sola vez en `cash_voids`.
+        $this->patch(route('cash.close', $register), ['declared_amount' => 60000])
             ->assertSessionHasNoErrors();
 
         $register->refresh();
 
         $this->assertSame(16000, $register->total_sales);
         $this->assertSame(4000, $register->total_voids);
-        $this->assertSame(10000, $register->cash_sales);
+        $this->assertSame(14000, $register->cash_sales);
         $this->assertSame(4000, $register->cash_voids);
-        $this->assertSame(56000, $register->expected_cash);
-        $this->assertSame(56000, $register->declared_cash);
+        $this->assertSame(60000, $register->expected_cash);
+        $this->assertSame(60000, $register->declared_cash);
+        $this->assertSame(0, $register->difference);
+    }
+
+    public function test_an_anulled_cash_sale_does_not_lower_the_expected_cash_twice(): void
+    {
+        $register = $this->openRegister(50000);
+        $this->saleOf($register, 4460, 'cash');
+        $this->saleOf($register, 990, 'cash', SaleStatus::voided);
+
+        $this->patch(route('cash.close', $register), ['declared_amount' => 54460])
+            ->assertSessionHasNoErrors();
+
+        $register->refresh();
+
+        // Apertura + efectivo cobrado = 50.000 + 4.460.
+        $this->assertSame(54460, $register->expected_cash);
+        $this->assertSame(5450, $register->cash_sales);
+        $this->assertSame(990, $register->cash_voids);
         $this->assertSame(0, $register->difference);
     }
 
