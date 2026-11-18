@@ -49,17 +49,17 @@
             <tbody class="divide-y divide-slate-100 [&>tr:hover]:bg-slate-50">
                 @forelse ($entries as $entry)
                     <tr>
-                        <td class="px-4 py-3 text-slate-600">{{ $entry->sold_at->format('d-m-Y') }}</td>
-                        <td class="px-4 py-3">{{ $entry->customer_rut ?? __('pos.common.none') }}</td>
-                        <td class="px-4 py-3">{{ $entry->folio ?? __('pos.common.no_folio') }}</td>
+                        <td class="px-4 py-3 tabular-nums text-slate-600">{{ $entry->sold_at->format('d-m-Y') }}</td>
+                        <td class="px-4 py-3 tabular-nums">{{ $entry->customer_rut ?? __('pos.common.none') }}</td>
+                        <td class="px-4 py-3 tabular-nums">{{ $entry->folio ?? __('pos.common.no_folio') }}</td>
                         <td class="px-4 py-3">
                             {{ $entry->prescription->number }}
                             <span class="block text-xs text-slate-500">{{ $entry->prescription->prescriber_name }}</span>
                         </td>
                         <td class="px-4 py-3 font-medium">{{ $entry->medication }}</td>
-                        <td class="px-4 py-3 text-right">{{ $entry->quantity }}</td>
+                        <td class="px-4 py-3 text-right tabular-nums">{{ $entry->quantity }}</td>
                         <td class="px-4 py-3">
-                            <a href="{{ route('admin.sales.show', $entry->sale) }}" class="text-emerald-700 hover:underline">
+                            <a href="{{ route('admin.sales.show', $entry->sale) }}" class="rounded tabular-nums text-emerald-700 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2">
                                 #{{ $entry->sale_id }}
                             </a>
                         </td>

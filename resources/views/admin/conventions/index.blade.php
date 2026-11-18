@@ -31,8 +31,8 @@
                 @forelse ($conventions as $convention)
                     <tr>
                         <td class="px-4 py-3 font-medium">{{ $convention->name }}</td>
-                        <td class="px-4 py-3">{{ rtrim(rtrim(number_format($convention->percent, 2, ',', '.'), '0'), ',') }}%</td>
-                        <td class="px-4 py-3 text-slate-600">
+                        <td class="px-4 py-3 tabular-nums">{{ rtrim(rtrim(number_format($convention->percent, 2, ',', '.'), '0'), ',') }}%</td>
+                        <td class="px-4 py-3 tabular-nums text-slate-600">
                             {{ $convention->valid_from->format('d-m-Y') }} {{ __('pos.admin.conventions.until') }} {{ $convention->valid_until->format('d-m-Y') }}
                         </td>
                         <td class="px-4 py-3">
@@ -44,7 +44,7 @@
                         </td>
                         <td class="px-4 py-3 text-right">
                             @if (auth()->user()?->isAdmin())
-                                <a href="{{ route('admin.conventions.edit', $convention) }}" class="text-sm font-semibold text-emerald-700 hover:underline">
+                                <a href="{{ route('admin.conventions.edit', $convention) }}" class="rounded text-sm font-semibold text-emerald-700 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2">
                                     {{ __('pos.admin.conventions.edit') }}
                                 </a>
 
@@ -52,7 +52,7 @@
                                     <form method="POST" action="{{ route('admin.conventions.destroy', $convention) }}" class="inline">
                                         @csrf
                                         @method('DELETE')
-                                        <button type="submit" class="ml-3 text-sm font-semibold text-red-600 hover:underline">
+                                        <button type="submit" class="ml-3 rounded text-sm font-semibold text-red-600 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600 focus-visible:ring-offset-2">
                                             {{ __('pos.admin.conventions.deactivate') }}
                                         </button>
                                     </form>

@@ -110,14 +110,14 @@
             <tbody class="divide-y divide-slate-100 [&>tr:hover]:bg-slate-50">
                 @forelse ($sales as $sale)
                     <tr data-sale-id="{{ $sale->id }}">
-                        <td class="px-4 py-3 font-medium">#{{ $sale->id }}</td>
-                        <td class="px-4 py-3 text-slate-600">{{ $sale->sold_at?->format('d-m-Y H:i') }}</td>
+                        <td class="px-4 py-3 font-medium tabular-nums">#{{ $sale->id }}</td>
+                        <td class="px-4 py-3 tabular-nums text-slate-600">{{ $sale->sold_at?->format('d-m-Y H:i') }}</td>
                         <td class="px-4 py-3 text-slate-600">{{ $sale->user?->name ?? __('pos.common.none') }}</td>
                         <td class="px-4 py-3">{{ $sale->payment_method->label() }}</td>
                         <td class="px-4 py-3">
                             @if ($sale->convention_name !== null)
                                 {{ $sale->convention_name }}
-                                <span class="text-xs text-slate-500">({{ rtrim(rtrim(number_format($sale->convention_percent ?? 0, 2, ',', '.'), '0'), ',') }}%)</span>
+                                <span class="tabular-nums text-xs text-slate-500">({{ rtrim(rtrim(number_format($sale->convention_percent ?? 0, 2, ',', '.'), '0'), ',') }}%)</span>
                             @else
                                 {{ __('pos.common.none') }}
                             @endif
@@ -140,16 +140,16 @@
                                 </span>
                             @endif
                         </td>
-                        <td class="px-4 py-3 text-right font-semibold">{{ $money($sale->total) }}</td>
+                        <td class="px-4 py-3 text-right font-semibold tabular-nums">{{ $money($sale->total) }}</td>
                         <td class="px-4 py-3 text-right">
-                            <a href="{{ route('admin.sales.show', $sale) }}" class="text-sm font-semibold text-emerald-700 hover:underline">{{ __('pos.admin.sales.view') }}</a>
+                            <a href="{{ route('admin.sales.show', $sale) }}" class="rounded text-sm font-semibold text-emerald-700 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2">{{ __('pos.admin.sales.view') }}</a>
 
                             @if ($sale->document !== null
                                 && $sale->document->status !== \App\Pos\Enum\DocumentStatus::issued
                                 && $sale->status !== \App\Pos\Enum\SaleStatus::voided)
                                 <form method="POST" action="{{ route('admin.documents.retry', $sale->document) }}" class="inline">
                                     @csrf
-                                    <button type="submit" class="ml-3 text-sm font-semibold text-amber-700 hover:underline">{{ __('pos.admin.sales.retry') }}</button>
+                                    <button type="submit" class="ml-3 rounded text-sm font-semibold text-amber-700 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2">{{ __('pos.admin.sales.retry') }}</button>
                                 </form>
                             @endif
                         </td>

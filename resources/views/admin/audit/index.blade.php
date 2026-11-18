@@ -34,10 +34,10 @@
                         $saleId = $isLine ? $log->saleLine?->sale_id : ($isSale ? $log->auditable_id : null);
                     @endphp
                     <tr>
-                        <td class="px-4 py-3 text-slate-600">{{ $log->created_at?->format('d-m-Y H:i') }}</td>
+                        <td class="px-4 py-3 tabular-nums text-slate-600">{{ $log->created_at?->format('d-m-Y H:i') }}</td>
                         <td class="px-4 py-3 font-mono text-xs font-semibold">{{ $log->action }}</td>
                         <td class="px-4 py-3 text-slate-600">{{ $log->user?->name ?? __('pos.common.none') }}</td>
-                        <td class="px-4 py-3 text-slate-600">
+                        <td class="px-4 py-3 tabular-nums text-slate-600">
                             {{ $saleId !== null ? '#'.$saleId : __('pos.common.none') }}
                         </td>
                         <td class="px-4 py-3 text-slate-600">
@@ -52,10 +52,10 @@
                         <td class="px-4 py-3 text-slate-600">
                             {{ $isLine ? ($log->saleLine?->name ?? __('pos.common.none')) : __('pos.common.none') }}
                         </td>
-                        <td class="px-4 py-3 text-right text-slate-700">
+                        <td class="px-4 py-3 text-right tabular-nums text-slate-700">
                             {{ $log->discount_value !== null ? '-'.$money((int) $log->discount_value) : __('pos.common.none') }}
                         </td>
-                        <td class="px-4 py-3 text-slate-700">{{ $log->reason ?? __('pos.common.none') }}</td>
+                        <td class="px-4 py-3 text-slate-700">{{ filled($log->reason) ? $log->reason : __('pos.common.none') }}</td>
                     </tr>
                 @empty
                     <tr>

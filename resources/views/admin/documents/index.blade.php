@@ -45,14 +45,14 @@
                         <td class="px-4 py-3 font-medium">{{ $document->type->label() }}</td>
                         <td class="px-4 py-3 text-slate-600">
                             @if ($document->sale !== null)
-                                <a href="{{ route('admin.sales.show', $document->sale) }}" class="text-emerald-700 hover:underline">
+                                <a href="{{ route('admin.sales.show', $document->sale) }}" class="rounded tabular-nums text-emerald-700 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2">
                                     #{{ $document->sale->id }}
                                 </a>
                             @else
                                 {{ __('pos.common.none') }}
                             @endif
                         </td>
-                        <td class="px-4 py-3">{{ $document->folio ?? __('pos.common.no_folio') }}</td>
+                        <td class="px-4 py-3 tabular-nums">{{ $document->folio ?? __('pos.common.no_folio') }}</td>
                         <td class="px-4 py-3">
                             @if ($document->status === \App\Pos\Enum\DocumentStatus::issued)
                                 <span class="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800">{{ $document->status->label() }}</span>
@@ -62,13 +62,13 @@
                                 <span class="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-800">{{ $document->status->label() }}</span>
                             @endif
                         </td>
-                        <td class="px-4 py-3 text-slate-600">{{ $document->issued_at?->format('d-m-Y H:i') ?? __('pos.common.none') }}</td>
+                        <td class="px-4 py-3 tabular-nums text-slate-600">{{ $document->issued_at?->format('d-m-Y H:i') ?? __('pos.common.none') }}</td>
                         <td class="px-4 py-3 text-right">
                             @if ($document->status !== \App\Pos\Enum\DocumentStatus::issued
                                 && $document->sale?->status !== \App\Pos\Enum\SaleStatus::voided)
                                 <form method="POST" action="{{ route('admin.documents.retry', $document) }}" class="inline">
                                     @csrf
-                                    <button type="submit" class="text-sm font-semibold text-amber-700 hover:underline">
+                                    <button type="submit" class="rounded text-sm font-semibold text-amber-700 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2">
                                         {{ __('pos.admin.documents.retry') }}
                                     </button>
                                 </form>

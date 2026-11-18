@@ -153,6 +153,94 @@ final class AdministrationTest extends TestCase
         $this->assertSame(2, substr_count($html, 'aria-current="page"'));
     }
 
+    /**
+     * B13 - RNF-9/RNF-11: las cifras de las tablas usan números tabulares para
+     * que las columnas de dinero y fechas queden alineadas.
+     */
+    public function test_the_admin_tables_use_tabular_figures(): void
+    {
+        $views = [
+            'admin/sales/index.blade.php',
+            'admin/documents/index.blade.php',
+            'admin/controlled-register/index.blade.php',
+            'admin/conventions/index.blade.php',
+            'admin/audit/index.blade.php',
+        ];
+
+        foreach ($views as $view) {
+            $source = (string) file_get_contents(resource_path('views/'.$view));
+
+            $this->assertStringContainsString('tabular-nums', $source, "La vista {$view} no usa números tabulares.");
+        }
+
+        $detail = (string) file_get_contents(resource_path('views/admin/sales/show.blade.php'));
+
+        $this->assertGreaterThanOrEqual(5, substr_count($detail, 'tabular-nums'), 'El detalle de venta no alinea sus montos.');
+    }
+
+    /**
+     * B13 - RNF-9/RNF-11: cada enlace o botón de acción de las tablas muestra
+     * un anillo de foco visible al navegar con teclado.
+     */
+    public function test_the_admin_table_actions_have_a_visible_focus_ring(): void
+    {
+        $this->signIn('admin');
+        $this->sell();
+
+        $this->post(route('admin.conventions.store'), [
+            'name' => 'Convenio Foco',
+            'percent' => 5,
+            'valid_from' => '2026-01-01',
+            'valid_until' => '2026-12-31',
+        ])->assertSessionHasNoErrors();
+
+        foreach ([
+            route('admin.sales.index'),
+            route('admin.documents.index'),
+            route('admin.conventions.index'),
+        ] as $url) {
+            $html = $this->get($url)->assertOk()->getContent();
+
+            $body = (string) Str::between($html, '<tbody', '</tbody>');
+
+            preg_match_all('/<(?:a|button)\b[^>]*>/i', $body, $matches);
+
+            $this->assertNotEmpty($matches[0], "La tabla de {$url} no tiene acciones que auditar.");
+
+            foreach ($matches[0] as $tag) {
+                $this->assertStringContainsString('focus-visible:', $tag, "Sin foco visible en {$url}: {$tag}");
+            }
+        }
+    }
+
+    /**
+     * B13 - RNF-9: un motivo vacío deja la celda con «—», no en blanco.
+     */
+    public function test_the_audit_reason_cell_shows_a_dash_when_the_reason_is_empty(): void
+    {
+        $this->signIn('quimico');
+        $sale = $this->sell();
+
+        $this->post(route('pos.sales.void', $sale), ['reason' => 'Error de cobro'])
+            ->assertSessionHasNoErrors();
+
+        AuditLog::query()->update(['reason' => '']);
+
+        $html = $this->get(route('admin.audit.index'))->assertOk()->getContent();
+
+        $body = (string) Str::between($html, '<tbody', '</tbody>');
+
+        preg_match('/<tr\b.*?<\/tr>/s', $body, $row);
+        $this->assertNotEmpty($row, 'La bitácora no renderizó ninguna fila.');
+
+        preg_match_all('/<td\b[^>]*>(.*?)<\/td>/s', $row[0], $cells);
+        $this->assertNotEmpty($cells[1]);
+
+        $reason = trim((string) end($cells[1]));
+
+        $this->assertSame(__('pos.common.none'), $reason);
+    }
+
     // ------------------------------------------------------------------
     // Convenios (RF-39, RF-40)
     // ------------------------------------------------------------------

@@ -9,7 +9,7 @@
 - **Spec 001 POS:** `specs/001-pos/spec.md` v1.1, **aprobada**, 40 RF y 13 RNF, sin dudas abiertas. Las cinco enmiendas de v1.1 (mapeo de roles, RF-20 y RF-22 con la caja abierta como precondición, §7 y D-3 apuntando a la spec 002) están aplicadas.
 - **Plan 001 POS:** `specs/001-pos/plan.md`, completo (arquitectura, funciones puras, pseudocódigo, UI, decisiones, tests).
 - **Tareas 001 POS:** `specs/001-pos/tasks.md`, 10 tareas + correcciones Vuelta 1 (S1–S5) + Vuelta 2 (S6–S14). **T1 a T10 cerradas; S1 a S12 cerradas.**
-- **Código:** Laravel 11.57.1. Dominio `app/Pos/` completo. Persistencia: `Product`, `Sale`, `SaleLine`, `Document`, `InvoiceDetail`, `StockMovement`, `AuditLog`, `Convention`, `Prescription`, `ControlledRegisterEntry`. Servicios: `CartService`, `CheckoutService`, `VoidSaleService`, `AuditService`, `ConventionService`, `DocumentService`, `ManualDiscountService`. Emisión simulada: `Pos\Contract\DocumentEmitter`, `Pos\Emission\SimulatedDocumentEmitter`, `Pos\Folio\FolioAllocator`. HTTP: `PosController` y `Admin\{ConventionController, SaleController, DocumentController, AuditController, ControlledRegisterController}`. Vistas: `pos/index`, `pos/checkout`, `pos/receipt`, `admin/*` (layout `layouts.admin`). Traducciones en `lang/es/`. 243 tests en verde (1106 aserciones).
+- **Código:** Laravel 11.57.1. Dominio `app/Pos/` completo. Persistencia: `Product`, `Sale`, `SaleLine`, `Document`, `InvoiceDetail`, `StockMovement`, `AuditLog`, `Convention`, `Prescription`, `ControlledRegisterEntry`. Servicios: `CartService`, `CheckoutService`, `VoidSaleService`, `AuditService`, `ConventionService`, `DocumentService`, `ManualDiscountService`. Emisión simulada: `Pos\Contract\DocumentEmitter`, `Pos\Emission\SimulatedDocumentEmitter`, `Pos\Folio\FolioAllocator`. HTTP: `PosController` y `Admin\{ConventionController, SaleController, DocumentController, AuditController, ControlledRegisterController}`. Vistas: `pos/index`, `pos/checkout`, `pos/receipt`, `admin/*` (layout `layouts.admin`). Traducciones en `lang/es/`. 246 tests en verde (1131 aserciones).
 - **Spec 002 paneles/inventario/caja:** `specs/002-dashboard/spec.md` v1.0, **aprobada** (2026-11-17). 37 RF (RF-41 a RF-77), 9 RNF (RNF-14 a RNF-22). Cubre los cuatro paneles por rol, el catálogo de productos con ajuste de stock auditado y el cierre de caja con diferencia declarada. Introduce el rol Bodeguero y absorbe dos temas que 001 delegaba o excluía: el arqueo (antes en `004-reportes`) y los tableros por rol. Las 5 enmiendas que necesitaba la spec 001 ya están aplicadas (v1.1), así que las dos specs no se contradicen. **Pendiente:** plan y tareas.
 - **Comandos SDD:** instalados en `.opencode/commands/` (9 comandos).
 
@@ -123,7 +123,7 @@
   en `.gitignore`: el build (3 archivos, 90 KB) se versiona, así que un clon funciona sin `npm install`. Consecuencia deliberada: si alguien borra
   `public/build`, `@vite` lanza «Vite manifest not found» y los tests de vista fallan en vez de degradar en silencio. Tests nuevos: uno en `CartFlowTest` y
   otro en `AdministrationTest` que verifican el HTML renderizado con `/build/assets/` y la **fuente** del layout sin `cdn.tailwindcss.com` (el primer
-  intento miraba sólo el HTML y pasaba en verde, porque la rama `@else` no se ejecuta cuando el manifest existe). Suite: **243 tests, 1106 aserciones**.
+  intento miraba sólo el HTML y pasaba en verde, porque la rama `@else` no se ejecuta cuando el manifest existe). Suite: **246 tests, 1131 aserciones**.
 - **S14 (RF-38, RNF-9, 2026-11-17):** el detalle de venta mostraba sólo las autorizaciones registradas sobre la `Sale`, pero S12 registra el descuento de línea sobre la `SaleLine`; el morph `auditLogs()` no las veía. `Sale::authorizationLogs()` une ambos orígenes con su autor y la vista los lista en «Autorizaciones aplicadas» con etiqueta traducida (Descuento de línea, Descuento global sobre el tope, Reutilización de receta), autor, monto, motivo y fecha; una acción desconocida cae en «Otra autorización» para no mostrar inglés. `SaleController::show()` pasa `$authorizations` (ya no carga `auditLogs.user`). Receta, convenio y estados del documento ya estaban resueltos y quedan con test propio. **Trampa de Blade detectada:** la vista tenía `@php($prescription = $sale->prescription)` inline; al añadir un bloque `@php ... @endphp`, Blade emparejó el bloque desde ese `@php` inline y dejó media vista como texto literal (los tests fallaban con «Expected» mostrando Blade sin compilar). Se convirtió en bloque cerrado. **Hallazgo corregido en B8:** `lineDiscountReason()` descartaba el motivo escrito por el cajero y guardaba el texto generado «Descuento de línea (20%) autorizado por supervisor.».
 - **S12 (RF-36):** cerrada. La autorización del descuento por línea ya se audita con su autor (`sale.line_discount_authorized`). El pendiente heredado (revalidar el tope acumulado de las líneas al confirmar el cobro) quedó cerrado en B7.
 - ~~`layouts/pos.blade.php` carga `@vite` **y** `<script src="https://cdn.tailwindcss.com">`. Sin internet el CDN no responde y la pantalla depende del CSS compilado local: hay que correr `npm run build` después de tocar clases de Tailwind (pasó en S11 con `h-3.5`/`group-open:`). Conviene quitar el CDN en una limpieza posterior.~~ **Resuelto en B10:** ambos layouts cargan sólo `@vite` y `public/build` está versionado.
@@ -213,6 +213,18 @@ MCP `chrome-devtools` (375×812×2 mobile/touch) contra `php artisan serve --por
 | `admin/sales/5`, tarjeta «Documento» | «Boleta sin folio», sin el `#` antepuesto. Antes decía «Boleta #sin folio». |
 | Medidas | `scrollWidth = 375`, sin desbordes y sin mensajes de consola. |
 
+### B13 — cifras tabulares, foco visible y «—» (2026-11-18)
+
+MCP `chrome-devtools` (375×812×2 mobile/touch) contra `php artisan serve --port=8002`, repoblando la fila `sessions` como en B11 y B12. Para probar el motivo vacío se insertó un `audit_logs` de demo (`sale.void`, `reason = ''`) sobre la venta 5 y se borró al terminar.
+
+| Comprobación | Resultado |
+| --- | --- |
+| Foco por teclado en `admin/sales` | Tabulando desde el principio: «Ir al POS» → los cinco enlaces del menú → los campos del filtro → «Filtrar» → «Limpiar» → «Ver». Todos con `:focus-visible` activo. |
+| Anillo del enlace «Ver» | `box-shadow: rgb(255,255,255) 0 0 0 2px, rgb(16,185,129) 0 0 0 4px` (offset blanco + anillo esmeralda) sobre `border-radius: 4px`. Se ve en la captura como un contorno esmeralda alrededor de «Ver». |
+| `tabular-nums` | `font-variant-numeric: tabular-nums` calculado en las celdas de `admin/audit`; en la captura las fechas y los montos quedan alineados. |
+| Motivo vacío en `admin/audit` | La fila `sale.void` muestra «—» en MOTIVO (antes quedaba en blanco) y la fila con motivo real lo conserva. |
+| `admin/documents`, `admin/conventions`, `admin/sales/5` | `scrollWidth = 375` y consola limpia en las tres. |
+
 ### B12 — navegación en configuración y partial (2026-11-18)
 
 MCP `chrome-devtools` contra `php artisan serve --port=8002`, a 375×812×2 mobile/touch y a 1280×900×1, repoblando la fila `sessions` del navegador igual que en B11.
@@ -296,4 +308,4 @@ Datos demo usados para la verificación eliminados al terminar (venta, línea y 
 
 ## Próximo paso
 
-S12 (auditoría de autorizaciones de descuento) cerrada. Cola en curso: **B0–B12, S13 y S14 cerradas con 243 tests en verde. Auditoría RF por RF completa en `specs/001-pos/rf-audit.md`.** Pendientes de mejora (no bloqueantes): `tabular-nums` y `focus-visible` en las tablas de administración, el `??` de la celda de motivo en `admin/audit` (un motivo vacío deja la celda en blanco en vez de «—») y formalizar `BarcodeScanPolicy` en la spec. **Nueva spec 002** (paneles por rol, inventario y cierre de caja) aprobada en `specs/002-dashboard/spec.md`, pendiente de plan y tareas.
+S12 (auditoría de autorizaciones de descuento) cerrada. Cola en curso: **B0–B13, S13 y S14 cerradas con 246 tests en verde. Auditoría RF por RF completa en `specs/001-pos/rf-audit.md`.** Pendientes de mejora (no bloqueantes): `tabular-nums` y `focus-visible` en las tablas de administración, el `??` de la celda de motivo en `admin/audit` (un motivo vacío deja la celda en blanco en vez de «—») y formalizar `BarcodeScanPolicy` en la spec. **Nueva spec 002** (paneles por rol, inventario y cierre de caja) aprobada en `specs/002-dashboard/spec.md`, pendiente de plan y tareas.

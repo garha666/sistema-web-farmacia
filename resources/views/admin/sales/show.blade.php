@@ -20,10 +20,10 @@
         </div>
 
         <div class="flex flex-wrap gap-2">
-            <a href="{{ route('admin.sales.index') }}" class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">
+            <a href="{{ route('admin.sales.index') }}" class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 focus-visible:ring-offset-2">
                 {{ __('pos.admin.sale.back') }}
             </a>
-            <a href="{{ route('pos.sales.receipt', $sale) }}" class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
+            <a href="{{ route('pos.sales.receipt', $sale) }}" class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2">
                 {{ __('pos.admin.sale.receipt') }}
             </a>
         </div>
@@ -48,10 +48,10 @@
                         @foreach ($sale->lines as $line)
                             <tr>
                                 <td class="py-2 font-medium">{{ $line->name }}</td>
-                                <td class="py-2 text-right">{{ $line->quantity }}</td>
-                                <td class="py-2 text-right">{{ $money($line->unit_price) }}</td>
-                                <td class="py-2 text-right">{{ $money($line->discount_amount) }}</td>
-                                <td class="py-2 text-right font-semibold">{{ $money($line->subtotal) }}</td>
+                                <td class="py-2 text-right tabular-nums">{{ $line->quantity }}</td>
+                                <td class="py-2 text-right tabular-nums">{{ $money($line->unit_price) }}</td>
+                                <td class="py-2 text-right tabular-nums">{{ $money($line->discount_amount) }}</td>
+                                <td class="py-2 text-right font-semibold tabular-nums">{{ $money($line->subtotal) }}</td>
                             </tr>
                         @endforeach
                     </tbody>
@@ -61,23 +61,23 @@
             <dl class="mt-4 space-y-1 border-t border-slate-200 pt-3 text-sm">
                 <div class="flex justify-between">
                     <dt class="text-slate-600">{{ __('pos.admin.sale.subtotal') }}</dt>
-                    <dd>{{ $money($sale->subtotal) }}</dd>
+                    <dd class="tabular-nums">{{ $money($sale->subtotal) }}</dd>
                 </div>
                 <div class="flex justify-between">
                     <dt class="text-slate-600">{{ __('pos.admin.sale.line_discounts') }}</dt>
-                    <dd>-{{ $money($sale->line_discounts) }}</dd>
+                    <dd class="tabular-nums">-{{ $money($sale->line_discounts) }}</dd>
                 </div>
                 <div class="flex justify-between">
                     <dt class="text-slate-600">{{ __('pos.admin.sale.global_discount') }}</dt>
-                    <dd>-{{ $money($sale->global_discount) }}</dd>
+                    <dd class="tabular-nums">-{{ $money($sale->global_discount) }}</dd>
                 </div>
                 <div class="flex justify-between text-xs text-slate-500">
                     <dt>{{ __('pos.admin.sale.net_iva') }}</dt>
-                    <dd>{{ $money($sale->net) }} / {{ $money($sale->iva) }}</dd>
+                    <dd class="tabular-nums">{{ $money($sale->net) }} / {{ $money($sale->iva) }}</dd>
                 </div>
                 <div class="flex justify-between border-t border-slate-200 pt-2 text-lg font-bold">
                     <dt>{{ __('pos.admin.sale.total') }}</dt>
-                    <dd>{{ $money($sale->total) }}</dd>
+                    <dd class="tabular-nums">{{ $money($sale->total) }}</dd>
                 </div>
             </dl>
         </section>
