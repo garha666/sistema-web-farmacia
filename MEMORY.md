@@ -198,13 +198,22 @@ RF-78 a RF-82 y RNF-23 a RNF-25 (spec 003). `LoginTest` escrito primero en rojo 
 - **Hallazgo dentro de la propia tarea:** la ruta de logout existía pero **ningún botón la usaba**, así que RF-81 era inalcanzable desde la interfaz. Se agregó el formulario de cerrar sesión a la barra lateral y a la barra móvil de `layouts/admin` y al encabezado de `layouts/pos`, con su test (`test_a_panel_offers_the_logout_action`).
 - **Ajuste necesario en un test de la spec 002:** `ChemistPanelTest::test_the_panel_only_offers_read_only_links` aseveraba «el panel del Químico no tiene ningún `<form>`» (RF-55). El formulario de cerrar sesión es un `<form>` legítimo que no escribe datos, así que la aserción pasó a comprobar que **todos** los formularios del panel sean el de cerrar sesión, conservando el espíritu de RF-55 (sin relajar ningún requisito real).
 - **Verificación:** objetivo **13 tests, 83 aserciones**; suite completa **373 tests, 1930 aserciones, 0 fallos** (52,67 s), desde 360/1847. Recorrido real con Chrome DevTools MCP a 375×812 sobre el servidor de desarrollo: la pantalla responde 200 con correo, contraseña y CSRF, `scrollWidth=375` y consola limpia; contraseña incorrecta y correo inexistente devuelven **el mismo** mensaje («El correo o la contraseña no son correctos.»); los cuatro roles iniciaron sesión desde el navegador y aterrizaron en su panel (`/panel/admin`, `/panel/quimico`, `/panel/tecnico`, `/panel/bodeguero`) con `scrollWidth=375`, el botón «Cerrar sesión» visible y sin errores de consola. La contraseña escrita no vuelve al HTML y el correo se conserva como dato previo.
-- **Pendiente que destapó:** el `.env.example` sigue siendo el de Laravel (`APP_TIMEZONE=UTC`, `DB_CONNECTION=sqlite`, `APP_LOCALE=en`); es la tarea T20.
+- **Pendiente que destapó:** el `.env.example` seguía siendo el de Laravel (resuelto en T20).
+
+## T20 cerrada — entorno y zona horaria (2026-11-18)
+
+H1 del informe de revisión. `EnvironmentTest` escrito primero en rojo y después el arreglo.
+
+- **El riesgo:** `sold_at` se escribe con `now()` (huso de `config('app.timezone')`) y los paneles filtran «de hoy» con `config('pos.timezone')`. Con `APP_TIMEZONE=UTC` —lo que traía el `.env.example`— las ventas de entre 21:00 y 23:59 de Santiago se escriben con fecha del día siguiente y los indicadores del día se descuadran; además el `.env.example` apuntaba a SQLite y a inglés, así que un clon corría otro sistema. La suite no lo detectaba porque `phpunit.xml` fija pgsql y el `.env` local sí tenía Santiago.
+- **El arreglo:** `.env.example` pasa a declarar el stack real —`APP_TIMEZONE=America/Santiago`, `DB_CONNECTION=pgsql` con host, puerto, base `farmacia_pos` y usuario, `APP_LOCALE=es` y `SESSION_DRIVER=database`— con un comentario que explica por qué el huso debe coincidir con `pos.timezone`. Sólo afecta a un clon nuevo: los tests y el entorno local leen `.env`, no `.env.example`.
+- **El guard:** `EnvironmentTest` comprueba que `config('app.timezone') === config('pos.timezone')` y que el archivo de ejemplo declare el huso del negocio, PostgreSQL y la sesión en base. Se verificó que **no es vacío**: con `APP_TIMEZONE=UTC` el primer test falla con el mensaje que explica el descuadre.
+- **Verificación:** objetivo **4 tests, 9 aserciones** (rojo: 2 failed, 2 passed, 7 assertions); suite completa **377 tests, 1939 aserciones, 0 fallos** (64,53 s), desde 373/1930.
 
 ## Pendientes conocidos
 
 - La skill `sdd` referenciada por los comandos **no existe**; los comandos la invocan igual.
 - `specs/004-reportes/` (reportes históricos y exportaciones) no ha sido redactada; el cierre de caja y el arqueo pasaron a la spec 002 (D-6).
-- El `.env.example` no refleja el stack real (zona horaria UTC, SQLite, inglés): quien copie ese archivo corre un sistema distinto (T20).
+- **Resuelto (T20):** `.env.example` declara `America/Santiago`, PostgreSQL y sesión en base, con un guard (`EnvironmentTest`) que falla si el huso de la aplicación no es el del negocio.
 - Tras cerrar la caja, el panel del Técnico muestra la etiqueta del botón «Cerrar caja» como mensaje de éxito y nunca muestra la diferencia declarada (T21).
 - «Anulación del día» se calcula por fecha de venta en el panel del Administrador y por fecha de anulación en el del Químico: falta fijarlo en la spec 002 (T22).
 - El libro de controlados desborda a 375 px porque su filtro de fechas no envuelve (spec 001).
@@ -434,11 +443,10 @@ Datos demo usados para la verificación eliminados al terminar (venta, línea y 
 
 ## Próximo paso
 
-**T19 cerrada** (autenticación: pantalla de inicio de sesión, autenticación real, freno por fuerza bruta y cierre de sesión con su botón en la interfaz). La spec 002 quedó implementada antes, con el arqueo del efectivo corregido (RF-59) tras la demo del cierre. Suite actual: **373 tests, 1930 aserciones, 0 fallos**.
+**T19 y T20 cerradas.** T19: pantalla de inicio de sesión, autenticación real, freno por fuerza bruta y cierre de sesión con su botón en la interfaz. T20: `.env.example` con el stack real (zona horaria del negocio, PostgreSQL, sesión en base) y un guard que falla si el huso de la aplicación deja de coincidir con el del negocio. Suite actual: **377 tests, 1939 aserciones, 0 fallos**.
 
 Queda la cola de mejora del informe de revisión, en `specs/003-auth/tasks.md`:
 
-- **T20.** `.env.example` con el stack real (`APP_TIMEZONE=America/Santiago`, PostgreSQL, `APP_LOCALE=es`) y un test que falle si `config('app.timezone') !== config('pos.timezone')`.
 - **T21.** Mensaje de cierre de caja con la diferencia declarada (hoy muestra la etiqueta del botón «Cerrar caja»).
 - **T22.** Fijar en la spec 002 si «anulación del día» es por fecha de venta o de anulación, y alinear los paneles del Administrador y del Químico.
 - **T23.** Ajustes menores: `SaleFactory` inexistente, filtro `active` en `CartService::load()`, control de pertenencia en `PosController::receipt()`, `active` en `AdjustStockRequest`, inyección de `VoidSaleService` y las nueve etiquetas `RF-nn` que faltan en los tests de la spec 002.

@@ -27,11 +27,11 @@
   - *Hecho cuando:* `LoginTest` pasa: la pantalla responde 200 al invitado y ofrece correo y contraseña; cada uno de los cuatro roles aterriza en su panel; un rol no reconocido no llega a ningún panel; correo inexistente y contraseña incorrecta dan el mismo mensaje; tras varios intentos fallidos se frena y se indica la espera; un acierto limpia el contador; tras cerrar sesión una ruta protegida vuelve a pedir credenciales; un usuario autenticado que abre `/login` va a su panel; la contraseña no aparece en el HTML.
   - *Cierre:* **cerrada el 2026-11-18.** `LoginTest` (13 tests) escrito primero en rojo (**12 failed, 0 assertions**, `Route [login] not defined`) y después implementación mínima. Objetivo en verde: **13 tests, 83 aserciones**. Suite completa: **373 tests, 1930 aserciones, 0 fallos** (52,67 s); la partida era 360/1847. `LoginController` sólo orquesta; `LoginRequest` valida forma y concentra `Auth::attempt` con el freno por `RateLimiter` (5 intentos por minuto, clave correo + IP, `clear()` al acertar); el destino sale de `LandingPolicy` (spec 002) y un rol no reconocido cae en `dashboard.home`, que responde 403. Rutas `login` (GET/POST) y `logout` (POST); guard `web` ya existente, sin dependencias nuevas. Dentro de la tarea se detectó que **la ruta de logout no tenía ningún botón**: se agregó el formulario de cerrar sesión a la barra lateral y móvil de `layouts/admin` y al encabezado de `layouts/pos`, con su test. También hubo que ajustar `ChemistPanelTest::test_the_panel_only_offers_read_only_links`, que aseveraba «ningún `<form>`» (RF-55): ahora comprueba que todos los formularios del panel del Químico sean el de cerrar sesión, sin relajar el requisito. Verificación con Chrome DevTools MCP a 375×812: pantalla 200 con correo, contraseña y CSRF, `scrollWidth=375`, consola limpia; contraseña incorrecta y correo inexistente devuelven el mismo mensaje; los cuatro roles iniciaron sesión desde el navegador y aterrizaron en `/panel/admin`, `/panel/quimico`, `/panel/tecnico` y `/panel/bodeguero` con `scrollWidth=375` y el botón «Cerrar sesión» visible; la contraseña escrita no vuelve al HTML.
 
-- [ ] **T20. `.env.example` del stack real.** H1 del informe de revisión
+- [x] **T20. `.env.example` del stack real.** H1 del informe de revisión
   - *Depende de:* T19 (para correr la suite y la demo)
   - *Alcance:* `.env.example` con `APP_TIMEZONE=America/Santiago`, `DB_CONNECTION=pgsql` y credenciales, `APP_LOCALE=es` y `SESSION_DRIVER=database`; test que falle si `config('app.timezone') !== config('pos.timezone')`.
   - *Hecho cuando:* copiar `.env.example` a `.env` deja un entorno equivalente al de la suite y el test de zona horaria pasa.
-  - *Cierre:* (pendiente)
+  - *Cierre:* **cerrada el 2026-11-18.** `EnvironmentTest` (4 tests) escrito primero en rojo (**2 failed, 2 passed, 7 assertions**) y después el arreglo: verde en **4 tests, 9 aserciones**. Suite completa: **377 tests, 1939 aserciones, 0 fallos** (64,53 s); la partida era 373/1930. `.env.example` declara `APP_TIMEZONE=America/Santiago`, `DB_CONNECTION=pgsql` con host, puerto, base `farmacia_pos` y usuario, `APP_LOCALE=es` y `SESSION_DRIVER=database`, con un comentario que explica que el huso debe coincidir con `pos.timezone` (si no, las ventas de 21:00 a 23:59 se escriben con fecha del día siguiente y los paneles «de hoy» las buscan en otro huso). El cambio sólo afecta a un clon nuevo: tests y entorno local leen `.env`, no `.env.example`. El test comprueba además que el archivo de ejemplo declare el huso del negocio, PostgreSQL y la sesión en base; se verificó que el guard **no es vacío** (con `APP_TIMEZONE=UTC` el primer test falla con su mensaje explicativo).
 
 - [ ] **T21. Feedback del cierre de caja.** H2 del informe de revisión
   - *Depende de:* —
@@ -75,9 +75,10 @@
 | Spec 003-auth | ✅ Aprobada v1.0 |
 | Plan 003 | ✅ Completo (`specs/003-auth/plan.md`) |
 | T19 | ✅ Cerrada |
-| T20–T23 | ⏳ Planificadas (mejoras del informe de revisión) |
+| T20 | ✅ Cerrada |
+| T21–T23 | ⏳ Planificadas (mejoras del informe de revisión) |
 | Auditoría RF por RF 002 | ⏳ Pendiente |
 
 ---
 
-*Actualizado: 2026-11-18. Suite actual: 373 tests, 1930 aserciones, 0 fallos.*
+*Actualizado: 2026-11-18. Suite actual: 377 tests, 1939 aserciones, 0 fallos.*
