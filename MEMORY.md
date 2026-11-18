@@ -8,9 +8,9 @@
 - **Constitución:** `docs/constitution.md` v1.0, vigente (6 principios).
 - **Spec 001 POS:** `specs/001-pos/spec.md` v1.1, **aprobada**, 40 RF y 13 RNF, sin dudas abiertas. Las cinco enmiendas de v1.1 (mapeo de roles, RF-20 y RF-22 con la caja abierta como precondición, §7 y D-3 apuntando a la spec 002) están aplicadas.
 - **Plan 001 POS:** `specs/001-pos/plan.md`, completo (arquitectura, funciones puras, pseudocódigo, UI, decisiones, tests).
-- **Tareas 001 POS:** `specs/001-pos/tasks.md`, 10 tareas + correcciones Vuelta 1 (S1–S5) + Vuelta 2 (S6–S14). **T1 a T10 cerradas; S1 a S12 cerradas.**
+- **Tareas 001 POS:** `specs/001-pos/tasks.md`, 10 tareas + correcciones Vuelta 1 (S1–S5) + Vuelta 2 (S6–S14). **T1 a T10 cerradas; S1 a S14 cerradas.**
 - **Código:** Laravel 11.57.1. Dominio `app/Pos/` completo. Persistencia: `Product`, `Sale`, `SaleLine`, `Document`, `InvoiceDetail`, `StockMovement`, `AuditLog`, `Convention`, `Prescription`, `ControlledRegisterEntry`. Servicios: `CartService`, `CheckoutService`, `VoidSaleService`, `AuditService`, `ConventionService`, `DocumentService`, `ManualDiscountService`. Emisión simulada: `Pos\Contract\DocumentEmitter`, `Pos\Emission\SimulatedDocumentEmitter`, `Pos\Folio\FolioAllocator`. HTTP: `PosController` y `Admin\{ConventionController, SaleController, DocumentController, AuditController, ControlledRegisterController}`. Vistas: `pos/index`, `pos/checkout`, `pos/receipt`, `admin/*` (layout `layouts.admin`). Traducciones en `lang/es/`. 246 tests en verde (1131 aserciones).
-- **Spec 002 paneles/inventario/caja:** `specs/002-dashboard/spec.md` v1.0, **aprobada** (2026-11-17). 37 RF (RF-41 a RF-77), 9 RNF (RNF-14 a RNF-22). Cubre los cuatro paneles por rol, el catálogo de productos con ajuste de stock auditado y el cierre de caja con diferencia declarada. Introduce el rol Bodeguero y absorbe dos temas que 001 delegaba o excluía: el arqueo (antes en `004-reportes`) y los tableros por rol. Las 5 enmiendas que necesitaba la spec 001 ya están aplicadas (v1.1), así que las dos specs no se contradicen. **Pendiente:** plan y tareas.
+- **Spec 002 paneles/inventario/caja:** `specs/002-dashboard/spec.md` v1.0, **aprobada** (2026-11-17). 37 RF (RF-41 a RF-77), 9 RNF (RNF-14 a RNF-22). Cubre los cuatro paneles por rol, el catálogo de productos con ajuste de stock auditado y el cierre de caja con diferencia declarada. Introduce el rol Bodeguero y absorbe dos temas que 001 delegaba o excluía: el arqueo (antes en `004-reportes`) y los tableros por rol. Las 5 enmiendas que necesitaba la spec 001 ya están aplicadas (v1.1), así que las dos specs no se contradicen. **Plan y tareas definidos:** `specs/002-dashboard/plan.md` y `specs/002-dashboard/tasks.md` (T11–T18, ocho tareas en orden de dependencia). **Pendiente:** implementación, desde T11.
 - **Comandos SDD:** instalados en `.opencode/commands/` (9 comandos).
 
 ## Entorno (2026-10-30)
@@ -26,7 +26,7 @@
 
 - **D-1:** documentos tributarios **simulados** (folio interno, estados pendiente/emitido/rechazado). Sin SII ni servicios externos.
 - **D-2:** tope general de descuento **10%** por transacción; convenios de salud con porcentaje propio definido por el administrador.
-- **D-3:** cierre de caja y arqueo quedan en `specs/004-reportes/`, fuera del POS.
+- **D-3 (reemplazada por D-6 de la spec 002):** el cierre de caja y el arqueo viven en `specs/002-dashboard/`; `specs/004-reportes/` queda para reportes históricos y exportaciones.
 - **Roles POS:** Cajero = Técnico, Supervisor = Químico, Administrador = Admin; Bodeguero sin acceso al POS.
 - **IVA:** 19% incluido en el precio de lista; el desglose se calcula con `net = round(total * 100 / 119)` y `iva = total - net`.
 - **Redondeo:** siempre a peso entero con round half-up (`roundToPeso`), una sola vez por cálculo; el dominio nunca almacena flotantes como dinero.
@@ -78,10 +78,24 @@
 - **Descuento por línea (S11, RF-4/RF-13 a RF-18):** el cajero aplica `%` o `$` por línea con motivo obligatorio; el valor y el motivo viven en la sesión junto al carrito y el cálculo sigue en el dominio (`Cart::applyLineDiscount`, `PriceCalculator::lineDiscount`). `DiscountPolicy::evaluateLine()` rechaza motivo vacío y total cero/negativo, y mide el **acumulado de todas las líneas** contra el tope del 10%; sobre el tope pide credenciales de Químico/Admin (mismo `Hash::check` + rol) y el modal se reabre si las credenciales son inválidas. El tope del descuento global ahora también descuenta las líneas (`evaluate(..., lineDiscountsPesos)` / `PriceCalculator::lineDiscounts`), de modo que 10% de línea + 10% global exige supervisor (RF-14 acumulado). La línea muestra el chip `-10% · motivo` con «Quitar descuento»; el control es un `<details>` nativo (accesible sin JS). El checkout muestra el descuento por renglón y el pie subtotal/descuentos.
 - **Auditoría de descuento por línea (S12, RF-36):** la autorización del supervisor se recuerda en `pos.line_discounts[...]['authorized_by']` (misma entrada que el descuento; se conserva al cambiar la cantidad mientras el tipo y el valor no cambien) y `CheckoutService` la registra al confirmar el cobro como `sale.line_discount_authorized`, con el subject en la `SaleLine` real y `discount_type`/`discount_value`. Se eligió el cobro (no la caja) porque la venta aún no existe al autorizar, y el subject polimórfico (no `sale_line_id`) para no duplicar la referencia ni borrar auditoría en cascada. `audit_logs` sólo gana dos columnas nullable (migración `2026_11_03_000000`); el detalle de venta y la bitácora resuelven producto y venta por la línea. La receta repetida y el descuento global ya se auditaban; este cierre no los toca.
 
+## Plan 002 (2026-11-18)
+
+`specs/002-dashboard/plan.md` y `specs/002-dashboard/tasks.md` escritos con el formato de la 001 (§0 a §7 y T11–T18). Decisiones que condicionan la implementación:
+
+- **Cuatro migraciones:** `products.min_stock` + `products.active`, `cash_registers`, `stock_movements` (`reason` → `type`, más `note`, `user_id` y `resulting_stock`) y `sales.cash_register_id`.
+- **Turno de caja como tabla propia** con índice único parcial `WHERE closed_at IS NULL` (SQL crudo: el builder no lo expresa). El cierre graba el arqueo y los totales en la fila del turno; una anulación posterior no los reescribe (caso límite 7).
+- **La venta pertenece a un turno por `cash_register_id`**, no por ventana de fechas: evita el cruce de medianoche y fija el conjunto de ventas del cierre.
+- **`products.active` separado de `sellable`:** «fuera de catálogo» sale de la búsqueda de la caja y conserva historial; «no vendible» sólo impide venderlo de nuevo.
+- **`resulting_stock` obligatorio**, rellenado hacia atrás con `SUM(quantity) OVER (PARTITION BY product_id ORDER BY id)`.
+- **Un `SalesDayQuery` único** para los tres paneles que muestran totales del día, de modo que RF-75 se cumpla por construcción.
+- **Los paneles reutilizan `layouts/admin.blade.php`** con un `$navGroup`; renombrar el layout queda como deuda sin RF.
+- **RNF-14 se mide a mano** y se documenta; RNF-15 se automatiza contando consultas con `DB::listen`.
+- **RF-60 deja en rojo los tests de cobro existentes**: se corrige declarando la precondición con `openCashRegister()` en `tests/TestCase.php`, nunca relajando aserciones.
+
 ## Pendientes conocidos
 
 - La skill `sdd` referenciada por los comandos **no existe**; los comandos la invocan igual.
-- `specs/004-reportes/` (cierre de caja) no ha sido redactada.
+- `specs/004-reportes/` (reportes históricos y exportaciones) no ha sido redactada; el cierre de caja y el arqueo pasaron a la spec 002 (D-6).
 - No existe ruta `/login`; en local se entra con una sesión de desarrollo generada con un script externo al repo.
 - `welcome.blade.php` sigue en inglés (página por defecto de Laravel, fuera del alcance de la spec).
 - `tests/Feature/Pos/FolioConcurrencyTest.php` lanza dos procesos PHP reales (`tests/Fixtures/concurrent-retry.php`): en rojo la carrera no siempre se materializa (es probabilística), pero con el lock de asesoría el verde es determinista. Requiere la BD `farmacia_pos_test` accesible por procesos hijos.
@@ -308,4 +322,4 @@ Datos demo usados para la verificación eliminados al terminar (venta, línea y 
 
 ## Próximo paso
 
-S12 (auditoría de autorizaciones de descuento) cerrada. Cola cerrada completa: **B0–B14, S13 y S14, con 246 tests en verde. Auditoría RF por RF completa en `specs/001-pos/rf-audit.md`.** Los pendientes de mejora que quedaban (paginación propia en español, CDN de Tailwind, iconos del menú, `tabular-nums`, `focus-visible`, la celda de motivo vacía y `BarcodeScanPolicy`) se cerraron en B10–B14. **Nueva spec 002** (paneles por rol, inventario y cierre de caja) aprobada en `specs/002-dashboard/spec.md`, pendiente de plan y tareas.
+S12 (auditoría de autorizaciones de descuento) cerrada. Cola cerrada completa: **B0–B14, S13 y S14, con 246 tests en verde. Auditoría RF por RF completa en `specs/001-pos/rf-audit.md`.** Los pendientes de mejora que quedaban (paginación propia en español, CDN de Tailwind, iconos del menú, `tabular-nums`, `focus-visible`, la celda de motivo vacía y `BarcodeScanPolicy`) se cerraron en B10–B14. **Nueva spec 002** (paneles por rol, inventario y cierre de caja) aprobada en `specs/002-dashboard/spec.md`, con plan y tareas ya escritos (`plan.md`, `tasks.md`, T11–T18). **Siguiente paso: T11** (cuatro migraciones, rol Bodeguero y aterrizaje por rol), con test rojo primero.
