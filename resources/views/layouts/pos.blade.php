@@ -42,6 +42,17 @@
                     <span class="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden="true"></span>
                     {{ __('pos.app.register') }}
                 </span>
+
+                {{-- T19 - RF-81: cerrar la sesión desde la caja. --}}
+                <form method="POST" action="{{ route('logout') }}">
+                    @csrf
+                    <button
+                        type="submit"
+                        class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+                    >
+                        {{ __('pos.login.logout') }}
+                    </button>
+                </form>
             </div>
         </div>
     </header>

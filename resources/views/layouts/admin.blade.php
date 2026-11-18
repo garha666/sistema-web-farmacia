@@ -27,19 +27,33 @@
             @include('partials.nav-links', ['variant' => 'sidebar'])
         </nav>
 
-        @unless (auth()->user()?->isBodeguero())
-            <div class="border-t border-white/10 p-3">
+        <div class="border-t border-white/10 p-3">
+            @unless (auth()->user()?->isBodeguero())
                 <a
                     href="{{ route('pos.index') }}"
-                    class="flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-3 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
+                    class="mb-2 flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-3 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
                 >
                     <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4">
                         <path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13 5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z" />
                     </svg>
                     {{ __('pos.nav.pos') }}
                 </a>
-            </div>
-        @endunless
+            @endunless
+
+            {{-- T19 - RF-81: cerrar la sesión desde cualquier panel. --}}
+            <form method="POST" action="{{ route('logout') }}">
+                @csrf
+                <button
+                    type="submit"
+                    class="flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-slate-400 transition-colors hover:bg-white/5 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+                >
+                    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4">
+                        <path d="M15 12H3m0 0 4-4m-4 4 4 4m5-11h4a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4" />
+                    </svg>
+                    {{ __('pos.login.logout') }}
+                </button>
+            </form>
+        </div>
     </aside>
 
     <div class="flex min-h-screen min-w-0 flex-col lg:pl-64">
@@ -57,11 +71,24 @@
                     </span>
                 </div>
 
-                @unless (auth()->user()?->isBodeguero())
-                    <a href="{{ route('pos.index') }}" class="shrink-0 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300">
-                        {{ __('pos.nav.pos') }}
-                    </a>
-                @endunless
+                <div class="flex shrink-0 items-center gap-2">
+                    @unless (auth()->user()?->isBodeguero())
+                        <a href="{{ route('pos.index') }}" class="shrink-0 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300">
+                            {{ __('pos.nav.pos') }}
+                        </a>
+                    @endunless
+
+                    {{-- T19 - RF-81: cerrar sesión también desde la barra móvil. --}}
+                    <form method="POST" action="{{ route('logout') }}">
+                        @csrf
+                        <button
+                            type="submit"
+                            class="shrink-0 rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+                        >
+                            {{ __('pos.login.logout') }}
+                        </button>
+                    </form>
+                </div>
             </div>
 
             <nav class="flex gap-1 overflow-x-auto border-t border-slate-100 px-3 py-2 text-sm font-medium" aria-label="{{ __('pos.panel.group.'.$navGroup) }}">

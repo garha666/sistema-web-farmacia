@@ -49,6 +49,8 @@ return [
     'custom' => [],
 
     'attributes' => [
+        'email' => 'correo electrónico',
+        'password' => 'contraseña',
         'name' => 'nombre',
         'percent' => 'porcentaje de descuento',
         'valid_from' => 'vigencia desde',

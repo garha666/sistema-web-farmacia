@@ -167,7 +167,15 @@ final class ChemistPanelTest extends TestCase
         $response->assertSeeText(__('pos.panel.quimico.conventions_link'));
         $response->assertSeeText(__('pos.panel.quimico.audit_link'));
         $response->assertDontSee(route('admin.conventions.create'), false);
-        $response->assertDontSee('<form', false);
+        // RF-55: el panel no ofrece acciones de escritura sobre datos. Los
+        // únicos formularios son los de cerrar sesión (spec 003, RF-81), que no
+        // escriben nada del negocio.
+        $html = (string) $response->getContent();
+        $this->assertSame(
+            substr_count($html, '<form'),
+            substr_count($html, 'action="'.route('logout').'"'),
+            'El panel del Químico sólo debe tener formularios de cerrar sesión.',
+        );
     }
 
     public function test_the_panel_without_activity_shows_zeros_and_messages(): void

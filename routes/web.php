@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\ControlledRegisterController;
 use App\Http\Controllers\Admin\ConventionController;
 use App\Http\Controllers\Admin\DocumentController;
 use App\Http\Controllers\Admin\SaleController;
+use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Cash\CashRegisterController;
 use App\Http\Controllers\Dashboard\AdminDashboardController;
 use App\Http\Controllers\Dashboard\CashierDashboardController;
@@ -16,6 +17,13 @@ use App\Http\Controllers\Inventory\StockAdjustmentController;
 use App\Http\Controllers\Inventory\StockMovementController;
 use App\Http\Controllers\PosController;
 use Illuminate\Support\Facades\Route;
+
+// T19 - RF-78 a RF-82: inicio y cierre de sesión.
+Route::get('/login', [LoginController::class, 'show'])->name('login');
+Route::post('/login', [LoginController::class, 'authenticate'])->name('login.store');
+Route::post('/logout', [LoginController::class, 'destroy'])
+    ->middleware('auth')
+    ->name('logout');
 
 // T11 - RF-41: la raíz y /panel llevan a cada rol a su panel.
 Route::middleware('auth')->group(function (): void {

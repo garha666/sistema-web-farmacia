@@ -22,6 +22,20 @@ return [
         'admin' => 'Administración',
     ],
 
+    'login' => [
+        'title' => 'Iniciar sesión',
+        'heading' => 'Acceso al sistema',
+        'lead' => 'Ingresa con tu cuenta para llegar al panel de tu rol.',
+        'email' => 'Correo electrónico',
+        'password' => 'Contraseña',
+        'submit' => 'Entrar',
+        'logout' => 'Cerrar sesión',
+        'error' => [
+            'invalid' => 'El correo o la contraseña no son correctos.',
+            'throttled' => 'Demasiados intentos fallidos. Vuelve a intentarlo en :seconds segundos.',
+        ],
+    ],
+
     'role' => [
         'admin' => 'Administrador',
         'quimico' => 'Químico',
