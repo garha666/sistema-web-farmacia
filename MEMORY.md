@@ -1,16 +1,16 @@
 # MEMORY.md — Estado del proyecto
 
 **Proyecto:** Sistema Web de Gestión y Simulación de Farmacia Privada Comercial (Grupo A) — INACAP
-**Última actualización:** 2026-11-17
+**Última actualización:** 2026-11-18
 
 ## Estado actual
 
 - **Constitución:** `docs/constitution.md` v1.0, vigente (6 principios).
-- **Spec 001 POS:** `specs/001-pos/spec.md` v1.0, **aprobada**, 40 RF y 13 RNF, sin dudas abiertas.
+- **Spec 001 POS:** `specs/001-pos/spec.md` v1.1, **aprobada**, 40 RF y 13 RNF, sin dudas abiertas. Las cinco enmiendas de v1.1 (mapeo de roles, RF-20 y RF-22 con la caja abierta como precondición, §7 y D-3 apuntando a la spec 002) están aplicadas.
 - **Plan 001 POS:** `specs/001-pos/plan.md`, completo (arquitectura, funciones puras, pseudocódigo, UI, decisiones, tests).
 - **Tareas 001 POS:** `specs/001-pos/tasks.md`, 10 tareas + correcciones Vuelta 1 (S1–S5) + Vuelta 2 (S6–S14). **T1 a T10 cerradas; S1 a S12 cerradas.**
-- **Código:** Laravel 11.57.1. Dominio `app/Pos/` completo. Persistencia: `Product`, `Sale`, `SaleLine`, `Document`, `InvoiceDetail`, `StockMovement`, `AuditLog`, `Convention`, `Prescription`, `ControlledRegisterEntry`. Servicios: `CartService`, `CheckoutService`, `VoidSaleService`, `AuditService`, `ConventionService`, `DocumentService`, `ManualDiscountService`. Emisión simulada: `Pos\Contract\DocumentEmitter`, `Pos\Emission\SimulatedDocumentEmitter`, `Pos\Folio\FolioAllocator`. HTTP: `PosController` y `Admin\{ConventionController, SaleController, DocumentController, AuditController, ControlledRegisterController}`. Vistas: `pos/index`, `pos/checkout`, `pos/receipt`, `admin/*` (layout `layouts.admin`). Traducciones en `lang/es/`. 239 tests en verde (1042 aserciones).
-- **Spec 002 paneles/inventario/caja:** `specs/002-dashboard/spec.md` v0.1, **borrador** (2026-11-17). 37 RF (RF-41 a RF-77), 9 RNF (RNF-14 a RNF-22). Cubre los cuatro paneles por rol, el catálogo de productos con ajuste de stock auditado y el cierre de caja con diferencia declarada. Introduce el rol Bodeguero y absorbe dos temas que 001 delegaba o excluía: el arqueo (antes en `004-reportes`) y los tableros por rol. **Pendiente:** aprobación del equipo y las 5 enmiendas a la spec 001 listadas en su §10 (sin ellas las dos specs se contradicen).
+- **Código:** Laravel 11.57.1. Dominio `app/Pos/` completo. Persistencia: `Product`, `Sale`, `SaleLine`, `Document`, `InvoiceDetail`, `StockMovement`, `AuditLog`, `Convention`, `Prescription`, `ControlledRegisterEntry`. Servicios: `CartService`, `CheckoutService`, `VoidSaleService`, `AuditService`, `ConventionService`, `DocumentService`, `ManualDiscountService`. Emisión simulada: `Pos\Contract\DocumentEmitter`, `Pos\Emission\SimulatedDocumentEmitter`, `Pos\Folio\FolioAllocator`. HTTP: `PosController` y `Admin\{ConventionController, SaleController, DocumentController, AuditController, ControlledRegisterController}`. Vistas: `pos/index`, `pos/checkout`, `pos/receipt`, `admin/*` (layout `layouts.admin`). Traducciones en `lang/es/`. 241 tests en verde (1060 aserciones).
+- **Spec 002 paneles/inventario/caja:** `specs/002-dashboard/spec.md` v1.0, **aprobada** (2026-11-17). 37 RF (RF-41 a RF-77), 9 RNF (RNF-14 a RNF-22). Cubre los cuatro paneles por rol, el catálogo de productos con ajuste de stock auditado y el cierre de caja con diferencia declarada. Introduce el rol Bodeguero y absorbe dos temas que 001 delegaba o excluía: el arqueo (antes en `004-reportes`) y los tableros por rol. Las 5 enmiendas que necesitaba la spec 001 ya están aplicadas (v1.1), así que las dos specs no se contradicen. **Pendiente:** plan y tareas.
 - **Comandos SDD:** instalados en `.opencode/commands/` (9 comandos).
 
 ## Entorno (2026-10-30)
@@ -123,7 +123,7 @@
   en `.gitignore`: el build (3 archivos, 90 KB) se versiona, así que un clon funciona sin `npm install`. Consecuencia deliberada: si alguien borra
   `public/build`, `@vite` lanza «Vite manifest not found» y los tests de vista fallan en vez de degradar en silencio. Tests nuevos: uno en `CartFlowTest` y
   otro en `AdministrationTest` que verifican el HTML renderizado con `/build/assets/` y la **fuente** del layout sin `cdn.tailwindcss.com` (el primer
-  intento miraba sólo el HTML y pasaba en verde, porque la rama `@else` no se ejecuta cuando el manifest existe). Suite: **239 tests, 1042 aserciones**.
+  intento miraba sólo el HTML y pasaba en verde, porque la rama `@else` no se ejecuta cuando el manifest existe). Suite: **241 tests, 1060 aserciones**.
 - **S14 (RF-38, RNF-9, 2026-11-17):** el detalle de venta mostraba sólo las autorizaciones registradas sobre la `Sale`, pero S12 registra el descuento de línea sobre la `SaleLine`; el morph `auditLogs()` no las veía. `Sale::authorizationLogs()` une ambos orígenes con su autor y la vista los lista en «Autorizaciones aplicadas» con etiqueta traducida (Descuento de línea, Descuento global sobre el tope, Reutilización de receta), autor, monto, motivo y fecha; una acción desconocida cae en «Otra autorización» para no mostrar inglés. `SaleController::show()` pasa `$authorizations` (ya no carga `auditLogs.user`). Receta, convenio y estados del documento ya estaban resueltos y quedan con test propio. **Trampa de Blade detectada:** la vista tenía `@php($prescription = $sale->prescription)` inline; al añadir un bloque `@php ... @endphp`, Blade emparejó el bloque desde ese `@php` inline y dejó media vista como texto literal (los tests fallaban con «Expected» mostrando Blade sin compilar). Se convirtió en bloque cerrado. **Hallazgo corregido en B8:** `lineDiscountReason()` descartaba el motivo escrito por el cajero y guardaba el texto generado «Descuento de línea (20%) autorizado por supervisor.».
 - **S12 (RF-36):** cerrada. La autorización del descuento por línea ya se audita con su autor (`sale.line_discount_authorized`). El pendiente heredado (revalidar el tope acumulado de las líneas al confirmar el cobro) quedó cerrado en B7.
 - ~~`layouts/pos.blade.php` carga `@vite` **y** `<script src="https://cdn.tailwindcss.com">`. Sin internet el CDN no responde y la pantalla depende del CSS compilado local: hay que correr `npm run build` después de tocar clases de Tailwind (pasó en S11 con `h-3.5`/`group-open:`). Conviene quitar el CDN en una limpieza posterior.~~ **Resuelto en B10:** ambos layouts cargan sólo `@vite` y `public/build` está versionado.
@@ -213,6 +213,20 @@ MCP `chrome-devtools` (375×812×2 mobile/touch) contra `php artisan serve --por
 | `admin/sales/5`, tarjeta «Documento» | «Boleta sin folio», sin el `#` antepuesto. Antes decía «Boleta #sin folio». |
 | Medidas | `scrollWidth = 375`, sin desbordes y sin mensajes de consola. |
 
+### B11 — paginación propia en español (2026-11-18)
+
+MCP `chrome-devtools` (375×812×2 mobile/touch y 900×900×1) contra `php artisan serve --port=8002`. La sesión httpOnly del navegador había caducado y el servidor no tiene ruta `/login` (el `/login` responde 404), así que la verificación se hizo repoblando la **misma fila `sessions`** que el navegador ya tenía: se decodificó su `payload` (`base64(serialize($atributos))`), se le añadió `login_web_<sha1(SessionGuard::class)>` con el id del admin y se reescribió la fila. Inyectar una cookie cifrada a mano desde JS **no** funciona: `document.cookie` no puede escribir `laravel_session` (es httpOnly) y el valor no sobrevive. Para que hubiera paginación se sembraron 25 ventas de demo con `customer_rut = 'B11DEMO'` (29 ventas en total); al terminar se borraron las 25, las dos filas `sessions` de la prueba y los scripts temporales.
+
+| Pantalla | Resultado |
+| --- | --- |
+| `admin/sales` a 375 px | 20 filas `[data-sale-id]`, tarjeta de paginación de 343 px: «Mostrando 1 a 20 de 29», «Anterior» deshabilitado en gris, «Página 1 de 2», «Siguiente». Números de página ocultos (`display: none` bajo `sm`). `scrollWidth = 375`. |
+| `admin/sales?page=2` | «Mostrando 21 a 29 de 29», «Página 2 de 2», 9 filas y «Anterior» como enlace. `scrollWidth = 375`. |
+| `admin/sales?status=confirmed` | El enlace a la página 2 conserva el filtro: `?status=confirmed&page=2`. |
+| `admin/sales` a 900 px | Los números aparecen (`display: flex`): «1 2», con «1» en `aria-current="page"`. |
+| `admin/documents` a 375 px | 4 documentos en la demo: sin paginador, porque `hasPages()` es falso. Sin errores. |
+
+Sin mensajes de consola en ninguna pantalla.
+
 ### B10 — sin CDN de Tailwind (2026-11-17)
 
 MCP `chrome-devtools` (375×812×2 mobile/touch) contra `php artisan serve --port=8002`, con la sesión admin de desarrollo. Se comprobó que la página pide **sólo** `/build/assets/app-*.css` y `/build/assets/app-*.js`, sin ninguna petición a `cdn.tailwindcss.com`.
@@ -271,4 +285,4 @@ Datos demo usados para la verificación eliminados al terminar (venta, línea y 
 
 ## Próximo paso
 
-S12 (auditoría de autorizaciones de descuento) cerrada. Cola en curso: **B0–B10, S13 y S14 cerradas con 239 tests en verde. Auditoría RF por RF completa en `specs/001-pos/rf-audit.md`.** Pendientes de mejora (no bloqueantes): paginación propia en español, extraer los iconos SVG del menú de administración a un partial, `tabular-nums` y `focus-visible` en las tablas de administración, y el `??` de la celda de motivo en `admin/audit` (un motivo vacío deja la celda en blanco en vez de «—»). **Nueva spec 002** (paneles por rol, inventario y cierre de caja) aprobada en `specs/002-dashboard/spec.md`, pendiente de plan y tareas.
+S12 (auditoría de autorizaciones de descuento) cerrada. Cola en curso: **B0–B11, S13 y S14 cerradas con 241 tests en verde. Auditoría RF por RF completa en `specs/001-pos/rf-audit.md`.** Pendientes de mejora (no bloqueantes): extraer los iconos SVG del menú de administración a un partial, `tabular-nums` y `focus-visible` en las tablas de administración, el `??` de la celda de motivo en `admin/audit` (un motivo vacío deja la celda en blanco en vez de «—») y formalizar `BarcodeScanPolicy` en la spec. **Nueva spec 002** (paneles por rol, inventario y cierre de caja) aprobada en `specs/002-dashboard/spec.md`, pendiente de plan y tareas.

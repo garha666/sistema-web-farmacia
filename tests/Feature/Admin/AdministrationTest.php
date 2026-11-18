@@ -15,6 +15,7 @@ use App\Pos\Enum\DocumentStatus;
 use App\Pos\Enum\DocumentType;
 use App\Pos\Enum\SaleStatus;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
@@ -41,6 +42,61 @@ final class AdministrationTest extends TestCase
 
         $this->assertStringContainsString('@vite', $layout);
         $this->assertStringNotContainsString('cdn.tailwindcss.com', $layout);
+    }
+
+    /**
+     * B11 - RNF-4/RNF-11: el historial pagina de 20 en 20 con controles en español.
+     */
+    public function test_the_history_paginates_twenty_sales_with_spanish_controls(): void
+    {
+        $this->signIn('admin');
+        $this->makeSales(21);
+
+        $response = $this->get(route('admin.sales.index').'?status=confirmed');
+
+        $response->assertOk();
+
+        $sales = $response->viewData('sales');
+
+        $this->assertSame(20, $sales->perPage());
+        $this->assertSame(21, $sales->total());
+        $this->assertCount(20, $sales->items());
+        $this->assertSame(20, $this->countSales($response->getContent()));
+
+        $pagination = $sales->links()->toHtml();
+
+        $this->assertStringContainsString('Página 1 de 2', $pagination);
+        $this->assertStringContainsString('Mostrando 1 a 20 de 21', $pagination);
+        $this->assertStringContainsString('Siguiente', $pagination);
+        $this->assertStringContainsString('aria-current="page"', $pagination);
+        $this->assertStringContainsString('focus-visible:ring-2', $pagination);
+
+        // RNF-4: nada del paginador por defecto en inglés.
+        $this->assertStringNotContainsString('Showing', $pagination);
+        $this->assertStringNotContainsString('Previous', $pagination);
+
+        // RNF-4: los filtros sobreviven al cambio de página.
+        $this->assertStringContainsString('status=confirmed', $pagination);
+        $this->assertStringContainsString('page=2', $pagination);
+    }
+
+    /**
+     * B11 - la lista de documentos también pagina de 20 en 20.
+     */
+    public function test_the_document_list_paginates_twenty_documents_with_spanish_controls(): void
+    {
+        $this->signIn('admin');
+        $this->makeDocuments(21);
+
+        $response = $this->get(route('admin.documents.index'));
+
+        $response->assertOk();
+
+        $documents = $response->viewData('documents');
+
+        $this->assertSame(20, $documents->perPage());
+        $this->assertCount(20, $documents->items());
+        $this->assertStringContainsString('Página 1 de 2', $documents->links()->toHtml());
     }
 
     // ------------------------------------------------------------------
@@ -664,6 +720,42 @@ final class AdministrationTest extends TestCase
         }
 
         return $sale;
+    }
+
+    private function makeSales(int $count): void
+    {
+        for ($i = 0; $i < $count; $i++) {
+            $this->createSale($i);
+        }
+    }
+
+    private function makeDocuments(int $count): void
+    {
+        for ($i = 0; $i < $count; $i++) {
+            $sale = $this->createSale($i);
+
+            Document::query()->create([
+                'sale_id' => $sale->id,
+                'type' => 'receipt',
+                'folio' => 90000 + $i,
+                'status' => 'issued',
+                'issued_at' => now(),
+            ]);
+        }
+    }
+
+    private function createSale(int $offset = 0): Sale
+    {
+        return Sale::query()->create([
+            'token' => (string) Str::uuid(),
+            'subtotal' => 1000,
+            'net' => 840,
+            'iva' => 160,
+            'total' => 1000,
+            'payment_method' => 'debit',
+            'status' => 'confirmed',
+            'sold_at' => now()->subMinutes($offset),
+        ]);
     }
 
     private function countSales(string $html): int

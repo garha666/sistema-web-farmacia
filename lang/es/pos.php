@@ -40,6 +40,14 @@ return [
         'per_unit' => ':price c/u',
         'no_folio' => 'sin folio',
         'pending' => 'pendiente',
+        'pagination' => [
+            'label' => 'Paginación',
+            'previous' => 'Anterior',
+            'next' => 'Siguiente',
+            'showing' => 'Mostrando :from a :to de :total',
+            'page' => 'Página :current de :last',
+            'go_to' => 'Ir a la página :page',
+        ],
     ],
 
     'payment_method' => [

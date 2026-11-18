@@ -37,7 +37,7 @@ final class DocumentController extends Controller
                 fn ($query) => $query->where('status', $data['status']),
             )
             ->latest('id')
-            ->paginate(25)
+            ->paginate(20)
             ->withQueryString();
 
         return view('admin.documents.index', [
