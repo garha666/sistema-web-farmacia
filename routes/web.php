@@ -11,6 +11,7 @@ use App\Http\Controllers\Dashboard\CashierDashboardController;
 use App\Http\Controllers\Dashboard\ChemistDashboardController;
 use App\Http\Controllers\Dashboard\DashboardController;
 use App\Http\Controllers\Dashboard\WarehouseDashboardController;
+use App\Http\Controllers\Inventory\ProductController;
 use App\Http\Controllers\PosController;
 use Illuminate\Support\Facades\Route;
 
@@ -39,6 +40,15 @@ Route::prefix('cash-registers')->name('cash.')->middleware(['auth', 'role:tecnic
     Route::post('/', [CashRegisterController::class, 'open'])->name('open');
     Route::get('/close', [CashRegisterController::class, 'showClose'])->name('close.show');
     Route::patch('/{cashRegister}/close', [CashRegisterController::class, 'close'])->name('close');
+});
+
+// T16 - RF-68 a RF-72: catálogo de productos.
+Route::prefix('inventory/products')->name('inventory.products.')->middleware('auth')->group(function (): void {
+    Route::get('/', [ProductController::class, 'index'])->middleware('role:admin,bodeguero')->name('index');
+    Route::get('/create', [ProductController::class, 'create'])->middleware('role:admin')->name('create');
+    Route::post('/', [ProductController::class, 'store'])->middleware('role:admin')->name('store');
+    Route::get('/{product}/edit', [ProductController::class, 'edit'])->middleware('role:admin')->name('edit');
+    Route::patch('/{product}', [ProductController::class, 'update'])->middleware('role:admin')->name('update');
 });
 
 // T11 - RF-42: el Bodeguero no entra al POS ni a las pantallas de venta.

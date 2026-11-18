@@ -109,7 +109,7 @@ final class AdministrationTest extends TestCase
         $items = config('navigation.admin');
 
         $this->assertIsArray($items);
-        $this->assertCount(5, $items);
+        $this->assertCount(6, $items);
 
         foreach ($items as $item) {
             $this->assertArrayHasKey('route', $item);
@@ -127,7 +127,7 @@ final class AdministrationTest extends TestCase
     }
 
     /**
-     * B12 - RNF-11: la barra lateral y la barra móvil muestran los mismos cinco
+     * B12 - RNF-11: la barra lateral y la barra móvil muestran los mismos seis
      * enlaces y ambas marcan la sección activa.
      */
     public function test_both_admin_navigations_render_the_same_links_and_mark_the_current_page(): void

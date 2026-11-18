@@ -119,7 +119,7 @@ final class PosController extends Controller
             ]);
         }
 
-        if (! $product->sellable) {
+        if (! $product->sellable || ! $product->active) {
             throw ValidationException::withMessages([
                 'product_id' => __('pos.errors.product_not_sellable'),
             ]);
@@ -600,14 +600,16 @@ final class PosController extends Controller
     }
 
     /**
-     * Candidatos del escaneo: sólo la fila con ese código exacto, incluidos los
-     * productos no vendibles, para poder explicar por qué no se agregan (B2).
+     * Candidatos del escaneo: sólo la fila vigente con ese código exacto,
+     * incluidos los productos no vendibles, para poder explicar por qué no se
+     * agregan (B2, RF-72). Un producto fuera de catálogo no es candidato.
      *
      * @return array<int, array{id: int, barcode: string|null, sellable: bool, stock: int}>
      */
     private function barcodeCandidates(string $term): array
     {
         return Product::query()
+            ->active()
             ->where('barcode', $term)
             ->get()
             ->map(fn (Product $product): array => [
@@ -637,11 +639,13 @@ final class PosController extends Controller
     }
 
     /**
+     * Búsqueda de la caja: sólo productos vendibles y vigentes (RF-72).
+     *
      * @return Collection<int, Product>
      */
     private function search(string $term)
     {
-        $query = Product::query()->where('sellable', true);
+        $query = Product::query()->where('sellable', true)->active();
 
         if ($term !== '') {
             $like = '%'.mb_strtolower($term).'%';

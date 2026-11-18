@@ -2,7 +2,7 @@
 
 **Spec:** `specs/002-dashboard/spec.md` v1.0 (aprobada) · **Plan:** `specs/002-dashboard/plan.md`
 **Metodología:** TDD — test rojo primero, código después, `php artisan test` en verde.
-**Estado:** T11–T15 cerradas; T16–T18 pendientes.
+**Estado:** T11–T16 cerradas; T17–T18 pendientes.
 
 > Nota: la skill `sdd` no está instalada; el formato sigue lo acordado en `AGENTS.md` y la constitución. La spec 001 v1.1 ya absorbió las enmiendas de la §10 de esta spec.
 
@@ -51,11 +51,11 @@
   - *Hecho cuando:* el panel muestra ventas y monto del día con el mismo desglose que el panel del Administrador, lista las autorizaciones de hoy del usuario en sesión (descuento global, descuento de línea y receta reutilizada) con venta, motivo y monto, y las anulaciones de hoy con motivo y autor; no ofrece ningún botón de escritura; un Químico sigue recibiendo 403 en las rutas de edición de convenios.
   - *Cierre:* **cerrada el 2026-11-18.** `ChemistPanelTest` (5 tests) escrito en rojo (5 failed, 10 assertions) y luego en verde: **5 tests, 39 assertions**. Suite completa: **307 tests, 1435 aserciones, 0 fallos**; la partida era 302/1396. `ChemistPanelService::for()` toma el resumen de `SalesDayQuery`, las autorizaciones de hoy del usuario en sesión (`sale.discount_authorized`, `sale.line_discount_authorized` y `sale.prescription_reuse`) y las anulaciones del día (`sale.void`), todo acotado con `whereDate('created_at', ...)`. El monto autorizado usa el descuento global de la venta o el `discount_value` de la línea; la reutilización de receta se muestra como «—». El panel reutiliza `payment-breakdown` con el sufijo de traducciones del Químico y añade `authorizations-table` y `voids-table`; no incluye ningún `<form>`. Las salidas de lectura enlazan `admin.conventions.index` y `admin.audit.index`, rutas que el Químico ya comparte con el Admin; el 403 en las rutas de gestión sigue cubierto por `AdministrationTest::test_quimico_can_void_and_read_conventions_but_cannot_manage_them`. Verificación visual con Chrome DevTools MCP a 375×812: 3 ventas confirmadas por `$23.000`, Efectivo 2 por `$15.000` y Débito 1 por `$8.000`, tres autorizaciones con venta, monto (`$900`, `$500`, «—») y motivo, anulación `#43` con motivo y autora, enlaces «Ver convenios» y «Ver auditoría», cero formularios; `scrollWidth=375` y sin errores de consola. Se ocultó la fecha bajo `sm` y se acortaron los encabezados a «Acción» y «Monto» para que las cuatro columnas quepan a 375 px sin scroll interno. Datos de demo borrados después.
 
-- [ ] **T16. Catálogo de productos.** RF-68, RF-69, RF-70, RF-71, RF-72
+- [x] **T16. Catálogo de productos.** RF-68, RF-69, RF-70, RF-71, RF-72
   - *Depende de:* T11
   - *Alcance:* `BarcodePolicy`, `ProductService`, `ProductController` y sus FormRequest, `inventory/products/{index,create,edit}.blade.php`.
   - *Hecho cuando:* `BarcodePolicyTest` pasa (EAN-13 válido, verificador incorrecto, vacío permitido); `ProductCatalogTest` pasa: búsqueda por nombre, principio activo y código; alta con precio cero rechazada; código repetido y código con verificador inválido rechazados con el motivo; cambio de precio sin alterar ventas históricas; quitar vendible impide agregarlo a una venta nueva sin tocar el historial; quitar de catálogo desactiva y lo saca de la búsqueda de la caja; el Bodeguero consulta pero recibe 403 al crear o editar.
-  - *Cierre:* pendiente.
+  - *Cierre:* **cerrada el 2026-11-18.** `BarcodePolicyTest` (5 tests) y `ProductCatalogTest` (11 tests) escritos primero en rojo (**16 failed**) y luego en verde: **16 tests, 82 aserciones**. Suite completa: **323 tests, 1525 aserciones, 0 fallos**; la partida era 307/1435. `BarcodePolicy` valida EAN-13 (trece dígitos y dígito verificador; vacío, nulo y sólo espacios permitidos) y `ProductService` centraliza la búsqueda y la persistencia: normaliza el código vacío a nulo, rechaza el verificador inválido y el código repetido con `DomainException`, y desactiva en vez de borrar. Los FormRequest sólo validan forma (nombre, precio entero mayor que cero, categoría con `Rule::enum`, mínimos y existencia inicial); el controlador captura el `DomainException` y lo reinyecta como error de `barcode`. La edición cambia `sellable` y `active` por el PATCH; las vistas `inventory/products/{index,create,edit}` y el formulario compartido muestran precio, categoría, existencia, mínimo, vendible y estado, con la fila y el badge «Fuera de catálogo». En el POS, `search()`, `barcodeCandidates()` y `add()` filtran por `active`, así que un producto fuera de catálogo deja de ofrecerse y su envío directo al carrito falla con `pos.errors.product_not_sellable`. El Bodeguero entra al listado (ruta `admin,bodeguero`) y recibe 403 en create, store, edit y update (`admin`), sin ver los botones de escritura. La navegación gana «Productos» para admin y bodeguero, lo que llevó el conteo del menú admin de 5 a 6 (`AdministrationTest` actualizado). También se completó `ProductFactory` con `min_stock` y `active` (columnas de T11 que no estaban declaradas) para que el modelo recién creado hidrate sus valores. Verificación visual con Chrome DevTools MCP a 375×812: listado de 8 productos con `scrollWidth=375` y tabla de scroll interno (343→760); búsqueda por principio activo («omeprazol») y por código; alta con stock inicial; precio cero rechazado; verificador incorrecto y código repetido rechazados con el motivo y conservando lo escrito; edición de precio a `$2.500`, «Vendible: No» y «Fuera de catálogo»; `POST /pos/cart` del producto desactivado responde 422 nombrando el motivo mientras uno activo sí entra; el Bodeguero lista sin botones y recibe 403 en las cuatro rutas de escritura. Sin errores de consola. Datos de demo borrados después.
 
 - [ ] **T17. Inventario del Bodeguero: panel, prioridad, movimientos y ajuste.** RF-63, RF-64, RF-65, RF-66, RF-67, RF-73, RF-74
   - *Depende de:* T16
@@ -134,10 +134,10 @@ RF-41 a RF-77: **cobertura nominal completa, sin repeticiones y sin huecos.**
 | Spec 002-dashboard | ✅ Aprobada v1.0 |
 | Plan 002 | ✅ Completo (`specs/002-dashboard/plan.md`) |
 | Tasks 002 | ✅ Definidas (T11–T18) |
-| T11–T18 | 🔄 T11, T12, T13, T14 y T15 cerradas · T16–T18 pendientes |
+| T11–T18 | 🔄 T11, T12, T13, T14, T15 y T16 cerradas · T17–T18 pendientes |
 | Verificación visual 375 px | 🔄 T11, T12, T13 y T14 verificadas; el resto se valida al cerrar cada tarea con interfaz |
 | Auditoría RF por RF 002 | ⏳ Pendiente |
 
 ---
 
-*Actualizado: 2026-11-18. Suite actual: 307 tests, 1435 aserciones, 0 fallos.*
+*Actualizado: 2026-11-18. Suite actual: 323 tests, 1525 aserciones, 0 fallos.*

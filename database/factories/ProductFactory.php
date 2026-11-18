@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace Database\Factories;
 
+use App\Models\Product;
 use App\Pos\Enum\SaleCategory;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Product>
+ * @extends Factory<Product>
  */
 final class ProductFactory extends Factory
 {
@@ -21,7 +22,9 @@ final class ProductFactory extends Factory
             'price' => 1990,
             'sale_category' => SaleCategory::free,
             'stock' => 50,
+            'min_stock' => 0,
             'sellable' => true,
+            'active' => true,
         ];
     }
 
