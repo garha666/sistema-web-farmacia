@@ -151,7 +151,7 @@ Numeración continua con la spec 001.
 ## 7. Fuera de alcance
 
 - Gestión de usuarios, alta de cuentas, cambio de contraseña y asignación de roles (el rol Bodeguero se define acá, pero se provisiona por seed o base de datos).
-- Autenticación y pantalla de inicio de sesión.
+- Autenticación y **pantalla de inicio de sesión**: ~~fuera de alcance~~ → **trasladado a la spec 003** (`specs/003-auth/`, RF-78 a RF-82), que sí define cómo se entra al sistema. El alta de usuarios y el cambio de contraseña siguen fuera de alcance.
 - Compras a proveedores, órdenes de compra y recepción de mercadería con documento: los ajustes de stock son movimientos manuales con motivo, no recepciones.
 - Inventario avanzado: multi-bodega, transferencias entre ubicaciones, lotes, vencimientos y trazabilidad por lote.
 - Reportes exportables y tableros analíticos históricos más allá de los indicadores descritos.

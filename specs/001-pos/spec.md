@@ -171,7 +171,7 @@ Notación EARS. "El sistema" es el POS.
 - Tienda en línea, reservas de productos y venta a domicilio.
 - Fidelización, puntos y promociones automáticas distintas de los convenios de RF-39 y RF-40.
 - ~~Reportes gerenciales y tableros analíticos (sólo consulta de RF-37 y RF-38)~~ → los **paneles por rol** se especifican en la spec 002 (RF-41 a RF-67).
-- Gestión de usuarios, roles y autenticación (se asume existente y fuera de esta spec).
+- Gestión de usuarios y roles (alta, asignación y cambio de contraseña) y **la pantalla de inicio de sesión**, que pasan a la spec 003 (`specs/003-auth/`, RF-78 a RF-82).
 - Receta médica electrónica y validación con registros externos de profesionales.
 - Multi-sucursal: una sola farmacia con varias cajas.
 
