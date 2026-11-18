@@ -6,15 +6,6 @@
     <title>@yield('title', __('pos.app.admin')) · {{ __('pos.app.brand') }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-@php
-    $navItems = [
-        ['route' => 'admin.sales.index', 'active' => 'admin.sales.*', 'label' => __('pos.nav.sales'), 'path' => 'M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2Z'],
-        ['route' => 'admin.documents.index', 'active' => 'admin.documents.*', 'label' => __('pos.nav.documents'), 'path' => 'M9 12h6m-6 4h6M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2'],
-        ['route' => 'admin.controlled-register.index', 'active' => 'admin.controlled-register.*', 'label' => __('pos.nav.controlled'), 'path' => 'M12 15v2m-6 4h12a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2Zm10-10V7a4 4 0 0 0-8 0v4'],
-        ['route' => 'admin.conventions.index', 'active' => 'admin.conventions.*', 'label' => __('pos.nav.conventions'), 'path' => 'M17 20h5v-2a3 3 0 0 0-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 0 1 5.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 0 1 9.288 0M15 7a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z'],
-        ['route' => 'admin.audit.index', 'active' => 'admin.audit.*', 'label' => __('pos.nav.audit'), 'path' => 'M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2m-6 9 2 2 4-4'],
-    ];
-@endphp
 <body class="min-h-screen bg-slate-100 text-slate-900 antialiased">
     <aside class="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col bg-slate-900 lg:flex">
         <div class="flex items-center gap-3 border-b border-white/10 px-5 py-5">
@@ -30,21 +21,7 @@
         </div>
 
         <nav class="flex-1 space-y-1 overflow-y-auto px-3 py-4 text-sm font-medium" aria-label="{{ __('pos.app.admin') }}">
-            @foreach ($navItems as $item)
-                @php
-                    $isActive = request()->routeIs($item['active']);
-                @endphp
-                <a
-                    href="{{ route($item['route']) }}"
-                    @if ($isActive) aria-current="page" @endif
-                    class="group flex items-center gap-3 rounded-lg px-3 py-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 {{ $isActive ? 'bg-white/10 text-white ring-1 ring-inset ring-white/10' : 'text-slate-400 hover:bg-white/5 hover:text-white' }}"
-                >
-                    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5 shrink-0 {{ $isActive ? 'text-emerald-400' : 'text-slate-500 group-hover:text-slate-300' }}">
-                        <path d="{{ $item['path'] }}" />
-                    </svg>
-                    <span class="truncate">{{ $item['label'] }}</span>
-                </a>
-            @endforeach
+            @include('partials.nav-links', ['variant' => 'sidebar'])
         </nav>
 
         <div class="border-t border-white/10 p-3">
@@ -81,18 +58,7 @@
             </div>
 
             <nav class="flex gap-1 overflow-x-auto border-t border-slate-100 px-3 py-2 text-sm font-medium" aria-label="{{ __('pos.app.admin') }}">
-                @foreach ($navItems as $item)
-                    @php
-                        $isActive = request()->routeIs($item['active']);
-                    @endphp
-                    <a
-                        href="{{ route($item['route']) }}"
-                        @if ($isActive) aria-current="page" @endif
-                        class="shrink-0 rounded-lg px-3 py-1.5 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 {{ $isActive ? 'bg-emerald-50 text-emerald-800 ring-1 ring-inset ring-emerald-200' : 'text-slate-600 hover:bg-slate-100' }}"
-                    >
-                        {{ $item['label'] }}
-                    </a>
-                @endforeach
+                @include('partials.nav-links', ['variant' => 'mobile'])
             </nav>
         </header>
 

@@ -15,6 +15,7 @@ use App\Pos\Enum\DocumentStatus;
 use App\Pos\Enum\DocumentType;
 use App\Pos\Enum\SaleStatus;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -97,6 +98,59 @@ final class AdministrationTest extends TestCase
         $this->assertSame(20, $documents->perPage());
         $this->assertCount(20, $documents->items());
         $this->assertStringContainsString('Página 1 de 2', $documents->links()->toHtml());
+    }
+
+    /**
+     * B12 - RNF-11: la navegación vive en configuración y se renderiza desde un
+     * partial compartido, no en un array inline dentro del layout.
+     */
+    public function test_the_admin_navigation_lives_in_config_and_is_rendered_from_a_partial(): void
+    {
+        $items = config('navigation.admin');
+
+        $this->assertIsArray($items);
+        $this->assertCount(5, $items);
+
+        foreach ($items as $item) {
+            $this->assertArrayHasKey('route', $item);
+            $this->assertArrayHasKey('active', $item);
+            $this->assertArrayHasKey('label', $item);
+            $this->assertArrayHasKey('icon', $item);
+            $this->assertTrue(Route::has($item['route']), "La ruta {$item['route']} no existe.");
+            $this->assertStringStartsWith('pos.nav.', $item['label']);
+        }
+
+        $layout = (string) file_get_contents(resource_path('views/layouts/admin.blade.php'));
+
+        $this->assertStringNotContainsString("'admin.sales.index'", $layout);
+        $this->assertStringContainsString('partials.nav-links', $layout);
+    }
+
+    /**
+     * B12 - RNF-11: la barra lateral y la barra móvil muestran los mismos cinco
+     * enlaces y ambas marcan la sección activa.
+     */
+    public function test_both_admin_navigations_render_the_same_links_and_mark_the_current_page(): void
+    {
+        $this->signIn('admin');
+
+        $response = $this->get(route('admin.audit.index'));
+
+        $response->assertOk();
+
+        $html = $response->getContent();
+
+        foreach (config('navigation.admin') as $item) {
+            $href = 'href="'.route($item['route']).'"';
+
+            // El partial se incluye dos veces: barra lateral y barra móvil.
+            $this->assertSame(2, substr_count($html, $href), "El enlace {$item['route']} no aparece dos veces.");
+
+            $response->assertSee(__($item['label']));
+        }
+
+        // Barra lateral (escritorio) y barra horizontal (móvil).
+        $this->assertSame(2, substr_count($html, 'aria-current="page"'));
     }
 
     // ------------------------------------------------------------------
