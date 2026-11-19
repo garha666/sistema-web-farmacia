@@ -23,6 +23,7 @@ use App\Pos\Policy\PrescriptionPolicy;
 use App\Pos\Policy\ReceiptPolicy;
 use App\Pos\Policy\StockPolicy;
 use App\Pos\Value\Cart;
+use App\Pos\Value\CartLine;
 use App\Pos\Value\Discount;
 use App\Pos\Value\InvoiceData;
 use App\Pos\Value\PrescriptionInput;
@@ -36,6 +37,7 @@ use DateTimeImmutable;
 use DateTimeZone;
 use DomainException;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -73,7 +75,7 @@ final class PosController extends Controller
         private readonly CashRegisterService $cashRegisters,
     ) {}
 
-    public function index(Request $request): View|RedirectResponse
+    public function index(Request $request): View|RedirectResponse|JsonResponse
     {
         $term = trim((string) $request->query('q', ''));
 
@@ -102,6 +104,25 @@ final class PosController extends Controller
             $manualDiscount = null;
         }
 
+        if ($request->expectsJson()) {
+            // RF-86: búsqueda asíncrona sin recargar la página.
+            return response()->json(array_merge(
+                $this->cartPayload(),
+                ['results' => array_map(
+                    fn (Product $product): array => [
+                        'id' => $product->id,
+                        'name' => $product->name,
+                        'active_ingredient' => $product->active_ingredient,
+                        'barcode' => $product->barcode,
+                        'price' => $product->price,
+                        'stock' => $product->stock,
+                        'active' => $product->active,
+                    ],
+                    $this->search($term)->all(),
+                )],
+            ));
+        }
+
         return view('pos.index', [
             'term' => $term,
             'results' => $this->search($term),
@@ -116,7 +137,60 @@ final class PosController extends Controller
         ]);
     }
 
-    public function add(Request $request): RedirectResponse
+    /**
+     * RF-85 / RF-86: payload JSON del carrito y los resultados de búsqueda.
+     *
+     * Mismo dato que recibe la vista Blade, serializado para el cliente
+     * asíncrono. El servidor sigue siendo la fuente de verdad del carrito.
+     *
+     * @return array<string, mixed>
+     */
+    private function cartPayload(): array
+    {
+        $cart = $this->cartService->load();
+        $manualDiscount = $this->manualDiscountService->load();
+
+        if ($cart->isEmpty() && $manualDiscount !== null) {
+            $this->manualDiscountService->clear();
+            $manualDiscount = null;
+        }
+
+        $totals = $this->priceCalculator->totals(
+            $cart,
+            (int) config('pos.iva_rate'),
+            $manualDiscount,
+        );
+
+        return [
+            'cart' => [
+                'isEmpty' => $cart->isEmpty(),
+                'totalQuantity' => $cart->totalQuantity(),
+                'lines' => array_map(
+                    fn (CartLine $line): array => [
+                        'product_id' => $line->productId(),
+                        'name' => $line->name(),
+                        'quantity' => $line->quantity(),
+                        'unit_price' => $line->unitPrice()->pesos(),
+                        'line_subtotal' => $this->priceCalculator->lineSubtotal($line)->pesos(),
+                        'line_discount' => $this->priceCalculator->lineDiscount($line)->pesos(),
+                    ],
+                    $cart->lines(),
+                ),
+            ],
+            'totals' => [
+                'subtotal' => $totals->subtotal()->pesos(),
+                'subtotal_after_line_discounts' => $totals->subtotalAfterLineDiscounts()->pesos(),
+                'line_discounts' => $totals->lineDiscounts()->pesos(),
+                'global_discount' => $totals->globalDiscount()->pesos(),
+                'net' => $totals->net()->pesos(),
+                'iva' => $totals->iva()->pesos(),
+                'total' => $totals->total()->pesos(),
+            ],
+            'manual_discount' => $manualDiscount !== null,
+        ];
+    }
+
+    public function add(Request $request): RedirectResponse|JsonResponse
     {
         $data = $request->validate([
             'product_id' => ['required', 'integer'],
@@ -145,10 +219,15 @@ final class PosController extends Controller
         $cart = $this->cartService->load()->add($this->cartService->snapshot($product));
         $this->cartService->persist($cart);
 
+        if ($request->expectsJson()) {
+            // RF-85: agregar al carrito sin recargar la página.
+            return response()->json($this->cartPayload());
+        }
+
         return redirect()->route('pos.index');
     }
 
-    public function update(Request $request, Product $product): RedirectResponse
+    public function update(Request $request, Product $product): RedirectResponse|JsonResponse
     {
         $data = $request->validate([
             'quantity' => ['required', 'integer', 'min:1'],
@@ -166,13 +245,23 @@ final class PosController extends Controller
 
         $this->cartService->persist($cart);
 
+        if ($request->expectsJson()) {
+            // RF-85: cambiar cantidad sin recargar la página.
+            return response()->json($this->cartPayload());
+        }
+
         return redirect()->route('pos.index');
     }
 
-    public function remove(Product $product): RedirectResponse
+    public function remove(Request $request, Product $product): RedirectResponse|JsonResponse
     {
         $cart = $this->cartService->load()->remove($product->id);
         $this->cartService->persist($cart);
+
+        if ($request->expectsJson()) {
+            // RF-85: quitar una línea sin recargar la página.
+            return response()->json($this->cartPayload());
+        }
 
         return redirect()->route('pos.index');
     }
