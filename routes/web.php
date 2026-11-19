@@ -136,8 +136,13 @@ Route::prefix('admin')->name('admin.')->middleware('auth')->group(function (): v
         Route::get('/ventas', [ReportesController::class, 'ventas'])->name('ventas');
     });
 
-    // T37 - RF-94: arqueo de caja por turno.
+    // T37 - RF-94: arqueo de caja por turno (Técnico y Admin).
     Route::prefix('reportes')->name('reportes.')->middleware('role:tecnico,admin')->group(function (): void {
         Route::get('/arqueo', [ReportesController::class, 'arqueo'])->name('arqueo');
+    });
+
+    // T38 - RF-95: descuentos y anulaciones (Químico y Admin).
+    Route::prefix('reportes')->name('reportes.')->middleware('role:quimico,admin')->group(function (): void {
+        Route::get('/descuentos-anulaciones', [ReportesController::class, 'descuentosAnulaciones'])->name('descuentos-anulaciones');
     });
 });

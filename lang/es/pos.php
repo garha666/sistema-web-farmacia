@@ -757,6 +757,23 @@ return [
             'status' => 'Estado',
             'no_registers' => 'No hay turnos de caja.',
         ],
+        'descuentos' => [
+            'title' => 'Descuentos y anulaciones',
+            'subtitle' => 'Autorizaciones de descuento y anulaciones de venta',
+            'export' => 'Exportar CSV',
+            'from' => 'Desde',
+            'to' => 'Hasta',
+            'cashier' => 'Autorizador',
+            'date' => 'Fecha',
+            'author' => 'Autorizador',
+            'action' => 'Acción',
+            'amount' => 'Monto',
+            'reason' => 'Motivo',
+            'empty' => 'No hay autorizaciones ni anulaciones en este rango.',
+            'summary' => 'Resumen',
+            'total_items' => 'Registros',
+            'total_amount' => 'Monto total',
+        ],
     ],
 
 ];

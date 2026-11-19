@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Reportes;
 
+use App\Models\AuditLog;
 use App\Models\CashRegister;
 use App\Models\Sale;
 use App\Pos\Enum\PaymentMethod;
@@ -178,5 +179,66 @@ final class ReportesService
         }
 
         return $query;
+    }
+
+    /**
+     * Descuentos y anulaciones de un rango de fechas (RF-95).
+     *
+     * @param  ?int  $userId  cuando se pide, solo las autorizaciones de ese usuario
+     * @return array<int, array>
+     */
+    public function descuentosAnulacionesPorRango(
+        ?string $from,
+        ?string $to,
+        ?int $userId = null,
+    ): array {
+        $query = AuditLog::query()
+            ->with('user')
+            ->whereIn('action', [
+                'sale.discount_authorized',
+                'sale.line_discount_authorized',
+                'sale.prescription_reuse',
+                'sale.void',
+            ]);
+
+        if ($userId !== null) {
+            $query->where('user_id', $userId);
+        }
+
+        if ($from !== null) {
+            $query->whereDate('created_at', '>=', $from);
+        }
+
+        if ($to !== null) {
+            $query->whereDate('created_at', '<=', $to);
+        }
+
+        $items = $query->latest('created_at')->get()->map(function ($log): array {
+            $amount = 0;
+            $actionLabel = match ($log->action) {
+                'sale.discount_authorized' => __('pos.audit_action.sale.discount_authorized'),
+                'sale.line_discount_authorized' => __('pos.audit_action.sale.line_discount_authorized'),
+                'sale.prescription_reuse' => __('pos.audit_action.sale.prescription_reuse'),
+                'sale.void' => __('pos.audit_action.sale.void'),
+                default => $log->action,
+            };
+
+            if ($log->action === 'sale.void' && $log->auditable_type === 'App\Models\Sale') {
+                $sale = Sale::query()->find($log->auditable_id);
+                $amount = $sale?->total ?? 0;
+            } else {
+                $amount = (int) ($log->discount_value ?? 0);
+            }
+
+            return [
+                'author' => $log->user?->name ?? __('pos.common.none'),
+                'action' => $actionLabel,
+                'amount' => $amount,
+                'reason' => $log->reason,
+                'date' => $log->created_at,
+            ];
+        });
+
+        return $items->values()->all();
     }
 }

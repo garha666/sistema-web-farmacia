@@ -107,6 +107,41 @@ final class ReportesController extends Controller
     }
 
     /**
+     * Descuentos y anulaciones por rango de fechas (RF-95).
+     *
+     * El Químico ve sus propias autorizaciones; el Administrador ve todas.
+     */
+    public function descuentosAnulaciones(Request $request): View
+    {
+        $cashierId = null;
+
+        if ($request->user()->isQuimico()) {
+            $cashierId = $request->user()->id;
+        } elseif ($request->user()->isAdmin()) {
+            $cashierId = $request->filled('cashier_id') ? (int) $request->query('cashier_id') : null;
+        }
+
+        $validated = $request->validate([
+            'from' => ['nullable', 'date'],
+            'to' => ['nullable', 'date', 'after_or_equal:from'],
+        ]);
+
+        $items = $this->reportes->descuentosAnulacionesPorRango(
+            $validated['from'] ?? null,
+            $validated['to'] ?? null,
+            $cashierId,
+        );
+
+        return view('reportes.descuentos-anulaciones', [
+            'from' => $validated['from'] ?? '',
+            'to' => $validated['to'] ?? '',
+            'items' => $items,
+            'cashiers' => User::query()->whereIn('role', ['quimico', 'admin'])->orderBy('name')->get(),
+            'selectedCashier' => $cashierId,
+        ]);
+    }
+
+    /**
      * Registra la exportación en la bitácora de auditoría (RF-93, RF-97, RNF-39).
      *
      * @param  array{from: string, to: string}  $range
