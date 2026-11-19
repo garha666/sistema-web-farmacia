@@ -145,4 +145,14 @@ Route::prefix('admin')->name('admin.')->middleware('auth')->group(function (): v
     Route::prefix('reportes')->name('reportes.')->middleware('role:quimico,admin')->group(function (): void {
         Route::get('/descuentos-anulaciones', [ReportesController::class, 'descuentosAnulaciones'])->name('descuentos-anulaciones');
     });
+
+    // T39 - RF-96: inventario (Bodeguero y Admin).
+    Route::prefix('reportes')->name('reportes.')->middleware('role:bodeguero,admin')->group(function (): void {
+        Route::get('/inventario', [ReportesController::class, 'inventario'])->name('inventario');
+    });
+
+    // T39 - RF-96: inventario (Bodeguero y Admin).
+    Route::prefix('reportes')->name('reportes.')->middleware('role:bodeguero,admin')->group(function (): void {
+        Route::get('/inventario', [ReportesController::class, 'inventario'])->name('inventario');
+    });
 });

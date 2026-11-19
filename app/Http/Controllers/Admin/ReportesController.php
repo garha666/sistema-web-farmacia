@@ -142,6 +142,30 @@ final class ReportesController extends Controller
     }
 
     /**
+     * Inventario por rango de fechas (RF-96).
+     *
+     * El Bodeguero ve sus propias consultas; el Administrador ve todas.
+     */
+    public function inventario(Request $request): View
+    {
+        $validated = $request->validate([
+            'from' => ['nullable', 'date'],
+            'to' => ['nullable', 'date', 'after_or_equal:from'],
+        ]);
+
+        $items = $this->reportes->inventarioPorRango(
+            $validated['from'] ?? null,
+            $validated['to'] ?? null,
+        );
+
+        return view('reportes.inventario', [
+            'from' => $validated['from'] ?? '',
+            'to' => $validated['to'] ?? '',
+            'items' => $items,
+        ]);
+    }
+
+    /**
      * Registra la exportación en la bitácora de auditoría (RF-93, RF-97, RNF-39).
      *
      * @param  array{from: string, to: string}  $range

@@ -6,7 +6,9 @@ namespace App\Services\Reportes;
 
 use App\Models\AuditLog;
 use App\Models\CashRegister;
+use App\Models\Product;
 use App\Models\Sale;
+use App\Models\StockMovement;
 use App\Pos\Enum\PaymentMethod;
 use App\Pos\Enum\SaleStatus;
 use Illuminate\Database\Eloquent\Builder;
@@ -240,5 +242,41 @@ final class ReportesService
         });
 
         return $items->values()->all();
+    }
+
+    /**
+     * Inventario por rango de fechas (RF-96).
+     *
+     * @return array<int, array>
+     */
+    public function inventarioPorRango(?string $from = null, ?string $to = null): array
+    {
+        $products = Product::query()->orderBy('name')->get();
+
+        return $products->map(function (Product $product) use ($from, $to): array {
+            $movements = StockMovement::query()
+                ->where('product_id', $product->id)
+                ->with('user')
+                ->when($from, fn ($q) => $q->whereDate('created_at', '>=', $from))
+                ->when($to, fn ($q) => $q->whereDate('created_at', '<=', $to))
+                ->latest('created_at')
+                ->get();
+
+            return [
+                'id' => $product->id,
+                'name' => $product->name,
+                'stock' => (int) $product->stock,
+                'min_stock' => (int) $product->min_stock,
+                'is_below_minimum' => (int) $product->stock < (int) $product->min_stock,
+                'is_out_of_stock' => (int) $product->stock === 0,
+                'movements' => $movements->map(fn (StockMovement $movement): array => [
+                    'type' => $movement->type->value,
+                    'quantity' => (int) $movement->quantity,
+                    'reason' => $movement->note,
+                    'date' => $movement->created_at,
+                    'user' => $movement->user?->name ?? __('pos.common.none'),
+                ])->values()->all(),
+            ];
+        })->values()->all();
     }
 }
