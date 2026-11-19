@@ -36,6 +36,7 @@ use App\Pos\Value\ReceiptTotals;
 use DateTimeImmutable;
 use DateTimeZone;
 use DomainException;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -185,30 +186,40 @@ final class CheckoutService
                 ? max(0, $receivedAmount - $totals->total()->pesos())
                 : null;
 
-            $sale = Sale::query()->create([
-                'token' => $token,
-                'subtotal' => $totals->subtotal()->pesos(),
-                'line_discounts' => $totals->lineDiscounts()->pesos(),
-                'global_discount' => $totals->globalDiscount()->pesos(),
-                'discount_origin' => $globalDiscount?->origin,
-                'discount_reason' => $globalDiscount?->reason,
-                'discount_authorized_by' => $discountNeedsSupervisor ? $discountAuthorizedBy : null,
-                'net' => $totals->net()->pesos(),
-                'iva' => $totals->iva()->pesos(),
-                'total' => $totals->total()->pesos(),
-                'payment_method' => $method,
-                'received_amount' => $receivedAmount,
-                'change_amount' => $changeAmount,
-                'customer_rut' => $customerRut,
-                'convention_id' => $convention?->id,
-                'convention_name' => $convention?->name,
-                'convention_percent' => $convention?->percent,
-                'prescription_id' => $prescriptionModel?->id,
-                'status' => SaleStatus::confirmed,
-                'sold_at' => now(),
-                'user_id' => $userId,
-                'cash_register_id' => $register->id,
-            ]);
+            try {
+                $sale = Sale::query()->create([
+                    'token' => $token,
+                    'subtotal' => $totals->subtotal()->pesos(),
+                    'line_discounts' => $totals->lineDiscounts()->pesos(),
+                    'global_discount' => $totals->globalDiscount()->pesos(),
+                    'discount_origin' => $globalDiscount?->origin,
+                    'discount_reason' => $globalDiscount?->reason,
+                    'discount_authorized_by' => $discountNeedsSupervisor ? $discountAuthorizedBy : null,
+                    'net' => $totals->net()->pesos(),
+                    'iva' => $totals->iva()->pesos(),
+                    'total' => $totals->total()->pesos(),
+                    'payment_method' => $method,
+                    'received_amount' => $receivedAmount,
+                    'change_amount' => $changeAmount,
+                    'customer_rut' => $customerRut,
+                    'convention_id' => $convention?->id,
+                    'convention_name' => $convention?->name,
+                    'convention_percent' => $convention?->percent,
+                    'prescription_id' => $prescriptionModel?->id,
+                    'status' => SaleStatus::confirmed,
+                    'sold_at' => now(),
+                    'user_id' => $userId,
+                    'cash_register_id' => $register->id,
+                ]);
+            } catch (QueryException $exception) {
+                // RF-22: doble clic simultáneo. Otro cajero ya creó la venta
+                // con este token (índice único en sales.token). La devolvemos
+                // en lugar de lanzar un error 500 al cajero.
+                if ($exception->getCode() === '23505') {
+                    return Sale::query()->where('token', $token)->first()->load('lines', 'document');
+                }
+                throw $exception;
+            }
 
             $createdLines = [];
 
