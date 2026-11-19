@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\AuditController;
 use App\Http\Controllers\Admin\ControlledRegisterController;
 use App\Http\Controllers\Admin\ConventionController;
 use App\Http\Controllers\Admin\DocumentController;
+use App\Http\Controllers\Admin\ReportesController;
 use App\Http\Controllers\Admin\SaleController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Cash\CashRegisterController;
@@ -129,4 +130,9 @@ Route::prefix('admin')->name('admin.')->middleware('auth')->group(function (): v
     Route::get('/controlled-register/export', [ControlledRegisterController::class, 'export'])
         ->middleware('role:admin')
         ->name('controlled-register.export');
+
+    // T36 - RF-92, RF-93: reporte de ventas y exportación CSV.
+    Route::prefix('reportes')->name('reportes.')->middleware('role:admin')->group(function (): void {
+        Route::get('/ventas', [ReportesController::class, 'ventas'])->name('ventas');
+    });
 });

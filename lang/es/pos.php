@@ -198,6 +198,9 @@ return [
                 'login_failed' => 'Intento fallido de inicio de sesión',
                 'supervisor_failed' => 'Intento fallido de autorización de supervisor',
             ],
+            'report' => [
+                'exported' => 'Exportó reporte de ventas',
+            ],
         ],
         'conventions' => [
             'activated' => "Convenio ':name' activado.",
@@ -714,6 +717,30 @@ return [
         'convention_expired' => 'El convenio seleccionado está fuera de vigencia.',
         'document_not_retryable' => 'Sólo se pueden reintentar documentos pendientes o rechazados.',
         'folios_exhausted' => 'No quedan folios disponibles para este tipo de documento.',
+    ],
+    'reportes' => [
+        'ventas' => [
+            'title' => 'Reporte de ventas',
+            'subtitle' => 'Ventas por rango de fechas',
+            'export' => 'Exportar CSV',
+            'from' => 'Desde',
+            'to' => 'Hasta',
+            'filter' => 'Filtrar',
+            'date' => 'Fecha',
+            'cashier' => 'Cajero',
+            'payment' => 'Medio de pago',
+            'status' => 'Estado',
+            'total' => 'Total',
+            'empty' => 'No hay ventas en este rango de fechas.',
+            'summary' => 'Resumen',
+            'transactions' => 'Transacciones',
+            'total_sold' => 'Vendido',
+            'avg_per_sale' => 'Promedio por venta',
+            'by_payment' => 'Por medio de pago',
+            'payment_method' => 'Medio de pago',
+            'count' => 'Cantidad',
+            'amount' => 'Monto',
+        ],
     ],
 
 ];
