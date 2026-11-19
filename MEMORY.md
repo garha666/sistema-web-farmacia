@@ -546,4 +546,6 @@ Cola de mejora (informes de revisión y de seguridad), en `specs/003-auth/tasks.
 
 - **T37.** ✅ Cerrada: arqueo de caja por turno. Técnico ve sus turnos; Administrador ve todos; Químico y Bodeguero reciben 403. Turnos abiertos calculan efectivo esperado en tiempo real; cerrados muestran valores grabados.
 
-Pendientes de mayor alcance (fuera de la cola actual): `specs/004-reportes/` (T38–T40 pendientes: descuentos/anulaciones, inventario, auditoría de exportaciones), `specs/004-reportes/` sin redactar completamente (T38-T40), y los archivos de despliegue (Docker, Nginx, SSL) que `AGENTS.md` declara como stack y que no están en el repositorio.
+- **T38.** ✅ Cerrada: reporte de descuentos y anulaciones por rango de fechas. Químico ve sus autorizaciones; Administrador ve todas; Técnico y Bodeguero reciben 403.
+
+Pendientes de mayor alcance (fuera de la cola actual): `specs/004-reportes/` (T39–T40 pendientes: inventario, auditoría de exportaciones), y los archivos de despliegue (Docker, Nginx, SSL) que `AGENTS.md` declara como stack y que no están en el repositorio.

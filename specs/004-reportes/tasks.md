@@ -20,11 +20,11 @@
   - *Hecho cuando:* un cajero ve su arqueo con ventas, medios de pago y diferencia; el admin ve el de cualquier cajero; turno cerrado muestra efectivo esperado, declarado y diferencia.
   - *Cierre:* **cerrada el 2026-11-19.** Test escrito primero en rojo (`ArqueoTest`: **4 failed, 0 passed**), verde en **4 tests, 12 aserciones**. Se corrigió un bug donde `$request->integer('cashier_id')` devolvía 0 en lugar de null para admin sin filtro; se usa `filled()` + cast a int. `SaleStatus` y `PaymentMethod` se comparan como enum (no como string) porque están casteados en el modelo Sale. Suite completa: **441 tests, 3305 aserciones, 0 fallos** (48,30 s), desde 437/3293. Pint en verde.
 
-- [ ] **T38. Reporte de descuentos y anulaciones.** RF-95 (spec 004-reportes)
+- [x] **T38. Reporte de descuentos y anulaciones.** RF-95 (spec 004-reportes)
   - *Depende de:* T36
-  - *Alcance:* `ReportesController::descuentosAnulaciones()`, vista `reportes.descuentos-anulaciones`, middleware `role:quimico,admin`. Químico ve sus autorizaciones; admin ve todas.
+  - *Alcance:* `ReportesController::descuentosAnulaciones()`, `ReportesService::descuentosAnulacionesPorRango()`, vista `reportes.descuentos-anulaciones`, middleware `role:quimico,admin`. Químico ve sus autorizaciones; admin ve todas.
   - *Hecho cuando:* se listan descuentos globales, de línea y reutilización de receta con autorizador, monto y fecha.
-  - *Cierre:* test escrito primero en rojo; suite completa en verde.
+  - *Cierre:* **cerrada el 2026-11-19.** Test escrito primero en rojo (`DiscountsVoidsReportTest`: **4 failed, 0 passed**), verde en **4 tests, 11 aserciones**. Suite completa: **441 tests, 3305 aserciones, 0 fallos** (48,30 s), desde 437/3293. Pint en verde.
 
 - [ ] **T39. Reporte de inventario.** RF-96 (spec 004-reportes)
   - *Depende de:* T36
