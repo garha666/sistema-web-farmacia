@@ -44,6 +44,9 @@ final class CartService
 
         $products = Product::query()
             ->whereIn('id', array_map('intval', array_keys($stored)))
+            // B2: un producto fuera de catálogo no se vende, aunque el carrito
+            // guardado en sesión lo tenga de antes.
+            ->where('active', true)
             ->get()
             ->keyBy('id');
 

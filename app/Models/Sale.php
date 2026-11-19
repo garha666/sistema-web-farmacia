@@ -7,7 +7,6 @@ namespace App\Models;
 use App\Pos\Enum\DiscountOrigin;
 use App\Pos\Enum\PaymentMethod;
 use App\Pos\Enum\SaleStatus;
-use Database\Factories\SaleFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -19,7 +18,9 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 final class Sale extends Model
 {
-    /** @use HasFactory<SaleFactory> */
+    // B1: este modelo no tiene factory (las ventas nacen del cobro); `HasFactory`
+    // queda para no cerrar la puerta a una futura, sin apuntar a una clase que
+    // no existe.
     use HasFactory;
 
     protected $fillable = [

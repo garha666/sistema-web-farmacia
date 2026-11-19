@@ -55,6 +55,9 @@ final class StockAdjustmentTest extends TestCase
         $response->assertDontSeeText('Fuera de catálogo');
     }
 
+    /**
+     * RF-64: prioridad de reposición de menor a mayor existencia.
+     */
     public function test_the_replenishment_priority_lists_products_ascending_by_stock(): void
     {
         Product::factory()->create(['name' => 'Mayor existencia', 'stock' => 4, 'min_stock' => 5, 'active' => true]);
@@ -139,6 +142,9 @@ final class StockAdjustmentTest extends TestCase
             ->assertSeeText('Libro de controlados');
     }
 
+    /**
+     * RF-66: el ajuste desde el panel exige cantidad y motivo.
+     */
     public function test_an_inbound_adjustment_writes_the_movement_and_raises_the_stock(): void
     {
         $product = Product::factory()->create(['stock' => 10, 'min_stock' => 2]);
@@ -201,6 +207,29 @@ final class StockAdjustmentTest extends TestCase
             'quantity' => __('pos.panel.bodeguero.error.insufficient_stock', ['available' => 3]),
         ]);
         $this->assertSame(3, $product->fresh()->stock);
+        $this->assertDatabaseCount('stock_movements', 0);
+    }
+
+    /**
+     * B4 / T23 - RF-66: un producto fuera de catálogo no se ajusta. Su fila
+     * sigue existiendo, así que sin esta regla el formulario aceptaba un
+     * movimiento sobre algo que ya no se vende.
+     */
+    public function test_a_product_out_of_the_catalogue_cannot_be_adjusted(): void
+    {
+        $product = Product::factory()->create(['stock' => 10, 'min_stock' => 2, 'active' => false]);
+
+        $response = $this->from(route('dashboard.bodeguero'))->post(route('inventory.adjustments.store'), [
+            'product_id' => $product->id,
+            'type' => 'in',
+            'quantity' => 5,
+            'reason' => 'Reposición',
+        ]);
+
+        $response->assertSessionHasErrors([
+            'product_id' => __('pos.panel.bodeguero.validation.product_inactive'),
+        ]);
+        $this->assertSame(10, $product->fresh()->stock);
         $this->assertDatabaseCount('stock_movements', 0);
     }
 

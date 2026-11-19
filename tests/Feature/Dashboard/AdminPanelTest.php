@@ -88,6 +88,9 @@ final class AdminPanelTest extends TestCase
             ->assertSeeText('Anulación de una venta de ayer.');
     }
 
+    /**
+     * RF-47: documentos pendientes o rechazados con reintento en línea.
+     */
     public function test_documents_pending_and_rejected_are_listed_with_retry_while_issued_are_not(): void
     {
         $pending = $this->documentOf($this->saleOf(1000), DocumentStatus::pending);
@@ -124,6 +127,9 @@ final class AdminPanelTest extends TestCase
             ->assertSeeText(__('pos.errors.emission_failed'));
     }
 
+    /**
+     * RF-48: alertas de inventario bajo mínimo y sin stock.
+     */
     public function test_inventory_alerts_count_products_below_the_minimum_and_out_of_stock(): void
     {
         Product::factory()->create(['stock' => 2, 'min_stock' => 5, 'active' => true]);
@@ -140,6 +146,9 @@ final class AdminPanelTest extends TestCase
         $response->assertSeeText('1');
     }
 
+    /**
+     * RF-49: actividad reciente de auditoría con autor, acción, venta y motivo.
+     */
     public function test_recent_audit_movements_show_author_action_sale_and_reason(): void
     {
         $sale = $this->saleOf(4000, 'cash');
@@ -162,6 +171,9 @@ final class AdminPanelTest extends TestCase
         $response->assertSeeText('Cliente desistió de la compra.');
     }
 
+    /**
+     * RF-50: convenios activos próximos a vencer y convenios vencidos.
+     */
     public function test_conventions_expiring_soon_and_expired_are_listed(): void
     {
         $expiring = Convention::factory()->create([
@@ -190,6 +202,9 @@ final class AdminPanelTest extends TestCase
         $response->assertSee(route('admin.conventions.toggle', $expiring), false);
     }
 
+    /**
+     * RF-50: activar o desactivar un convenio en línea desde el panel.
+     */
     public function test_the_admin_deactivates_a_convention_from_the_panel(): void
     {
         $convention = Convention::factory()->create(['name' => 'Convenio Activo']);
@@ -202,6 +217,9 @@ final class AdminPanelTest extends TestCase
         $this->assertFalse($convention->fresh()->active);
     }
 
+    /**
+     * RF-50: un convenio vencido no se reactiva desde el panel.
+     */
     public function test_an_expired_convention_cannot_be_activated(): void
     {
         $convention = Convention::factory()->expired()->inactive()->create(['name' => 'Convenio Vencido']);

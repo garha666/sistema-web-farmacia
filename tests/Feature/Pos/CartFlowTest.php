@@ -299,6 +299,26 @@ final class CartFlowTest extends TestCase
             ->assertSee('$1.500');
     }
 
+    /**
+     * B2 / T23 - RF-1, RF-6: un producto que sale de catálogo con el carrito
+     * abierto deja de venderse y no debe sobrevivir a la recarga.
+     */
+    public function test_a_product_taken_out_of_the_catalogue_leaves_the_cart(): void
+    {
+        $product = Product::factory()->create(['name' => 'Amoxicilina 500 mg']);
+
+        $this->post('/pos/cart', ['product_id' => $product->id]);
+        $this->get('/pos')->assertSee('Amoxicilina 500 mg');
+
+        $product->forceFill(['active' => false])->save();
+
+        $this->get('/pos')
+            ->assertDontSee('Amoxicilina 500 mg')
+            ->assertSeeText(__('pos.cash.empty'));
+
+        $this->assertDatabaseCount('sales', 0);
+    }
+
     public function test_checkout_is_blocked_when_cart_is_empty(): void
     {
         $response = $this->get('/pos');

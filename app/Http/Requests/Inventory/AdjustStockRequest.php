@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Inventory;
 
+use App\Models\Product;
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -31,6 +33,36 @@ final class AdjustStockRequest extends FormRequest
             'type' => ['required', Rule::in(['in', 'out'])],
             'quantity' => ['required', 'integer', 'min:1'],
             'reason' => ['required', 'string', 'max:500'],
+        ];
+    }
+
+    /**
+     * B4: el producto debe seguir en catálogo. `exists` sólo comprueba que la
+     * fila viva, así que un producto desactivado pasaba la validación y recibía
+     * un movimiento de stock que ya no se puede vender.
+     *
+     * @return array<int, callable>
+     */
+    public function after(): array
+    {
+        return [
+            function (Validator $validator): void {
+                if ($validator->errors()->has('product_id')) {
+                    return;
+                }
+
+                $active = Product::query()
+                    ->whereKey($this->integer('product_id'))
+                    ->where('active', true)
+                    ->exists();
+
+                if (! $active) {
+                    $validator->errors()->add(
+                        'product_id',
+                        __('pos.panel.bodeguero.validation.product_inactive'),
+                    );
+                }
+            },
         ];
     }
 

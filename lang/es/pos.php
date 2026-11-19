@@ -168,6 +168,7 @@ return [
             'validation' => [
                 'product_required' => 'Selecciona un producto.',
                 'product_missing' => 'El producto seleccionado no existe.',
+                'product_inactive' => 'El producto está fuera de catálogo: no admite ajustes de stock.',
                 'type_required' => 'Selecciona el tipo de movimiento.',
                 'type_invalid' => 'El tipo de movimiento no es válido.',
                 'quantity_required' => 'La cantidad es obligatoria.',

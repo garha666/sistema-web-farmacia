@@ -241,6 +241,48 @@ final class CheckoutFlowTest extends TestCase
         $this->assertSame(9, $product->fresh()->stock);
     }
 
+    /**
+     * B3 / T23 - RF-25: el comprobante muestra datos del cliente, así que un
+     * cajero no puede abrir el de una venta ajena cambiando el id en la URL.
+     */
+    public function test_a_technician_cannot_open_another_cashiers_receipt(): void
+    {
+        $product = Product::factory()->create();
+        $this->post('/pos/cart', ['product_id' => $product->id]);
+        $this->post('/pos/checkout', ['payment_method' => 'debit']);
+        $sale = Sale::query()->firstOrFail();
+
+        $other = User::factory()->tecnico()->create();
+
+        $this->actingAs($other)
+            ->get(route('pos.sales.receipt', $sale))
+            ->assertForbidden();
+
+        $this->actingAs($this->cashier)
+            ->get(route('pos.sales.receipt', $sale))
+            ->assertOk();
+    }
+
+    /**
+     * B3 / T23 - RF-25, RF-32: el Químico y el Administrador leen cualquier
+     * comprobante, porque la anulación los devuelve a esa misma pantalla.
+     */
+    public function test_a_supervisor_and_an_admin_can_open_any_receipt(): void
+    {
+        $product = Product::factory()->create();
+        $this->post('/pos/cart', ['product_id' => $product->id]);
+        $this->post('/pos/checkout', ['payment_method' => 'debit']);
+        $sale = Sale::query()->firstOrFail();
+
+        $this->actingAs(User::factory()->quimico()->create())
+            ->get(route('pos.sales.receipt', $sale))
+            ->assertOk();
+
+        $this->actingAs(User::factory()->admin()->create())
+            ->get(route('pos.sales.receipt', $sale))
+            ->assertOk();
+    }
+
     public function test_sale_keeps_the_seller_and_the_local_timestamp(): void
     {
         $product = Product::factory()->create();

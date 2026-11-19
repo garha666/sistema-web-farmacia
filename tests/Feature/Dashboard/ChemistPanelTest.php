@@ -50,6 +50,9 @@ final class ChemistPanelTest extends TestCase
         $response->assertSeeText(__('pos.payment_method.debit'));
     }
 
+    /**
+     * RF-53: autorizaciones otorgadas hoy por el Químico en sesión.
+     */
     public function test_the_panel_lists_only_my_authorizations_from_today(): void
     {
         $global = $this->saleOf(10000, 'cash', globalDiscount: 900);
@@ -124,6 +127,9 @@ final class ChemistPanelTest extends TestCase
         $response->assertDontSeeText('Autorización de ayer.');
     }
 
+    /**
+     * RF-54: anulaciones registradas hoy con su motivo y su autor.
+     */
     public function test_the_panel_lists_the_days_voids_with_reason_and_author(): void
     {
         $admin = User::factory()->admin()->create(['name' => 'Administrador Demo']);

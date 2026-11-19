@@ -100,6 +100,9 @@ final class ProductCatalogTest extends TestCase
             ->assertDontSeeText('Tapsin Día');
     }
 
+    /**
+     * RF-69: alta de producto con sus datos comerciales y existencia inicial.
+     */
     public function test_the_admin_creates_a_product_with_its_initial_stock(): void
     {
         $response = $this->post(route('inventory.products.store'), $this->storePayload());

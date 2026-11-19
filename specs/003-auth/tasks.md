@@ -1,8 +1,8 @@
 # Tareas 003 — Autenticación y acceso
 
-**Spec:** `specs/003-auth/spec.md` v1.0 (aprobada) · **Plan:** `specs/003-auth/plan.md`
+**Spec:** `specs/003-auth/spec.md` v1.4 (aprobada) · **Plan:** `specs/003-auth/plan.md`
 **Metodología:** TDD — test rojo primero, código después, `php artisan test` en verde.
-**Estado:** T19 en curso; T20–T23 planificadas.
+**Estado:** T19–T29 cerradas; spec 003 implementada.
 
 > Nota: la skill `sdd` no está instalada; el formato sigue lo acordado en `AGENTS.md` y la constitución, igual que `specs/002-dashboard/tasks.md`.
 
@@ -45,11 +45,12 @@
   - *Hecho cuando:* los paneles del Administrador y del Químico reportan la misma cifra para el mismo período.
   - *Cierre:* **cerrada el 2026-11-18.** Spec 002 en **v1.1**: la decisión **D-11** separa «ventas anuladas del día» (por `sold_at`, resta del total vendido) de «anulaciones registradas hoy» (por fecha del evento, supervisión); enmienda los RF-46, RF-54 y el caso límite 21. En el código, `SalesDayQuery::registeredVoidsOn()` es la única fuente: el Administrador cuenta con ella y el Químico lista con ella, así no pueden discrepar. El panel del Administrador gana el indicador «Anulaciones registradas hoy» (`id="admin-registered-voids"`); las etiquetas de «Ventas anuladas» pasan a «… del día» para no confundir los dos conceptos. Test nuevo `test_voids_registered_today_count_even_when_the_sale_is_from_yesterday`; se comprobó que **cae** al quitar el indicador (1 failed) y pasa con él. Verde en **399 tests, 3100 aserciones, 0 fallos** (41,55 s), desde 398/3094. Verificado en el navegador a 375 px: Admin muestra «Ventas anuladas del día: 0» y «Anulaciones registradas hoy: 1» con una venta de ayer anulada hoy, y el Químico lista esa misma anulación con su motivo y autor; consola limpia y `scrollWidth = 375`.
 
-- [ ] **T23. Ajustes menores del informe de revisión.** B1 a B7
+- [x] **T23. Ajustes menores del informe de revisión.** B1 a B7
   - *Depende de:* T19
   - *Alcance:* anotación `SaleFactory` inexistente (`app/Models/Sale.php`), filtro `active` en `CartService::load()`, control de pertenencia en `PosController::receipt()`, `active` en `AdjustStockRequest`, inyección de `VoidSaleService` en lugar de `app()`, y las nueve etiquetas `RF-nn` faltantes en tests de la spec 002.
   - *Hecho cuando:* cada ajuste entra con su test o con su corrección documentada y la suite sigue en verde.
-  - *Cierre:* (pendiente)
+  - *Cierre:* **cerrada el 2026-11-18.** Tests primero en rojo (**3 failed**, uno por cada fallo de comportamiento). **B2:** `CartService::load()` filtra `active`, así que un producto que sale de catálogo no sobrevive a la recarga del carrito (`CartFlowTest::test_a_product_taken_out_of_the_catalogue_leaves_the_cart`). **B3:** `ReceiptPolicy` (pura, en `app/Pos/Policy/`) decide quién abre un comprobante; el dueño y los roles que anulan (Químico y Administrador, porque la anulación los devuelve a esa pantalla) lo ven, cualquier otro cajero recibe 403 (`CheckoutFlowTest`, dos tests). **B4:** `AdjustStockRequest::after()` rechaza el ajuste de un producto fuera de catálogo con `pos.panel.bodeguero.validation.product_inactive`; el formulario ya no lo ofrecía, pero el envío directo pasaba (`StockAdjustmentTest`). **B1:** el modelo `Sale` ya no importa una `SaleFactory` que no existe. **B5:** `VoidSaleService` se inyecta en la firma de `void()` en lugar de pedirlo con `app()`. **B6:** los nueve RF de la spec 002 que ningún test nombraba —RF-47, RF-48, RF-49, RF-50, RF-53, RF-54, RF-64, RF-66 y RF-69— quedan etiquetados en el test que los cubre; comprobado por script: 41 RF en la spec, **0 sin mención en `tests/`**. Suite completa: **403 tests, 3122 aserciones, 0 fallos** (41,46 s), desde 399/3100. Verificado a 375 px: `/pos/sales/1/receipt` con sesión de Técnico responde 403 (la venta es de otra cuenta); con un producto fuera de catálogo el carrito queda vacío, el producto desaparece de la lista y el cobro se deshabilita; el selector de ajuste del Bodeguero no lo ofrece. `scrollWidth = 375` y consola limpia (sólo el 403 esperado).
+  - *Nota:* el archivo nuevo `app/Pos/Policy/ReceiptPolicy.php` se creó con autorización del usuario, y va sin test unitario propio porque sus dos ramas quedan cubiertas por los tests de feature.
 
 - [x] **T24. Freno a la autorización de supervisor.** RF-83, RNF-26 (spec 003)
   - *Depende de:* T19
@@ -122,9 +123,10 @@
 | T29 | ✅ Cerrada |
 | T21 | ✅ Cerrada |
 | T22 | ✅ Cerrada |
-| T23 | ⏳ Planificada (mejoras de los informes de revisión) |
+| T23 | ✅ Cerrada |
+| T19–T29 | ✅ Todas cerradas · spec 003 implementada |
 | Auditoría RF por RF 002 | ⏳ Pendiente |
 
 ---
 
-*Actualizado: 2026-11-18. Suite actual: 399 tests, 3100 aserciones, 0 fallos.*
+*Actualizado: 2026-11-18. Suite actual: 403 tests, 3122 aserciones, 0 fallos.*

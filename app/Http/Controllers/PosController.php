@@ -20,6 +20,7 @@ use App\Pos\Money;
 use App\Pos\Policy\BarcodeScanPolicy;
 use App\Pos\Policy\DiscountPolicy;
 use App\Pos\Policy\PrescriptionPolicy;
+use App\Pos\Policy\ReceiptPolicy;
 use App\Pos\Policy\StockPolicy;
 use App\Pos\Value\Cart;
 use App\Pos\Value\Discount;
@@ -533,9 +534,21 @@ final class PosController extends Controller
 
     /**
      * Comprobante reimprimible (RF-25).
+     *
+     * B3: el comprobante no es público entre cajeros. Sólo lo abre quien
+     * vendió, o quien puede anular (Químico y Administrador), que vuelve a
+     * esta pantalla tras anular (RF-32).
      */
-    public function receipt(Sale $sale): View
+    public function receipt(Request $request, Sale $sale, ReceiptPolicy $receipts): View
     {
+        $viewer = $request->user();
+        $canSeeAny = $viewer !== null
+            && in_array($viewer->role, User::rolesThatCanVoid(), true);
+
+        if (! $receipts->canView($canSeeAny, $sale->user_id, $viewer?->id)) {
+            abort(403, __('pos.errors.forbidden'));
+        }
+
         $sale->loadMissing('lines', 'document', 'reversal', 'discountAuthorizedBy', 'invoiceDetail');
 
         $voidReason = $sale->auditLogs()
@@ -555,15 +568,19 @@ final class PosController extends Controller
 
     /**
      * Anula una venta confirmada con motivo obligatorio (RF-32 a RF-36).
+     *
+     * B5: el servicio se resuelve por el contenedor en la firma; antes se pedía
+     * con `app()` dentro del método, que esconde la dependencia y complica
+     * probar la acción sin arrancar la aplicación.
      */
-    public function void(Request $request, Sale $sale): RedirectResponse
+    public function void(Request $request, Sale $sale, VoidSaleService $voids): RedirectResponse
     {
         $data = $request->validate([
             'reason' => ['required', 'string', 'min:3', 'max:500'],
         ]);
 
         try {
-            app(VoidSaleService::class)->void(
+            $voids->void(
                 $sale,
                 $data['reason'],
                 $request->user()?->id,

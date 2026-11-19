@@ -11,7 +11,7 @@
 - **Tareas 001 POS:** `specs/001-pos/tasks.md`, 10 tareas + correcciones Vuelta 1 (S1–S5) + Vuelta 2 (S6–S14). **T1 a T10 cerradas; S1 a S14 cerradas.**
 - **Código:** Laravel 11.57.1. Dominio `app/Pos/` completo. Persistencia: `Product`, `Sale`, `SaleLine`, `Document`, `InvoiceDetail`, `StockMovement`, `AuditLog`, `Convention`, `Prescription`, `ControlledRegisterEntry`. Servicios: `CartService`, `CheckoutService`, `VoidSaleService`, `AuditService`, `ConventionService`, `DocumentService`, `ManualDiscountService`. Emisión simulada: `Pos\Contract\DocumentEmitter`, `Pos\Emission\SimulatedDocumentEmitter`, `Pos\Folio\FolioAllocator`. HTTP: `PosController` y `Admin\{ConventionController, SaleController, DocumentController, AuditController, ControlledRegisterController}`. Vistas: `pos/index`, `pos/checkout`, `pos/receipt`, `admin/*` (layout `layouts.admin`). Traducciones en `lang/es/`. 246 tests en verde (1131 aserciones).
 - **Spec 002 paneles/inventario/caja:** `specs/002-dashboard/spec.md` v1.0, **aprobada** (2026-11-17). 37 RF (RF-41 a RF-77), 9 RNF (RNF-14 a RNF-22). Cubre los cuatro paneles por rol, el catálogo de productos con ajuste de stock auditado y el cierre de caja con diferencia declarada. Introduce el rol Bodeguero y absorbe dos temas que 001 delegaba o excluía: el arqueo (antes en `004-reportes`) y los tableros por rol. Las 5 enmiendas que necesitaba la spec 001 ya están aplicadas (v1.1), así que las dos specs no se contradicen. **Plan y tareas definidos:** `specs/002-dashboard/plan.md` y `specs/002-dashboard/tasks.md` (T11–T18, ocho tareas en orden de dependencia). **T11, T12, T13, T14, T15, T16, T17 y T18 cerradas el 2026-11-18. La spec 002 queda implementada.**
-- **Spec 003 autenticación:** `specs/003-auth/spec.md` v1.0, **aprobada** (2026-11-18). 5 RF (RF-78 a RF-82) y 3 RNF (RNF-23 a RNF-25): pantalla de inicio de sesión, autenticación real contra las credenciales, mensaje único para credenciales inválidas, freno por fuerza bruta y cierre de sesión. Las specs 001 §7 y 002 §7 remitían la autenticación «a otra spec» que nunca existió, así que la 003 las enmienda. **Plan y tareas:** `specs/003-auth/plan.md` y `specs/003-auth/tasks.md` (T19–T23). **T19 cerrada el 2026-11-18.**
+- **Spec 003 autenticación:** `specs/003-auth/spec.md` v1.4, **aprobada** (2026-11-18), con 7 RF (RF-78 a RF-84) y 6 RNF (RNF-23 a RNF-28): pantalla de inicio de sesión, autenticación real, mensaje único para credenciales inválidas, freno por fuerza bruta, cierre de sesión, freno a la autorización de supervisor, cabeceras y proxies, rol no asignable en masa y bitácora de eventos. Las specs 001 §7 y 002 §7 remitían la autenticación «a otra spec» que nunca existió, así que la 003 las enmienda. **Plan y tareas:** `specs/003-auth/plan.md` y `specs/003-auth/tasks.md` (T19–T29). **T19 a T29 cerradas el 2026-11-18.**
 - **Comandos SDD:** instalados en `.opencode/commands/` (9 comandos).
 
 ## Entorno (2026-10-30)
@@ -262,6 +262,14 @@ H3 del informe de revisión. Spec 002 en **v1.1** con la decisión **D-11**: «v
 
 `SalesDayQuery::registeredVoidsOn()` es la única fuente: el Administrador cuenta con ella y el Químico lista con ella. El panel del Administrador gana el indicador «Anulaciones registradas hoy» y las etiquetas de «Ventas anuladas» pasan a «… del día». Test nuevo en `AdminPanelTest`, comprobado en rojo al quitar el indicador. Suite completa: **399 tests, 3100 aserciones, 0 fallos** (41,55 s), desde 398/3094. Verificado a 375 px con una venta de ayer anulada hoy: Admin «0 / 1» y Químico lista esa anulación; `scrollWidth = 375` y consola limpia.
 
+## T23 cerrada — ajustes menores del informe (2026-11-18)
+
+B1–B7 del informe de revisión. Tests primero en rojo (**3 failed**), uno por cada fallo real.
+
+**B2:** `CartService::load()` filtra por `active`, así que un producto que sale de catálogo no sobrevive a la recarga del carrito. **B3:** `ReceiptPolicy` (pura, `app/Pos/Policy/`) decide quién abre un comprobante —el dueño y los roles que anulan (Químico y Administrador, porque la anulación los devuelve a esa pantalla)—; otro cajero recibe 403. **B4:** `AdjustStockRequest::after()` rechaza el ajuste de un producto fuera de catálogo; el formulario ya no lo ofrecía, pero el envío directo pasaba. **B1:** `Sale` ya no importa una `SaleFactory` que no existe. **B5:** `VoidSaleService` se inyecta en la firma de `void()` en lugar de `app()`. **B6:** los nueve RF de la spec 002 sin mención en tests (RF-47, RF-48, RF-49, RF-50, RF-53, RF-54, RF-64, RF-66, RF-69) quedan etiquetados: 41 RF en la spec y **0 sin mención**.
+
+Suite completa: **403 tests, 3122 aserciones, 0 fallos** (41,46 s), desde 399/3100. Verificado a 375 px: comprobante ajeno 403, carrito vacío tras salir de catálogo y selector de ajuste sin el producto inactivo; `scrollWidth = 375` y consola limpia. Archivo nuevo autorizado: `app/Pos/Policy/ReceiptPolicy.php`.
+
 ## Pendientes conocidos
 
 - La skill `sdd` referenciada por los comandos **no existe**; los comandos la invocan igual.
@@ -272,7 +280,7 @@ H3 del informe de revisión. Spec 002 en **v1.1** con la decisión **D-11**: «v
 - **Resuelto (T21):** tras cerrar la caja, el panel del Técnico muestra «Caja cerrada» con la diferencia declarada, no la etiqueta del botón.
 - **Resuelto (T22):** «anulación» son dos conceptos y la spec 002 v1.1 (D-11) asigna cada uno a su indicador; Administrador y Químico comparten `SalesDayQuery::registeredVoidsOn()`, así que no pueden discrepar.
 - El libro de controlados desborda a 375 px porque su filtro de fechas no envuelve (spec 001).
-- `app/Models/Sale.php` declara una `SaleFactory` que no existe; `Sale::factory()` fallaría (T23).
+- **Resuelto (T23):** `app/Models/Sale.php` ya no declara una `SaleFactory` inexistente; el modelo no tiene factory porque las ventas nacen del cobro.
 - `welcome.blade.php` sigue en inglés (página por defecto de Laravel, fuera del alcance de la spec).
 - `tests/Feature/Pos/FolioConcurrencyTest.php` lanza dos procesos PHP reales (`tests/Fixtures/concurrent-retry.php`): en rojo la carrera no siempre se materializa (es probabilística), pero con el lock de asesoría el verde es determinista. Requiere la BD `farmacia_pos_test` accesible por procesos hijos.
 - **F0.1 (2026-11-17):** el deadline de los workers subió de 30 s a `WORKER_DEADLINE_SECONDS = 90` (constante de la clase) y `launchWorkers()` ahora cierra pipes y procesos en un `finally` (`closeWorkers()`), incluso si lanza `RuntimeException`, para no dejar procesos huérfanos. Tiempo real medido: **3,18 s** el test aislado (`php artisan test --filter=FolioConcurrencyTest`, 28 aserciones) y **30,16 s / 24,64 s** las dos corridas completas consecutivas, ambas con 222 tests en verde (931 aserciones) y 0 fallos. No se tocó `DocumentService`, ni la lógica de folios, ni `concurrent-retry.php`, ni se redujeron aserciones.
@@ -498,13 +506,13 @@ Datos demo usados para la verificación eliminados al terminar (venta, línea y 
 
 ## Próximo paso
 
-**T19, T20, T21, T22 y T24 a T29 cerradas.** T19: pantalla de inicio de sesión, autenticación real, freno por fuerza bruta y cierre de sesión con su botón. T20: `.env.example` con el stack real y un guard de zona horaria. T21: la caja cerrada muestra su diferencia. T22: los dos conceptos de «anulación» con una sola fuente. T24: freno a la autorización de supervisor, que hasta ahora permitía probar contraseñas sin límite y evadir el tope del 10%. T25: parche de Symfony 7.4.22 → 7.4.23. T26: cabeceras de seguridad, proxies de confianza y HTTPS. T27: `role` fuera de `$fillable`. T28: bitácora de eventos de seguridad. T29: textos de usuario en `lang`. Suite actual: **399 tests, 3100 aserciones, 0 fallos**.
+**T19 a T29 cerradas.** T19: pantalla de inicio de sesión, autenticación real, freno por fuerza bruta y cierre de sesión con su botón. T20: `.env.example` con el stack real y un guard de zona horaria. T21: la caja cerrada muestra su diferencia. T22: los dos conceptos de «anulación» con una sola fuente. T23: siete ajustes del informe, entre ellos el comprobante ajeno (403) y el ajuste de productos fuera de catálogo. T24: freno a la autorización de supervisor, que hasta ahora permitía probar contraseñas sin límite y evadir el tope del 10%. T25: parche de Symfony 7.4.22 → 7.4.23. T26: cabeceras de seguridad, proxies de confianza y HTTPS. T27: `role` fuera de `$fillable`. T28: bitácora de eventos de seguridad. T29: textos de usuario en `lang`. Suite actual: **403 tests, 3122 aserciones, 0 fallos**.
 
 Cola de mejora (informes de revisión y de seguridad), en `specs/003-auth/tasks.md`:
 
 - **T21.** Mensaje de cierre de caja con la diferencia declarada (hoy muestra la etiqueta del botón «Cerrar caja»).
 - **T22.** ✅ Cerrada: D-11 fija los dos conceptos de «anulación» en la spec 002 v1.1; ambos paneles comparten `SalesDayQuery::registeredVoidsOn()`.
-- **T23.** Ajustes menores: `SaleFactory` inexistente, filtro `active` en `CartService::load()`, control de pertenencia en `PosController::receipt()`, `active` en `AdjustStockRequest`, inyección de `VoidSaleService` y las nueve etiquetas `RF-nn` que faltan en los tests de la spec 002.
+- **T23.** ✅ Cerrada: comprobante ajeno 403, carrito sin productos fuera de catálogo, ajuste de stock restringido a productos activos, `SaleFactory` fantasma eliminada, `VoidSaleService` inyectado y los nueve RF de la spec 002 etiquetados.
 - **T25.** ✅ Cerrada: `composer update` acotado a `symfony/*` (7.4.22 → 7.4.23). Los cinco avisos de `laravel/framework` 11.57.1 exigen el salto a 12.x y quedan como decisión aparte.
 - **T26.** ✅ Cerrada: cabeceras de seguridad, proxies de confianza y HTTPS fuera de local (RNF-27).
 - **T27.** ✅ Cerrada: `role` fuera de `User::$fillable`, con `assignRole()` como vía explícita (RNF-28).
