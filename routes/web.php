@@ -89,6 +89,9 @@ Route::prefix('pos')->name('pos.')->middleware(['auth', 'role:tecnico,quimico,ad
 
     Route::get('/sales/{sale}/receipt', [PosController::class, 'receipt'])->name('sales.receipt');
 
+    // RF-88: sondeo ligero del stock de productos del carrito (sin recargar la página).
+    Route::get('/stock', [PosController::class, 'stock'])->name('stock');
+
     // Sólo Químico (supervisor) y Admin pueden anular (RF-32).
     Route::post('/sales/{sale}/void', [PosController::class, 'void'])
         ->middleware(['auth', 'role:quimico,admin'])

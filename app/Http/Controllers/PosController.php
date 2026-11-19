@@ -487,6 +487,51 @@ final class PosController extends Controller
     }
 
     /**
+     * RF-88: sondeo ligero del stock de productos del carrito.
+     *
+     * Devuelve el stock actual y el estado activo de cada producto
+     * solicitado, para polling sin recargar la página.
+     *
+     * @return array<string, mixed>
+     */
+    public function stock(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'product_ids' => ['nullable', 'array'],
+            'product_ids.*' => ['integer'],
+        ]);
+
+        $productIds = $validated['product_ids'] ?? [];
+
+        if ($productIds === []) {
+            return response()->json(['products' => []]);
+        }
+
+        $products = Product::query()
+            ->whereIn('id', $productIds)
+            ->get(['id', 'stock', 'active'])
+            ->keyBy('id');
+
+        $result = [];
+
+        foreach ($productIds as $productId) {
+            $product = $products->get($productId);
+
+            if ($product === null) {
+                continue;
+            }
+
+            $result[] = [
+                'id' => $product->id,
+                'stock' => (int) $product->stock,
+                'active' => (bool) $product->active,
+            ];
+        }
+
+        return response()->json(['products' => $result]);
+    }
+
+    /**
      * Pantalla de cobro (RF-20, RF-21).
      */
     public function checkout(Request $request): View|RedirectResponse
