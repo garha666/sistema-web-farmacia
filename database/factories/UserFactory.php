@@ -63,6 +63,24 @@ class UserFactory extends Factory
     }
 
     /**
+     * T27 - RNF-28: `role` no es asignable en masa, así que la factory lo
+     * fija de forma explícita antes de guardar. Así los 74 llamados existentes
+     * (`create(['role' => ...])`, `->admin()`, etc.) siguen funcionando.
+     *
+     * @param  array<string, mixed>  $attributes
+     */
+    public function newModel(array $attributes = [])
+    {
+        $model = parent::newModel($attributes);
+
+        if (array_key_exists('role', $attributes)) {
+            $model->forceFill(['role' => $attributes['role']]);
+        }
+
+        return $model;
+    }
+
+    /**
      * Indicate that the model's email address should be unverified.
      */
     public function unverified(): static

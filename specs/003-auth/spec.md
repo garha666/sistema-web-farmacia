@@ -1,7 +1,7 @@
 # Especificación 003 — Autenticación y acceso
 
 **Proyecto:** Sistema Web de Gestión y Simulación de Farmacia Privada Comercial (Grupo A)
-**Estado:** aprobada · **Versión:** 1.2 (2026-11-18: agrega RNF-27, cabeceras de seguridad, proxies de confianza y HTTPS, tras la auditoría de seguridad) · **Ámbito:** sólo el QUÉ y el POR QUÉ
+**Estado:** aprobada · **Versión:** 1.3 (2026-11-18: agrega RNF-28, el rol no asignable en masa, tras la auditoría de seguridad) · **Ámbito:** sólo el QUÉ y el POR QUÉ
 
 > **Relación con las specs anteriores.** La spec 001 (§7) y la 002 (§7) declararon la autenticación **fuera de alcance** «porque se asume existente». Las dos specs siguen vigentes en todo lo demás; esta spec 003 **agrega** la pantalla de inicio de sesión y el cierre de sesión, que hasta ahora sólo existían como precondición (el RBAC de `role:*` y el aterrizaje por rol de RF-41 a RF-45 ya funcionaban, pero no había forma de iniciar sesión desde el navegador: un invitado terminaba en error al ser enviado a `/login`).
 
@@ -70,6 +70,9 @@ Numeración continua con la spec 002.
   - *Criterio:* Ningún guion en línea deberá ejecutarse sin el nonce de la petición; los manejadores de eventos en línea (`onclick` y similares) no se admiten y deberán migrarse a escuchadores.
   - *Criterio:* La política no deberá romper la interfaz: los estilos compilados por Vite, las fuentes y las imágenes del propio sitio deberán cargarse sin errores de consola.
   - *Criterio:* Ninguna cabecera de seguridad deberá depender de que el proxy o el servidor web las añada por su cuenta.
+- **RNF-28 — Rol no asignable en masa.** El rol de una cuenta no deberá asignarse en masa desde datos de entrada; deberá provisionarse mediante una operación explícita.
+  - *Criterio:* Un alta o edición que reciba `role` en el cuerpo de la petición no deberá cambiar el rol de la cuenta.
+  - *Criterio:* La provisión de cuentas de demostración y de pruebas deberá seguir fijando el rol de forma explícita.
 
 ## 6. Casos límite
 

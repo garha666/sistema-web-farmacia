@@ -70,10 +70,10 @@
   - *Cierre:* **cerrada el 2026-11-18.** `SecurityHeadersTest` (4 tests) escrito primero en rojo (**4 failed, 6 assertions**) y después el middleware: verde en **4 tests, 22 aserciones**. Suite completa: **386 tests, 2011 aserciones, 0 fallos** (48,67 s); la partida era 382/1989, sin tests existentes rotos. `SecurityHeaders` (global, en `bootstrap/app.php`) emite `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy: camera=(), microphone=(), geolocation=()` y una CSP con `default-src 'self'`, `script-src 'self' 'nonce-…'`, `frame-ancestors 'none'`, `base-uri 'self'`, `form-action 'self'` y `object-src 'none'`; el nonce se genera por petición y se comparte con las vistas como `$cspNonce`. Los dos guiones en línea (`pos/checkout.blade.php` y `cash/close.blade.php`) llevan el nonce y el `onclick` del comprobante pasó a un escuchador (`#print-receipt`). `trustProxies` sólo confía en los proxies de `TRUSTED_PROXIES` (ninguno por defecto) y `AppServiceProvider` fuerza HTTPS en producción. Verificado en el navegador a 375 px: cabeceras presentes en `/login`, consola limpia en login, panel, cierre de caja y comprobante, diferencia en vivo ($3.000 en contra) y `scrollWidth = 375`; el turno de prueba se borró y la base dev volvió a 0 turnos.
   - *Nota:* `style-src` mantiene `'unsafe-inline'` porque Vite inyecta estilos en desarrollo; no hay atributos `style` en las vistas.
 
-- [ ] **T27. Sacar `role` de `$fillable`.** S3
+- [x] **T27. Sacar `role` de `$fillable`.** S3 · RNF-28
   - *Depende de:* —
   - *Alcance:* `User::$fillable` sin `role`; el seeder y los tests asignan el rol de forma explícita.
-  - *Cierre:* (pendiente)
+  - *Cierre:* **cerrada el 2026-11-18.** `MassAssignmentTest` (4 tests) escrito primero en rojo (**3 failed, 1 passed, 7 assertions**); después: `role` fuera de `$fillable`, `User::assignRole()` como única vía de cambio (usa `forceFill`), `UserFactory::newModel()` fija el rol explícitamente para que los 74 llamados existentes (`create(['role' => …])`, `->admin()`, etc.) sigan funcionando, y `UserSeeder` provisiona el rol con `assignRole()`. Verde en **4 tests, 8 aserciones**; suite completa **390 tests, 2019 aserciones, 0 fallos** (50,32 s), desde 386/2011. El caso de prueba demuestra que `User::create([... 'role' => 'admin'])` deja el rol por defecto `tecnico`.
 
 - [ ] **T28. Bitácora de seguridad.** S7
   - *Depende de:* T24
@@ -99,7 +99,8 @@
 | T24 | 83 | 26 |
 | T25 | — | — |
 | T26 | — | 27 |
-| T27–T29 | — | — |
+| T27 | — | 28 |
+| T28–T29 | — | — |
 
 ---
 
@@ -110,16 +111,17 @@
 | Constitución | ✅ v1.0 |
 | Spec 001-pos | ✅ v1.1 |
 | Spec 002-dashboard | ✅ v1.0 implementada (360 tests, 1847 aserciones) |
-| Spec 003-auth | ✅ Aprobada v1.2 (RF-83, RNF-26 y RNF-27) |
+| Spec 003-auth | ✅ Aprobada v1.3 (RF-83, RNF-26, RNF-27 y RNF-28) |
 | Plan 003 | ✅ Completo (`specs/003-auth/plan.md`) |
 | T19 | ✅ Cerrada |
 | T20 | ✅ Cerrada |
 | T24 | ✅ Cerrada |
 | T25 | ✅ Cerrada |
 | T26 | ✅ Cerrada |
-| T21–T23, T27–T29 | ⏳ Planificadas (mejoras de los informes de revisión y seguridad) |
+| T27 | ✅ Cerrada |
+| T21–T23, T28–T29 | ⏳ Planificadas (mejoras de los informes de revisión y seguridad) |
 | Auditoría RF por RF 002 | ⏳ Pendiente |
 
 ---
 
-*Actualizado: 2026-11-18. Suite actual: 386 tests, 2011 aserciones, 0 fallos.*
+*Actualizado: 2026-11-18. Suite actual: 390 tests, 2019 aserciones, 0 fallos.*

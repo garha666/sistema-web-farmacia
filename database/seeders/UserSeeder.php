@@ -27,10 +27,16 @@ final class UserSeeder extends Seeder
         ];
 
         foreach ($users as $user) {
-            User::query()->updateOrCreate(
+            $role = $user['role'];
+            unset($user['role']);
+
+            // T27 - RNF-28: el rol no se asigna en masa; se provisiona aparte.
+            $model = User::query()->updateOrCreate(
                 ['email' => $user['email']],
                 $user + ['password' => 'password'],
             );
+
+            $model->assignRole($role);
         }
     }
 }

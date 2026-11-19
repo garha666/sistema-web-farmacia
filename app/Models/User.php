@@ -22,13 +22,16 @@ class User extends Authenticatable
     /**
      * The attributes that are mass assignable.
      *
+     * `role` no se asigna en masa a propósito (RNF-28): se provisiona con
+     * `assignRole()`, para que ningún alta o edición futura pueda escalar
+     * privilegios pasando el request completo al modelo.
+     *
      * @var array<int, string>
      */
     protected $fillable = [
         'name',
         'email',
         'password',
-        'role',
     ];
 
     /**
@@ -82,5 +85,17 @@ class User extends Authenticatable
     public static function rolesThatCanVoid(): array
     {
         return [self::ROLE_QUIMICO, self::ROLE_ADMIN];
+    }
+
+    /**
+     * T27 - RNF-28: el rol se provisiona de forma explícita y nunca en masa.
+     *
+     * Es la única vía admitida para cambiar el rol de una cuenta; así el
+     * escalado de privilegios exige una llamada deliberada y no un request
+     * que traiga `role` por accidente.
+     */
+    public function assignRole(string $role): void
+    {
+        $this->forceFill(['role' => $role])->save();
     }
 }
