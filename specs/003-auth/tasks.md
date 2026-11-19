@@ -2,7 +2,7 @@
 
 **Spec:** `specs/003-auth/spec.md` v1.4 (aprobada) · **Plan:** `specs/003-auth/plan.md`
 **Metodología:** TDD — test rojo primero, código después, `php artisan test` en verde.
-**Estado:** T19–T29 cerradas; spec 003 implementada.
+**Estado:** T19–T30 cerradas; spec 003 implementada.
 
 > Nota: la skill `sdd` no está instalada; el formato sigue lo acordado en `AGENTS.md` y la constitución, igual que `specs/002-dashboard/tasks.md`.
 
@@ -19,7 +19,7 @@
 
 ---
 
-## Tareas (T19–T23)
+## Tareas (T19–T30)
 
 - [x] **T19. Pantalla de inicio de sesión, autenticación y cierre de sesión.** RF-78, RF-79, RF-80, RF-81, RF-82, RNF-23, RNF-24, RNF-25
   - *Depende de:* —
@@ -86,6 +86,13 @@
   - *Alcance:* mover los literales en español de `RoleMiddleware`, `VoidPolicy`, `CheckoutService`, `ConventionService` y `DocumentService` a `lang/es/pos.php`.
   - *Cierre:* **cerrada el 2026-11-18.** `HardcodedTextTest` escrito primero en rojo (**2 failed**); después, verde en **2 tests, 1060 aserciones**. Suite completa: **397 tests, 3088 aserciones, 0 fallos** (41,20 s), desde 395/2028. Diez claves nuevas en `pos.errors` (`forbidden`, `sale_already_voided`, `void_reason_required`, `invoice_customer_required`, `convention_missing`, `convention_inactive`, `convention_expired`, `document_not_retryable`, `folios_exhausted`) y se reutiliza `cart_empty`. `VoidPolicy` sigue siendo pura: lanza la **clave** y `PosController` la traduce al mostrar el error, así su test unitario sin contenedor sigue pasando; `VoidPolicyTest` ahora afirma la clave. El guardián recorre todo `app/` con una lista explícita de los diez textos.
 
+- [x] **T30. Las pantallas compartidas conservan el menú del rol.** Error reportado en uso · RF-44, RNF-19 (spec 002)
+  - *Depende de:* —
+  - *Síntoma:* con sesión de Químico, `/admin/audit` y `/admin/conventions` pintaban el grupo de navegación **«Administración»** —el del Administrador—, porque el layout caía en `'admin'` cuando la vista no declaraba `navGroup`. El menú ofrecía así «Historial», «Documentos», «Productos» y «Controlados», y «Controlados» respondía 403 (su ruta sólo admite Admin y Bodeguero): el Químico veía opciones de un rol que no es el suyo y chocaba con el permiso.
+  - *Alcance:* derivar el grupo de navegación del rol en sesión en lugar de asumir «admin», y corregir el desborde a 375 px del libro de controlados (formulario de filtros sin envolver).
+  - *Hecho cuando:* ninguna pantalla compartida muestra el menú de otro rol, toda opción visible responde 200 para el rol que la ve, y las páginas medidas no desbordan a 375 px.
+  - *Cierre:* **cerrada el 2026-11-19.** Test primero en rojo (`NavigationTest::test_shared_pages_keep_the_navigation_of_the_signed_in_role`: **1 failed, 4 passed**); después, verde en **5 tests, 185 aserciones**. `LandingPolicy::navGroupFor()` (función pura) devuelve el grupo del rol y cae en «admin» sólo cuando el rol no tiene panel; el layout `admin.blade.php` lo consulta cuando la vista no pasa `navGroup`, así que una pantalla nueva queda bien por defecto. Suite completa: **404 tests, 3141 aserciones, 0 fallos** (44,57 s), desde 403/3122. Verificado a 375 px: el Químico ve «Supervisión» con Inicio/Convenios/Auditoría en sus tres pantallas y ya no aparece «Controlados»; el Bodeguero ve «Bodega» en el libro de controlados y sin botón de exportar; se barrieron las 19 pantallas de los cuatro roles y ninguna desborda. Se aprovechó para corregir el desborde del libro de controlados (`scrollWidth` 402 → 375) con `flex-wrap` y `w-full` en el formulario de filtros, clases ya presentes en el CSS compilado.
+
 ---
 
 ## Cobertura RF por tarea
@@ -103,6 +110,7 @@
 | T27 | — | 28 |
 | T28 | 84 | — |
 | T29 | — | — |
+| T30 | 44 (spec 002, menú por rol) | 19 (spec 002) |
 
 ## Estado actual del flujo SDD
 
@@ -124,9 +132,10 @@
 | T21 | ✅ Cerrada |
 | T22 | ✅ Cerrada |
 | T23 | ✅ Cerrada |
+| T30 | ✅ Cerrada |
 | T19–T29 | ✅ Todas cerradas · spec 003 implementada |
 | Auditoría RF por RF 002 | ⏳ Pendiente |
 
 ---
 
-*Actualizado: 2026-11-18. Suite actual: 403 tests, 3122 aserciones, 0 fallos.*
+*Actualizado: 2026-11-19. Suite actual: 404 tests, 3141 aserciones, 0 fallos.*

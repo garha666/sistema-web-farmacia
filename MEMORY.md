@@ -11,7 +11,7 @@
 - **Tareas 001 POS:** `specs/001-pos/tasks.md`, 10 tareas + correcciones Vuelta 1 (S1–S5) + Vuelta 2 (S6–S14). **T1 a T10 cerradas; S1 a S14 cerradas.**
 - **Código:** Laravel 11.57.1. Dominio `app/Pos/` completo. Persistencia: `Product`, `Sale`, `SaleLine`, `Document`, `InvoiceDetail`, `StockMovement`, `AuditLog`, `Convention`, `Prescription`, `ControlledRegisterEntry`. Servicios: `CartService`, `CheckoutService`, `VoidSaleService`, `AuditService`, `ConventionService`, `DocumentService`, `ManualDiscountService`. Emisión simulada: `Pos\Contract\DocumentEmitter`, `Pos\Emission\SimulatedDocumentEmitter`, `Pos\Folio\FolioAllocator`. HTTP: `PosController` y `Admin\{ConventionController, SaleController, DocumentController, AuditController, ControlledRegisterController}`. Vistas: `pos/index`, `pos/checkout`, `pos/receipt`, `admin/*` (layout `layouts.admin`). Traducciones en `lang/es/`. 246 tests en verde (1131 aserciones).
 - **Spec 002 paneles/inventario/caja:** `specs/002-dashboard/spec.md` v1.0, **aprobada** (2026-11-17). 37 RF (RF-41 a RF-77), 9 RNF (RNF-14 a RNF-22). Cubre los cuatro paneles por rol, el catálogo de productos con ajuste de stock auditado y el cierre de caja con diferencia declarada. Introduce el rol Bodeguero y absorbe dos temas que 001 delegaba o excluía: el arqueo (antes en `004-reportes`) y los tableros por rol. Las 5 enmiendas que necesitaba la spec 001 ya están aplicadas (v1.1), así que las dos specs no se contradicen. **Plan y tareas definidos:** `specs/002-dashboard/plan.md` y `specs/002-dashboard/tasks.md` (T11–T18, ocho tareas en orden de dependencia). **T11, T12, T13, T14, T15, T16, T17 y T18 cerradas el 2026-11-18. La spec 002 queda implementada.**
-- **Spec 003 autenticación:** `specs/003-auth/spec.md` v1.4, **aprobada** (2026-11-18), con 7 RF (RF-78 a RF-84) y 6 RNF (RNF-23 a RNF-28): pantalla de inicio de sesión, autenticación real, mensaje único para credenciales inválidas, freno por fuerza bruta, cierre de sesión, freno a la autorización de supervisor, cabeceras y proxies, rol no asignable en masa y bitácora de eventos. Las specs 001 §7 y 002 §7 remitían la autenticación «a otra spec» que nunca existió, así que la 003 las enmienda. **Plan y tareas:** `specs/003-auth/plan.md` y `specs/003-auth/tasks.md` (T19–T29). **T19 a T29 cerradas el 2026-11-18.**
+- **Spec 003 autenticación:** `specs/003-auth/spec.md` v1.4, **aprobada** (2026-11-18), con 7 RF (RF-78 a RF-84) y 6 RNF (RNF-23 a RNF-28): pantalla de inicio de sesión, autenticación real, mensaje único para credenciales inválidas, freno por fuerza bruta, cierre de sesión, freno a la autorización de supervisor, cabeceras y proxies, rol no asignable en masa y bitácora de eventos. Las specs 001 §7 y 002 §7 remitían la autenticación «a otra spec» que nunca existió, así que la 003 las enmienda. **Plan y tareas:** `specs/003-auth/plan.md` y `specs/003-auth/tasks.md` (T19–T30). **T19 a T30 cerradas.**
 - **Comandos SDD:** instalados en `.opencode/commands/` (9 comandos).
 
 ## Entorno (2026-10-30)
@@ -270,6 +270,14 @@ B1–B7 del informe de revisión. Tests primero en rojo (**3 failed**), uno por 
 
 Suite completa: **403 tests, 3122 aserciones, 0 fallos** (41,46 s), desde 399/3100. Verificado a 375 px: comprobante ajeno 403, carrito vacío tras salir de catálogo y selector de ajuste sin el producto inactivo; `scrollWidth = 375` y consola limpia. Archivo nuevo autorizado: `app/Pos/Policy/ReceiptPolicy.php`.
 
+## T30 cerrada — las pantallas compartidas conservan el menú del rol (2026-11-19)
+
+Error reportado en uso. Con sesión de Químico, `/admin/audit` y `/admin/conventions` pintaban el grupo **«Administración»** porque el layout `admin.blade.php` caía en `'admin'` cuando la vista no declaraba `navGroup`. El menú ofrecía «Historial», «Documentos», «Productos» y «Controlados»; «Controlados» responde 403 (su ruta sólo admite Admin y Bodeguero), así que el Químico veía opciones de otro rol y chocaba con el permiso.
+
+`LandingPolicy::navGroupFor()` (función pura) devuelve el grupo del rol y sólo cae en «admin» si el rol no tiene panel; el layout lo consulta como respaldo, así que una pantalla nueva queda bien por defecto. Test primero en rojo (`NavigationTest`, **1 failed**), verde en 5 tests / 185 aserciones. Suite completa: **404 tests, 3141 aserciones, 0 fallos** (44,57 s), desde 403/3122.
+
+Verificado a 375 px: Químico ve «Supervisión» (Inicio/Convenios/Auditoría) sin «Controlados»; Bodeguero ve «Bodega» en el libro de controlados y sin exportar; se barrieron las 19 pantallas de los cuatro roles y ninguna desborda. De paso se corrigió el desborde del libro de controlados (`scrollWidth` 402 → 375) con `flex-wrap` y `w-full` en su formulario de filtros.
+
 ## Pendientes conocidos
 
 - La skill `sdd` referenciada por los comandos **no existe**; los comandos la invocan igual.
@@ -506,7 +514,7 @@ Datos demo usados para la verificación eliminados al terminar (venta, línea y 
 
 ## Próximo paso
 
-**T19 a T29 cerradas.** T19: pantalla de inicio de sesión, autenticación real, freno por fuerza bruta y cierre de sesión con su botón. T20: `.env.example` con el stack real y un guard de zona horaria. T21: la caja cerrada muestra su diferencia. T22: los dos conceptos de «anulación» con una sola fuente. T23: siete ajustes del informe, entre ellos el comprobante ajeno (403) y el ajuste de productos fuera de catálogo. T24: freno a la autorización de supervisor, que hasta ahora permitía probar contraseñas sin límite y evadir el tope del 10%. T25: parche de Symfony 7.4.22 → 7.4.23. T26: cabeceras de seguridad, proxies de confianza y HTTPS. T27: `role` fuera de `$fillable`. T28: bitácora de eventos de seguridad. T29: textos de usuario en `lang`. Suite actual: **403 tests, 3122 aserciones, 0 fallos**.
+**T19 a T30 cerradas.** T19: pantalla de inicio de sesión, autenticación real, freno por fuerza bruta y cierre de sesión con su botón. T20: `.env.example` con el stack real y un guard de zona horaria. T21: la caja cerrada muestra su diferencia. T22: los dos conceptos de «anulación» con una sola fuente. T23: siete ajustes del informe, entre ellos el comprobante ajeno (403) y el ajuste de productos fuera de catálogo. T24: freno a la autorización de supervisor, que hasta ahora permitía probar contraseñas sin límite y evadir el tope del 10%. T25: parche de Symfony 7.4.22 → 7.4.23. T26: cabeceras de seguridad, proxies de confianza y HTTPS. T27: `role` fuera de `$fillable`. T28: bitácora de eventos de seguridad. T29: textos de usuario en `lang`. T30: las pantallas compartidas conservan el menú del rol (el Químico ya no ve el del Administrador) y el libro de controlados deja de desbordar a 375 px. Suite actual: **404 tests, 3141 aserciones, 0 fallos**.
 
 Cola de mejora (informes de revisión y de seguridad), en `specs/003-auth/tasks.md`:
 
@@ -519,6 +527,8 @@ Cola de mejora (informes de revisión y de seguridad), en `specs/003-auth/tasks.
 - **T28.** ✅ Cerrada: bitácora de intentos fallidos de inicio de sesión y de autorización de supervisor (RF-84).
 - **T29.** ✅ Cerrada: los diez textos de usuario que quedaban en `app/` pasan a `lang/es/pos.php`, con guardián en `HardcodedTextTest`.
 
-Pendientes de mayor alcance (fuera de la cola actual): `specs/004-reportes/` sin redactar, desborde a 375 px del libro de controlados (spec 001) y los archivos de despliegue (Docker, Nginx, SSL) que `AGENTS.md` declara como stack y que no están en el repositorio.
+- **T30.** ✅ Cerrada: el grupo de navegación sale del rol en sesión (`LandingPolicy::navGroupFor()`), así que las pantallas compartidas ya no muestran el menú del Administrador a otros roles; de paso, el libro de controlados deja de desbordar a 375 px.
 
-Pendientes de mayor alcance (fuera de la cola actual): `specs/004-reportes/` sin redactar, desborde a 375 px del libro de controlados (spec 001) y los archivos de despliegue (Docker, Nginx, SSL) que `AGENTS.md` declara como stack y que no están en el repositorio.
+Pendientes de mayor alcance (fuera de la cola actual): `specs/004-reportes/` sin redactar y los archivos de despliegue (Docker, Nginx, SSL) que `AGENTS.md` declara como stack y que no están en el repositorio.
+
+Pendientes de mayor alcance (fuera de la cola actual): `specs/004-reportes/` sin redactar y los archivos de despliegue (Docker, Nginx, SSL) que `AGENTS.md` declara como stack y que no están en el repositorio.

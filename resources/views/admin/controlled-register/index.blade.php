@@ -10,16 +10,16 @@
         </div>
 
         <div class="flex flex-wrap items-end gap-2">
-            <form method="GET" action="{{ route('admin.controlled-register.index') }}" class="flex items-end gap-2">
+            <form method="GET" action="{{ route('admin.controlled-register.index') }}" class="flex flex-wrap items-end gap-2">
                 <div>
                     <label for="from" class="text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('pos.admin.controlled.from') }}</label>
                     <input id="from" name="from" type="date" value="{{ $filters['from'] ?? '' }}"
-                           class="mt-1 rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                           class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
                 </div>
                 <div>
                     <label for="to" class="text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('pos.admin.controlled.to') }}</label>
                     <input id="to" name="to" type="date" value="{{ $filters['to'] ?? '' }}"
-                           class="mt-1 rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                           class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
                 </div>
                 <button type="submit" class="rounded-lg bg-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-300">
                     {{ __('pos.admin.controlled.filter') }}

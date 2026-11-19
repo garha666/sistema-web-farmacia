@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html lang="es">
 @php
-    $navGroup = $navGroup ?? 'admin';
+    // RF-44, RNF-19: el grupo sale del rol cuando la pantalla no lo declara.
+    $navGroup = $navGroup ?? app(\App\Pos\Policy\LandingPolicy::class)->navGroupFor(auth()->user()?->role);
 @endphp
 <head>
     <meta charset="utf-8">

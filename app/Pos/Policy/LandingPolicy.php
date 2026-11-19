@@ -35,4 +35,18 @@ final class LandingPolicy
     {
         return $this->panelRoute($role) === $panel;
     }
+
+    /**
+     * Grupo de navegación que corresponde al rol (RF-44, RNF-19).
+     *
+     * Las pantallas compartidas entre roles —auditoría, convenios y libro de
+     * controlados— no declaran grupo propio. Si el layout cayera en «admin»,
+     * el Químico o el Bodeguero verían secciones que su rol no puede abrir y
+     * terminarían en un 403 al pulsarlas. El grupo se deriva del rol, así que
+     * una pantalla nueva queda bien por defecto.
+     */
+    public function navGroupFor(?string $role): string
+    {
+        return $this->panelRoute($role) === null ? 'admin' : (string) $role;
+    }
 }

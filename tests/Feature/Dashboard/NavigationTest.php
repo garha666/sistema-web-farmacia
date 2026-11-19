@@ -96,6 +96,37 @@ final class NavigationTest extends TestCase
         }
     }
 
+    /**
+     * RF-44 / RNF-19: las páginas compartidas entre roles no pueden caer en el
+     * grupo del Administrador. Si lo hicieran, el Químico vería en su menú
+     * secciones que su rol tiene prohibidas y al abrirlas recibiría 403.
+     */
+    public function test_shared_pages_keep_the_navigation_of_the_signed_in_role(): void
+    {
+        $chemist = User::factory()->quimico()->create();
+
+        foreach (['admin.audit.index', 'admin.conventions.index'] as $route) {
+            $response = $this->actingAs($chemist)->get(route($route));
+
+            $response->assertOk();
+            $response->assertSee('aria-label="'.__('pos.panel.group.quimico').'"', false);
+            $response->assertDontSee('aria-label="'.__('pos.panel.group.admin').'"', false);
+
+            foreach (['admin.sales.index', 'admin.documents.index', 'inventory.products.index', 'admin.controlled-register.index'] as $forbidden) {
+                $response->assertDontSee(route($forbidden), false);
+            }
+        }
+
+        $warehouse = User::factory()->bodeguero()->create();
+        $response = $this->actingAs($warehouse)->get(route('admin.controlled-register.index'));
+
+        $response->assertOk();
+        $response->assertSee('aria-label="'.__('pos.panel.group.bodeguero').'"', false);
+        $response->assertDontSee('aria-label="'.__('pos.panel.group.admin').'"', false);
+        $response->assertDontSee(route('admin.sales.index'), false);
+        $response->assertDontSee(route('admin.conventions.index'), false);
+    }
+
     public function test_the_navigation_renders_once_per_variant_and_marks_the_current_page(): void
     {
         $user = User::factory()->create(['role' => 'admin']);
