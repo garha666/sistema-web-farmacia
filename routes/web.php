@@ -135,4 +135,9 @@ Route::prefix('admin')->name('admin.')->middleware('auth')->group(function (): v
     Route::prefix('reportes')->name('reportes.')->middleware('role:admin')->group(function (): void {
         Route::get('/ventas', [ReportesController::class, 'ventas'])->name('ventas');
     });
+
+    // T37 - RF-94: arqueo de caja por turno.
+    Route::prefix('reportes')->name('reportes.')->middleware('role:tecnico,admin')->group(function (): void {
+        Route::get('/arqueo', [ReportesController::class, 'arqueo'])->name('arqueo');
+    });
 });

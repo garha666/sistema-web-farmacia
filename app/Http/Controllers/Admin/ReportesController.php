@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
+use App\Models\User;
 use App\Services\Reportes\CsvExporter;
 use App\Services\Reportes\ReportesService;
 use DateTimeImmutable;
@@ -78,6 +79,30 @@ final class ReportesController extends Controller
             'totalSales' => $data['totalSales'],
             'totalAmount' => $data['totalAmount'],
             'byPaymentMethod' => $data['byPaymentMethod'],
+        ]);
+    }
+
+    /**
+     * Arqueo de caja por turno (RF-94).
+     *
+     * El Técnico ve sus propios turnos; el Administrador ve los de todos.
+     */
+    public function arqueo(Request $request): View
+    {
+        $cashierId = null;
+
+        if ($request->user()->isTecnico()) {
+            $cashierId = $request->user()->id;
+        } elseif ($request->user()->isAdmin()) {
+            $cashierId = $request->filled('cashier_id') ? (int) $request->query('cashier_id') : null;
+        }
+
+        $turnos = $this->reportes->arqueoPorTurno($cashierId);
+
+        return view('reportes.arqueo', [
+            'turnos' => $turnos,
+            'cashiers' => User::query()->where('role', 'tecnico')->orderBy('name')->get(),
+            'selectedCashier' => $cashierId,
         ]);
     }
 

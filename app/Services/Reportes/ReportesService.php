@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace App\Services\Reportes;
 
+use App\Models\CashRegister;
 use App\Models\Sale;
+use App\Pos\Enum\PaymentMethod;
+use App\Pos\Enum\SaleStatus;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
 
@@ -56,6 +59,106 @@ final class ReportesService
             'totalAmount' => (int) $totalAmount,
             'byPaymentMethod' => $byPaymentMethod,
         ];
+    }
+
+    /**
+     * Arqueo de cada turno de caja con sus ventas y efectivo esperado.
+     *
+     * Para turnos abiertos, el efectivo esperado se calcula en tiempo real.
+     * Para turnos cerrados, se usan los valores grabados al cerrar.
+     *
+     * @param  int|null  $cashierId  cuando se pide, solo los turnos de ese cajero
+     * @return array<int, array>
+     */
+    public function arqueoPorTurno(?int $cashierId = null): array
+    {
+        $registersQuery = CashRegister::query()->with('user');
+
+        if ($cashierId !== null) {
+            $registersQuery->where('user_id', $cashierId);
+        }
+
+        $registers = $registersQuery->latest('opened_at')->get()->keyBy('id');
+
+        $registerIds = $registers->keys()->toArray();
+
+        if ($registerIds === []) {
+            return [];
+        }
+
+        $sales = Sale::query()
+            ->whereIn('cash_register_id', $registerIds)
+            ->get();
+
+        $salesByRegister = [];
+        /** @var Sale $sale */
+        foreach ($sales as $sale) {
+            $salesByRegister[$sale->cash_register_id][] = $sale;
+        }
+
+        $result = [];
+
+        foreach ($registers as $register) {
+            $sales = $salesByRegister[$register->id] ?? [];
+
+            $totalSales = 0;
+            $cashSales = 0;
+            $cashVoids = 0;
+            $saleCount = 0;
+            $voidCount = 0;
+
+            /** @var Sale $sale */
+            foreach ($sales as $sale) {
+                if ($sale->status === SaleStatus::confirmed) {
+                    $saleCount++;
+                    $totalSales += (int) $sale->total;
+
+                    if ($sale->payment_method === PaymentMethod::cash) {
+                        $cashSales += (int) $sale->total;
+                    }
+                } else {
+                    $voidCount++;
+
+                    if ($sale->payment_method === PaymentMethod::cash) {
+                        $cashVoids += (int) $sale->total;
+                    }
+                }
+            }
+
+            $openingAmount = (int) ($register->opening_amount ?? 0);
+
+            if ($register->closed_at !== null) {
+                // Turno cerrado: valores grabados al cerrar.
+                $expectedCash = (int) ($register->expected_cash ?? 0);
+                $declaredCash = (int) ($register->declared_cash ?? 0);
+                $difference = (int) ($register->difference ?? 0);
+                $status = 'cerrada';
+            } else {
+                // Turno abierto: calcular en tiempo real.
+                $expectedCash = $openingAmount + $cashSales - $cashVoids;
+                $declaredCash = null;
+                $difference = null;
+                $status = 'abierta';
+            }
+
+            $result[] = [
+                'id' => $register->id,
+                'user_name' => $register->user?->name ?? __('pos.common.none'),
+                'opening_amount' => $openingAmount,
+                'opened_at' => $register->opened_at,
+                'closed_at' => $register->closed_at,
+                'sale_count' => $saleCount,
+                'total_sales' => $totalSales,
+                'cash_sales' => $cashSales,
+                'expected_cash' => $expectedCash,
+                'declared_cash' => $declaredCash,
+                'difference' => $difference,
+                'is_closed' => $register->closed_at !== null,
+                'status' => $status,
+            ];
+        }
+
+        return $result;
     }
 
     /**

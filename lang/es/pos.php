@@ -741,6 +741,22 @@ return [
             'count' => 'Cantidad',
             'amount' => 'Monto',
         ],
+        'arqueo' => [
+            'title' => 'Arqueo de caja',
+            'subtitle' => 'Turnos de caja y arqueo por turno',
+            'clear_filter' => 'Limpiar filtro',
+            'cashier' => 'Cajero',
+            'register' => 'Turno',
+            'opened' => 'Apertura',
+            'opening' => 'Apertura',
+            'sales' => 'Ventas',
+            'cash_sales' => 'Efectivo',
+            'expected' => 'Efectivo esperado',
+            'declared' => 'Efectivo declarado',
+            'difference' => 'Diferencia',
+            'status' => 'Estado',
+            'no_registers' => 'No hay turnos de caja.',
+        ],
     ],
 
 ];
