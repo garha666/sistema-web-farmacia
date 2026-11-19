@@ -14,22 +14,32 @@
                 $money = fn (int $pesos): string => '$'.number_format($pesos, 0, ',', '.');
             @endphp
 
-            <dl class="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <dl class="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
                 @include('dashboard.partials.kpi', [
+                    'id' => 'admin-confirmed',
                     'label' => __('pos.panel.admin.confirmed_count'),
                     'value' => $summary->salesCount(),
                 ])
                 @include('dashboard.partials.kpi', [
+                    'id' => 'admin-sold',
                     'label' => __('pos.panel.admin.sold_amount'),
                     'value' => $money($summary->totalSales()),
                 ])
                 @include('dashboard.partials.kpi', [
+                    'id' => 'admin-voided-count',
                     'label' => __('pos.panel.admin.voided_count'),
                     'value' => $summary->voidCount(),
                 ])
                 @include('dashboard.partials.kpi', [
+                    'id' => 'admin-voided-amount',
                     'label' => __('pos.panel.admin.voided_amount'),
                     'value' => $money($summary->totalVoids()),
+                ])
+                {{-- D-11: anulaciones registradas hoy, misma cifra que el Químico. --}}
+                @include('dashboard.partials.kpi', [
+                    'id' => 'admin-registered-voids',
+                    'label' => __('pos.panel.admin.registered_voids_count'),
+                    'value' => $registeredVoids,
                 ])
             </dl>
 

@@ -1,9 +1,11 @@
 # Especificación 002 — Paneles por rol, inventario y cierre de caja
 
 **Proyecto:** Sistema Web de Gestión y Simulación de Farmacia Privada Comercial (Grupo A)
-**Estado:** aprobada · **Versión:** 1.0 · **Ámbito:** sólo el QUÉ y el POR QUÉ
+**Estado:** aprobada · **Versión:** 1.1 · **Ámbito:** sólo el QUÉ y el POR QUÉ
 
 > **Relación con la spec 001.** Esta spec **absorbe dos temas que 001 había delegado**: el cierre de caja y arqueo (que 001 §7 y D-3 dejaban en `004-reportes`) y los tableros por rol (que 001 §7 excluía como «reportes gerenciales»). También **introduce el rol Bodeguero**, que 001 sólo nombra como existente en el RBAC pero nunca habilita. Las enmiendas exactas que 001 necesita están en la sección 10 y se aplican en el mismo commit que apruebe esta spec.
+>
+> **v1.1 (T22):** fija la definición de «anulación» en los indicadores. Hasta la v1.0, «ventas anuladas» significaba cosas distintas en el panel del Administrador (por fecha de venta) y en el del Químico (por fecha de anulación). La decisión D-11 separa los dos conceptos y asigna cada uno a su indicador.
 
 ---
 
@@ -55,6 +57,8 @@ Notación EARS. «El sistema» es el módulo completo. La numeración continúa 
 
 - **RF-46 — Resumen de ventas del día.** El panel del Administrador deberá mostrar, para el día en curso: cantidad de ventas confirmadas, monto total vendido, cantidad de ventas anuladas y monto anulado, y el desglose por medio de pago.
   - *Criterio:* Los montos deberán excluir las ventas anuladas del total vendido y mostrarlas por separado.
+  - *Criterio:* «Ventas anuladas» son las ventas **con fecha de venta de hoy** que están anuladas (D-11), de modo que la cifra cuadre con el total vendido del mismo día.
+  - *Criterio:* El panel deberá informar además cuántas **anulaciones se registraron hoy** —eventos de anulación con fecha de hoy, aunque la venta sea de un día anterior— con la misma fuente que el panel del Químico (RF-54).
 - **RF-47 — Documentos por resolver.** El panel deberá listar los documentos pendientes o rechazados con su venta, su tipo y su fecha, y ofrecer el reintento de emisión en línea.
   - *Criterio:* Un documento emitido no deberá aparecer en esta lista ni ofrecer reintento.
 - **RF-48 — Alertas de inventario.** El panel deberá mostrar la cantidad de productos bajo el stock mínimo y la cantidad de productos sin stock, con acceso a la lista correspondiente.
@@ -66,7 +70,8 @@ Notación EARS. «El sistema» es el módulo completo. La numeración continúa 
 
 - **RF-52 — Resumen del día.** El panel del Químico deberá mostrar la cantidad de ventas del día, el monto vendido y el desglose por medio de pago.
 - **RF-53 — Autorizaciones del día.** El panel deberá listar las autorizaciones otorgadas hoy por el usuario de la sesión —descuento global sobre el tope, descuento de línea y reutilización de receta— con la venta, el motivo y el monto o porcentaje autorizado.
-- **RF-54 — Anulaciones del día.** El panel deberá listar las ventas anuladas hoy con su motivo y su autor.
+- **RF-54 — Anulaciones registradas hoy.** El panel deberá listar las anulaciones registradas hoy —los eventos de anulación con fecha de hoy, aunque la venta sea de un día anterior— con su motivo y su autor.
+  - *Criterio:* La cifra de anulaciones registradas hoy deberá coincidir con la que informa el panel del Administrador (RF-46), porque ambas toman la misma fuente (D-11).
 - **RF-55 — Salidas de lectura.** El panel deberá ofrecer acceso a convenios y a auditoría en modo lectura, sin ofrecer acciones de escritura que su rol no tiene.
 
 ### 4.4 Panel del Técnico
@@ -147,6 +152,7 @@ Numeración continua con la spec 001.
 18. Documento rechazado que se reintenta desde el panel y vuelve a fallar.
 19. Convenio vencido que el Administrador intenta activar desde el panel.
 20. Sesión expirada mientras se completa un cierre de caja: no debe perderse el monto declarado ni quedar un cierre a medias.
+21. Venta de un día anterior anulada hoy: no debe sumarse como venta anulada del día en el resumen, pero sí debe aparecer en las anulaciones registradas hoy de ambos paneles (D-11).
 
 ## 7. Fuera de alcance
 
@@ -184,6 +190,10 @@ Numeración continua con la spec 001.
 - **D-8 — Inventario por movimientos manuales.** El Bodeguero ajusta existencias con entradas y salidas motivadas; no se implementan órdenes de compra ni recepción con documento, coherente con la exclusión de la spec 001.
 - **D-9 — Indicadores calculados al vuelo.** No hay tablas de resumen ni procesos de consolidación: todo se deriva de ventas, documentos, movimientos y auditoría, lo que garantiza que el panel y el detalle nunca discrepen.
 - **D-10 — Sin borrado de productos ni de movimientos.** Un producto fuera de catálogo se desactiva y un movimiento equivocado se corrige con el movimiento contrario, igual que la regla de inmutabilidad de la spec 001.
+- **D-11 — «Anulación» son dos conceptos y se informan por separado.** (v1.1, T22.)
+  - **Ventas anuladas del día:** ventas con `sold_at` de hoy cuyo estado es anulado. Responden «¿cuánto de lo vendido hoy se anuló?» y son las que el resumen resta del total vendido (RF-46, RF-52), de modo que el panel cuadre con el detalle por fecha de venta (RF-75).
+  - **Anulaciones registradas hoy:** eventos de anulación con fecha de hoy, sin importar cuándo se vendió. Responden «¿qué se anuló hoy?» y son la lista de supervisión del Químico (RF-54) y el indicador del Administrador (RF-46). Ambos paneles toman esta cifra de la misma consulta, así que no pueden discrepar.
+  - La palabra «anulación» a secas no se usa en la interfaz: cada indicador dice a cuál de los dos conceptos se refiere.
 
 **Supuestos adoptados (revisables por el equipo):**
 

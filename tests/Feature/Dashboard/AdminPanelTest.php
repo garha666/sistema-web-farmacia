@@ -59,6 +59,35 @@ final class AdminPanelTest extends TestCase
         $response->assertSeeText(__('pos.payment_method.debit'));
     }
 
+    public function test_voids_registered_today_count_even_when_the_sale_is_from_yesterday(): void
+    {
+        // D-11: una venta de ayer anulada hoy no es «venta anulada del día»,
+        // pero sí es una «anulación registrada hoy».
+        $yesterday = $this->saleOf(4000, 'cash', SaleStatus::voided, now()->subDay());
+
+        AuditLog::query()->create([
+            'user_id' => $this->admin->id,
+            'action' => 'sale.void',
+            'auditable_type' => $yesterday->getMorphClass(),
+            'auditable_id' => $yesterday->id,
+            'reason' => 'Anulación de una venta de ayer.',
+        ]);
+
+        $content = $this->get(route('dashboard.admin'))->assertOk()->getContent();
+
+        // «Ventas anuladas del día» no la cuenta: la venta es de ayer.
+        $this->assertMatchesRegularExpression('/id="admin-voided-count"[^>]*>\s*0\s*</', (string) $content);
+        // «Anulaciones registradas hoy» sí la cuenta.
+        $this->assertMatchesRegularExpression('/id="admin-registered-voids"[^>]*>\s*1\s*</', (string) $content);
+
+        // El panel del Químico lista la misma anulación (misma fuente, D-11).
+        $this->actingAs(User::factory()->quimico()->create())
+            ->get(route('dashboard.quimico'))
+            ->assertOk()
+            ->assertSeeText(__('pos.panel.quimico.voids_heading'))
+            ->assertSeeText('Anulación de una venta de ayer.');
+    }
+
     public function test_documents_pending_and_rejected_are_listed_with_retry_while_issued_are_not(): void
     {
         $pending = $this->documentOf($this->saleOf(1000), DocumentStatus::pending);

@@ -39,11 +39,11 @@
   - *Hecho cuando:* tras cerrar, el panel muestra un mensaje de cierre y la diferencia; el test lo comprueba.
   - *Cierre:* **cerrada el 2026-11-18.** Test escrito primero en `CashierPanelTest` (rojo); después, clave `pos.cash_register.status_closed` («Caja cerrada. Diferencia: :amount (:kind).») y el panel compone el mensaje con el signo de la diferencia (`balanced`/`over`/`short`) y el monto en valor absoluto. Verde en **7 tests, 33 aserciones**; suite completa **398 tests, 3094 aserciones, 0 fallos** (43,14 s), desde 397/3088. La pantalla ya no reutiliza la etiqueta del botón «Cerrar caja» como mensaje de éxito.
 
-- [ ] **T22. Enmienda: definición de «anulación del día».** H3 del informe de revisión
+- [x] **T22. Enmienda: definición de «anulación del día».** H3 del informe de revisión · D-11 (spec 002)
   - *Depende de:* —
   - *Alcance:* decisión escrita en la spec 002 (fecha de venta o fecha de anulación) y alineación de `SalesDayQuery` y `ChemistPanelService`; test con una venta de ayer anulada hoy.
   - *Hecho cuando:* los paneles del Administrador y del Químico reportan la misma cifra para el mismo período.
-  - *Cierre:* (pendiente)
+  - *Cierre:* **cerrada el 2026-11-18.** Spec 002 en **v1.1**: la decisión **D-11** separa «ventas anuladas del día» (por `sold_at`, resta del total vendido) de «anulaciones registradas hoy» (por fecha del evento, supervisión); enmienda los RF-46, RF-54 y el caso límite 21. En el código, `SalesDayQuery::registeredVoidsOn()` es la única fuente: el Administrador cuenta con ella y el Químico lista con ella, así no pueden discrepar. El panel del Administrador gana el indicador «Anulaciones registradas hoy» (`id="admin-registered-voids"`); las etiquetas de «Ventas anuladas» pasan a «… del día» para no confundir los dos conceptos. Test nuevo `test_voids_registered_today_count_even_when_the_sale_is_from_yesterday`; se comprobó que **cae** al quitar el indicador (1 failed) y pasa con él. Verde en **399 tests, 3100 aserciones, 0 fallos** (41,55 s), desde 398/3094. Verificado en el navegador a 375 px: Admin muestra «Ventas anuladas del día: 0» y «Anulaciones registradas hoy: 1» con una venta de ayer anulada hoy, y el Químico lista esa misma anulación con su motivo y autor; consola limpia y `scrollWidth = 375`.
 
 - [ ] **T23. Ajustes menores del informe de revisión.** B1 a B7
   - *Depende de:* T19
@@ -109,7 +109,7 @@
 |---|---|
 | Constitución | ✅ v1.0 |
 | Spec 001-pos | ✅ v1.1 |
-| Spec 002-dashboard | ✅ v1.0 implementada (360 tests, 1847 aserciones) |
+| Spec 002-dashboard | ✅ v1.1 implementada (360 tests, 1847 aserciones) |
 | Spec 003-auth | ✅ Aprobada v1.4 (RF-83, RF-84, RNF-26, RNF-27 y RNF-28) |
 | Plan 003 | ✅ Completo (`specs/003-auth/plan.md`) |
 | T19 | ✅ Cerrada |
@@ -121,9 +121,10 @@
 | T28 | ✅ Cerrada |
 | T29 | ✅ Cerrada |
 | T21 | ✅ Cerrada |
-| T22–T23 | ⏳ Planificadas (mejoras de los informes de revisión y seguridad) |
+| T22 | ✅ Cerrada |
+| T23 | ⏳ Planificada (mejoras de los informes de revisión) |
 | Auditoría RF por RF 002 | ⏳ Pendiente |
 
 ---
 
-*Actualizado: 2026-11-18. Suite actual: 398 tests, 3094 aserciones, 0 fallos.*
+*Actualizado: 2026-11-18. Suite actual: 399 tests, 3100 aserciones, 0 fallos.*

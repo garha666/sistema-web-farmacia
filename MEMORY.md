@@ -256,6 +256,12 @@ Diez claves nuevas en `pos.errors`: `forbidden`, `sale_already_voided`, `void_re
 
 H2 del informe de revisión, RF-59. El panel del Técnico mostraba la etiqueta del botón «Cerrar caja» como mensaje de éxito y nunca la diferencia. Test primero en `CashierPanelTest`; después, la clave `pos.cash_register.status_closed` («Caja cerrada. Diferencia: :amount (:kind).») y el panel compone el mensaje con el signo de la diferencia y el monto en valor absoluto. Verde en **7 tests, 33 aserciones**; suite completa **398 tests, 3094 aserciones, 0 fallos** (43,14 s), desde 397/3088.
 
+## T22 cerrada — los dos conceptos de «anulación» (2026-11-18)
+
+H3 del informe de revisión. Spec 002 en **v1.1** con la decisión **D-11**: «ventas anuladas del día» se mide por `sold_at` y resta del total vendido; «anulaciones registradas hoy» se mide por la fecha del evento y es la lista de supervisión. Enmienda los RF-46 y RF-54 y agrega el caso límite 21.
+
+`SalesDayQuery::registeredVoidsOn()` es la única fuente: el Administrador cuenta con ella y el Químico lista con ella. El panel del Administrador gana el indicador «Anulaciones registradas hoy» y las etiquetas de «Ventas anuladas» pasan a «… del día». Test nuevo en `AdminPanelTest`, comprobado en rojo al quitar el indicador. Suite completa: **399 tests, 3100 aserciones, 0 fallos** (41,55 s), desde 398/3094. Verificado a 375 px con una venta de ayer anulada hoy: Admin «0 / 1» y Químico lista esa anulación; `scrollWidth = 375` y consola limpia.
+
 ## Pendientes conocidos
 
 - La skill `sdd` referenciada por los comandos **no existe**; los comandos la invocan igual.
@@ -264,7 +270,7 @@ H2 del informe de revisión, RF-59. El panel del Técnico mostraba la etiqueta d
 - **Resuelto (T24):** la autorización de supervisor tenía intentos ilimitados, así que el tope del 10% era evadible; ahora hay freno por cajero y dirección (RF-83).
 - **Abierto (seguridad):** `composer audit` ya no reporta avisos de Symfony (parcheados en T25); quedan cinco de `laravel/framework` 11.57.1 que exigen 12.x. Cabeceras de seguridad, proxies y HTTPS resueltos en T26; `role` fuera de `$fillable` en T27; bitácora de eventos de seguridad en T28; textos de usuario en `lang` en T29.
 - **Resuelto (T21):** tras cerrar la caja, el panel del Técnico muestra «Caja cerrada» con la diferencia declarada, no la etiqueta del botón.
-- «Anulación del día» se calcula por fecha de venta en el panel del Administrador y por fecha de anulación en el del Químico: falta fijarlo en la spec 002 (T22).
+- **Resuelto (T22):** «anulación» son dos conceptos y la spec 002 v1.1 (D-11) asigna cada uno a su indicador; Administrador y Químico comparten `SalesDayQuery::registeredVoidsOn()`, así que no pueden discrepar.
 - El libro de controlados desborda a 375 px porque su filtro de fechas no envuelve (spec 001).
 - `app/Models/Sale.php` declara una `SaleFactory` que no existe; `Sale::factory()` fallaría (T23).
 - `welcome.blade.php` sigue en inglés (página por defecto de Laravel, fuera del alcance de la spec).
@@ -492,12 +498,12 @@ Datos demo usados para la verificación eliminados al terminar (venta, línea y 
 
 ## Próximo paso
 
-**T19, T20, T24, T25, T26, T27, T28 y T29 cerradas.** T19: pantalla de inicio de sesión, autenticación real, freno por fuerza bruta y cierre de sesión con su botón. T20: `.env.example` con el stack real y un guard de zona horaria. T24: freno a la autorización de supervisor, que hasta ahora permitía probar contraseñas sin límite y evadir el tope del 10%. T25: parche de Symfony 7.4.22 → 7.4.23. T26: cabeceras de seguridad, proxies de confianza y HTTPS. T27: `role` fuera de `$fillable`. T28: bitácora de eventos de seguridad. T29: textos de usuario en `lang`. Suite actual: **397 tests, 3088 aserciones, 0 fallos**.
+**T19, T20, T21, T22 y T24 a T29 cerradas.** T19: pantalla de inicio de sesión, autenticación real, freno por fuerza bruta y cierre de sesión con su botón. T20: `.env.example` con el stack real y un guard de zona horaria. T21: la caja cerrada muestra su diferencia. T22: los dos conceptos de «anulación» con una sola fuente. T24: freno a la autorización de supervisor, que hasta ahora permitía probar contraseñas sin límite y evadir el tope del 10%. T25: parche de Symfony 7.4.22 → 7.4.23. T26: cabeceras de seguridad, proxies de confianza y HTTPS. T27: `role` fuera de `$fillable`. T28: bitácora de eventos de seguridad. T29: textos de usuario en `lang`. Suite actual: **399 tests, 3100 aserciones, 0 fallos**.
 
 Cola de mejora (informes de revisión y de seguridad), en `specs/003-auth/tasks.md`:
 
 - **T21.** Mensaje de cierre de caja con la diferencia declarada (hoy muestra la etiqueta del botón «Cerrar caja»).
-- **T22.** Fijar en la spec 002 si «anulación del día» es por fecha de venta o de anulación, y alinear los paneles del Administrador y del Químico.
+- **T22.** ✅ Cerrada: D-11 fija los dos conceptos de «anulación» en la spec 002 v1.1; ambos paneles comparten `SalesDayQuery::registeredVoidsOn()`.
 - **T23.** Ajustes menores: `SaleFactory` inexistente, filtro `active` en `CartService::load()`, control de pertenencia en `PosController::receipt()`, `active` en `AdjustStockRequest`, inyección de `VoidSaleService` y las nueve etiquetas `RF-nn` que faltan en los tests de la spec 002.
 - **T25.** ✅ Cerrada: `composer update` acotado a `symfony/*` (7.4.22 → 7.4.23). Los cinco avisos de `laravel/framework` 11.57.1 exigen el salto a 12.x y quedan como decisión aparte.
 - **T26.** ✅ Cerrada: cabeceras de seguridad, proxies de confianza y HTTPS fuera de local (RNF-27).

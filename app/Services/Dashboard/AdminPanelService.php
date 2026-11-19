@@ -31,6 +31,7 @@ final class AdminPanelService
     /**
      * @return array{
      *     summary: SalesDaySummary,
+     *     registeredVoids: int,
      *     documents: Collection<int, Document>,
      *     inventory: array{belowMinimum: int, outOfStock: int},
      *     audit: Collection<int, AuditLog>,
@@ -44,6 +45,8 @@ final class AdminPanelService
 
         return [
             'summary' => $this->sales->forDay($today),
+            // D-11: la misma cifra que lista el panel del Químico.
+            'registeredVoids' => $this->sales->registeredVoidsOn($today)->count(),
             'documents' => $this->documents(),
             'inventory' => $this->inventory(),
             'audit' => $this->audit(),

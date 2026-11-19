@@ -1,6 +1,6 @@
 # Tareas 002 — Paneles por rol, inventario y cierre de caja
 
-**Spec:** `specs/002-dashboard/spec.md` v1.0 (aprobada) · **Plan:** `specs/002-dashboard/plan.md`
+**Spec:** `specs/002-dashboard/spec.md` v1.1 (aprobada) · **Plan:** `specs/002-dashboard/plan.md`
 **Metodología:** TDD — test rojo primero, código después, `php artisan test` en verde.
 **Estado:** T11–T18 cerradas; spec 002 implementada.
 
@@ -131,13 +131,14 @@ RF-41 a RF-77: **cobertura nominal completa, sin repeticiones y sin huecos.**
 |---|---|
 | Constitución | ✅ v1.0 |
 | Spec 001-pos | ✅ v1.1 con las enmiendas de la 002 aplicadas |
-| Spec 002-dashboard | ✅ Aprobada v1.0 |
+| Spec 002-dashboard | ✅ Aprobada v1.1 (D-11, los dos conceptos de «anulación») |
 | Plan 002 | ✅ Completo (`specs/002-dashboard/plan.md`) |
 | Tasks 002 | ✅ Definidas (T11–T18) |
 | T11–T18 | ✅ T11 a T18 cerradas · spec 002 implementada |
+| Enmiendas posteriores | ✅ T21 (diferencia al cerrar caja) y T22 (D-11) cerradas desde `specs/003-auth/tasks.md` |
 | Verificación visual 375 px | 🔄 T11, T12, T13 y T14 verificadas; el resto se valida al cerrar cada tarea con interfaz |
 | Auditoría RF por RF 002 | ⏳ Pendiente |
 
 ---
 
-*Actualizado: 2026-11-18. Suite actual: 360 tests, 1847 aserciones, 0 fallos.*
+*Actualizado: 2026-11-18. Suite actual: 399 tests, 3100 aserciones, 0 fallos.*

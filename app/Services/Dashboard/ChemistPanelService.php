@@ -48,7 +48,7 @@ final class ChemistPanelService
         return [
             'summary' => $this->sales->forDay($today),
             'authorizations' => $this->authorizations($chemist, $date),
-            'voids' => $this->voids($date),
+            'voids' => $this->voids($today),
         ];
     }
 
@@ -69,17 +69,15 @@ final class ChemistPanelService
     }
 
     /**
-     * Anulaciones registradas hoy, con su motivo y su autor (RF-54).
+     * Anulaciones registradas hoy, con su motivo y su autor (RF-54, D-11).
+     *
+     * La consulta vive en `SalesDayQuery` para que el Administrador informe la
+     * misma cifra; aquí sólo se expone.
      *
      * @return Collection<int, AuditLog>
      */
-    private function voids(string $date): Collection
+    private function voids(DateTimeImmutable $day): Collection
     {
-        return AuditLog::query()
-            ->with(['user', 'auditable'])
-            ->where('action', 'sale.void')
-            ->whereDate('created_at', $date)
-            ->latest('id')
-            ->get();
+        return $this->sales->registeredVoidsOn($day);
     }
 }
