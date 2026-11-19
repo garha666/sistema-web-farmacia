@@ -487,6 +487,69 @@ final class PosController extends Controller
     }
 
     /**
+     * RF-89: verifica que el carrito siga siendo válido justo antes de cobrar.
+     *
+     * Rechaza el checkout si una línea supera el stock disponible o si un
+     * producto salió del catálogo, sin vaciar el carrito.
+     *
+     * @throws ValidationException si hay stock insuficiente o el producto dejó de estar en el catálogo.
+     */
+    private function assertCartStillValid(Cart $cart): void
+    {
+        $productIds = array_map(
+            fn (CartLine $line): int => $line->productId(),
+            $cart->lines(),
+        );
+
+        if ($productIds === []) {
+            return;
+        }
+
+        $products = Product::query()
+            ->whereIn('id', $productIds)
+            ->get(['id', 'stock', 'active'])
+            ->keyBy('id');
+
+        $availableByProductId = [];
+        $unavailable = [];
+
+        foreach ($cart->lines() as $line) {
+            $productId = $line->productId();
+            $product = $products->get($productId);
+
+            if ($product === null || ! $product->active) {
+                $unavailable[] = $productId;
+
+                continue;
+            }
+
+            $availableByProductId[$productId] = (int) $product->stock;
+        }
+
+        if ($unavailable !== []) {
+            throw ValidationException::withMessages([
+                'cart' => __('pos.errors.cart_product_unavailable', [
+                    'count' => count($unavailable),
+                ]),
+            ]);
+        }
+
+        if ($this->stockPolicy->hasShortages($cart, $availableByProductId)) {
+            // Construye el mismo mensaje que CheckoutService::checkout() usaría
+            // tras bloquear la fila, para que el cajero vea el stock real.
+            foreach ($cart->lines() as $line) {
+                $available = $availableByProductId[$line->productId()] ?? 0;
+                if (! $this->stockPolicy->canSell($available, $line->quantity())) {
+                    throw new InsufficientStock(__('pos.errors.concurrent_stock', [
+                        'name' => $line->name(),
+                        'available' => max(0, (int) $available),
+                    ]));
+                }
+            }
+        }
+    }
+
+    /**
      * RF-88: sondeo ligero del stock de productos del carrito.
      *
      * Devuelve el stock actual y el estado activo de cada producto
@@ -580,6 +643,13 @@ final class PosController extends Controller
 
         if ($cart->isEmpty()) {
             throw ValidationException::withMessages(['cart' => __('pos.errors.cart_empty')]);
+        }
+
+        // RF-89: verificar stock y catálogo justo antes de confirmar la venta.
+        try {
+            $this->assertCartStillValid($cart);
+        } catch (InsufficientStock $exception) {
+            throw ValidationException::withMessages(['cart' => $exception->getMessage()]);
         }
 
         $data = $request->validate([

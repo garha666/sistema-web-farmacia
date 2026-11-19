@@ -684,6 +684,8 @@ return [
 
     'errors' => [
         'cart_empty' => 'El carrito está vacío.',
+        'cart_product_unavailable' => 'Uno o más productos del carrito ya no están disponibles.',
+        'cart_insufficient_stock' => 'El stock disponible cambió al confirmar la venta. Revisa el carrito.',
         'product_missing' => 'El producto no existe.',
         'product_not_sellable' => 'El producto no está disponible para la venta.',
         'product_out_of_stock' => 'El producto no tiene stock disponible.',
