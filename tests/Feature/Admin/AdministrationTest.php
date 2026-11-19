@@ -811,7 +811,7 @@ final class AdministrationTest extends TestCase
 
         $this->get(route('admin.audit.index'))
             ->assertOk()
-            ->assertSee('sale.void')
+            ->assertSee(__('pos.panel.audit_action.sale.void'))
             ->assertSee('Error de cobro');
 
         $this->signIn('admin');

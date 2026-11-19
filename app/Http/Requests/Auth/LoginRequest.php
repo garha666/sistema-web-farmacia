@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Auth;
 
+use App\Models\AuditLog;
+use App\Models\User;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
@@ -52,6 +54,11 @@ final class LoginRequest extends FormRequest
 
         if (! Auth::attempt($this->only('email', 'password'), $this->boolean('remember'))) {
             RateLimiter::hit($this->throttleKey(), self::DECAY_SECONDS);
+
+            // T28 - RF-84: el intento fallido queda en la bitácora sin credenciales.
+            AuditLog::recordLoginFailure(
+                User::query()->where('email', (string) $this->string('email'))->first(),
+            );
 
             throw ValidationException::withMessages([
                 'email' => __('pos.login.error.invalid'),

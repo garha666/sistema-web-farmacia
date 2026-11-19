@@ -270,7 +270,7 @@ final class AuditTest extends TestCase
         $this->get(route('admin.audit.index'))
             ->assertOk()
             ->assertSeeText('Ibuprofeno 400 mg')
-            ->assertSeeText('sale.line_discount_authorized');
+            ->assertSeeText(__('pos.panel.audit_action.sale.line_discount_authorized'));
     }
 
     public function test_quimico_and_admin_read_the_audit_and_tecnico_is_forbidden(): void

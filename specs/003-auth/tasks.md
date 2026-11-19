@@ -75,10 +75,10 @@
   - *Alcance:* `User::$fillable` sin `role`; el seeder y los tests asignan el rol de forma explícita.
   - *Cierre:* **cerrada el 2026-11-18.** `MassAssignmentTest` (4 tests) escrito primero en rojo (**3 failed, 1 passed, 7 assertions**); después: `role` fuera de `$fillable`, `User::assignRole()` como única vía de cambio (usa `forceFill`), `UserFactory::newModel()` fija el rol explícitamente para que los 74 llamados existentes (`create(['role' => …])`, `->admin()`, etc.) sigan funcionando, y `UserSeeder` provisiona el rol con `assignRole()`. Verde en **4 tests, 8 aserciones**; suite completa **390 tests, 2019 aserciones, 0 fallos** (50,32 s), desde 386/2011. El caso de prueba demuestra que `User::create([... 'role' => 'admin'])` deja el rol por defecto `tecnico`.
 
-- [ ] **T28. Bitácora de seguridad.** S7
+- [x] **T28. Bitácora de seguridad.** S7 · RF-84
   - *Depende de:* T24
   - *Alcance:* registrar los intentos fallidos de autorización de supervisor y de inicio de sesión, sin credenciales, y traducir sus etiquetas en el panel.
-  - *Cierre:* (pendiente)
+  - *Cierre:* **cerrada el 2026-11-18.** `SecurityAuditLogTest` (5 tests) escrito primero en rojo; después `AuditLog::recordLoginFailure()` y `recordSupervisorFailure()` (sin contraseña), invocados desde `LoginRequest` y desde la autorización de supervisor de `PosController`. Verde en **5 tests, 9 aserciones**; suite completa **395 tests, 2028 aserciones, 0 fallos** (41,70 s), desde 390/2019. Las acciones `auth.login_failed` y `auth.supervisor_failed` se traducen en el panel y en la página de auditoría; dos tests existentes que asertaban el código crudo (`sale.void`, `sale.line_discount_authorized`) ahora asertan la etiqueta en español. El registro guarda la cuenta afectada y la acción, nunca la contraseña.
 
 - [ ] **T29. Textos de usuario fuera de `lang`.** S8
   - *Depende de:* —
@@ -100,7 +100,8 @@
 | T25 | — | — |
 | T26 | — | 27 |
 | T27 | — | 28 |
-| T28–T29 | — | — |
+| T28 | 84 | — |
+| T29 | — | — |
 
 ---
 
@@ -111,7 +112,7 @@
 | Constitución | ✅ v1.0 |
 | Spec 001-pos | ✅ v1.1 |
 | Spec 002-dashboard | ✅ v1.0 implementada (360 tests, 1847 aserciones) |
-| Spec 003-auth | ✅ Aprobada v1.3 (RF-83, RNF-26, RNF-27 y RNF-28) |
+| Spec 003-auth | ✅ Aprobada v1.4 (RF-83, RF-84, RNF-26, RNF-27 y RNF-28) |
 | Plan 003 | ✅ Completo (`specs/003-auth/plan.md`) |
 | T19 | ✅ Cerrada |
 | T20 | ✅ Cerrada |
@@ -119,9 +120,10 @@
 | T25 | ✅ Cerrada |
 | T26 | ✅ Cerrada |
 | T27 | ✅ Cerrada |
-| T21–T23, T28–T29 | ⏳ Planificadas (mejoras de los informes de revisión y seguridad) |
+| T28 | ✅ Cerrada |
+| T21–T23, T29 | ⏳ Planificadas (mejoras de los informes de revisión y seguridad) |
 | Auditoría RF por RF 002 | ⏳ Pendiente |
 
 ---
 
-*Actualizado: 2026-11-18. Suite actual: 390 tests, 2019 aserciones, 0 fallos.*
+*Actualizado: 2026-11-18. Suite actual: 395 tests, 2028 aserciones, 0 fallos.*

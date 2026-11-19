@@ -13,6 +13,12 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
  */
 final class AuditLog extends Model
 {
+    /** RF-84: intento fallido de inicio de sesión. */
+    public const LOGIN_FAILED = 'auth.login_failed';
+
+    /** RF-84: intento fallido de autorización de supervisor. */
+    public const SUPERVISOR_FAILED = 'auth.supervisor_failed';
+
     protected $fillable = [
         'user_id',
         'action',
@@ -57,5 +63,33 @@ final class AuditLog extends Model
     public function auditable(): MorphTo
     {
         return $this->morphTo();
+    }
+
+    /**
+     * T28 - RF-84: registra un intento fallido de inicio de sesión.
+     *
+     * Se guarda la cuenta atacada (o nada si el correo no existe) y nunca la
+     * contraseña ni el correo escrito, para no dejar credenciales en la
+     * bitácora.
+     */
+    public static function recordLoginFailure(?User $user): self
+    {
+        return self::query()->create([
+            'user_id' => $user?->getKey(),
+            'action' => self::LOGIN_FAILED,
+        ]);
+    }
+
+    /**
+     * T28 - RF-84: registra un intento fallido de autorización de supervisor.
+     *
+     * El autor es el cajero que lo intentó; la contraseña probada no se guarda.
+     */
+    public static function recordSupervisorFailure(?User $cashier): self
+    {
+        return self::query()->create([
+            'user_id' => $cashier?->getKey(),
+            'action' => self::SUPERVISOR_FAILED,
+        ]);
     }
 }

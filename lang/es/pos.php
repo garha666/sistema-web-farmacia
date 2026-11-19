@@ -192,6 +192,10 @@ return [
                 'line_discount_authorized' => 'Descuento de línea autorizado',
                 'prescription_reuse' => 'Receta reutilizada',
             ],
+            'auth' => [
+                'login_failed' => 'Intento fallido de inicio de sesión',
+                'supervisor_failed' => 'Intento fallido de autorización de supervisor',
+            ],
         ],
         'conventions' => [
             'activated' => "Convenio ':name' activado.",

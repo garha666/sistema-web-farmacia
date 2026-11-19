@@ -32,10 +32,13 @@
                         $isLine = str_ends_with($log->auditable_type ?? '', 'SaleLine');
                         $isSale = str_ends_with($log->auditable_type ?? '', 'Sale');
                         $saleId = $isLine ? $log->saleLine?->sale_id : ($isSale ? $log->auditable_id : null);
+                        // T28 - RF-84: la acción se traduce cuando el grupo la conoce.
+                        $actionKey = 'pos.panel.audit_action.'.$log->action;
+                        $actionLabel = __($actionKey) === $actionKey ? $log->action : __($actionKey);
                     @endphp
                     <tr>
                         <td class="px-4 py-3 tabular-nums text-slate-600">{{ $log->created_at?->format('d-m-Y H:i') }}</td>
-                        <td class="px-4 py-3 font-mono text-xs font-semibold">{{ $log->action }}</td>
+                        <td class="px-4 py-3 font-semibold">{{ $actionLabel }}</td>
                         <td class="px-4 py-3 text-slate-600">{{ $log->user?->name ?? __('pos.common.none') }}</td>
                         <td class="px-4 py-3 tabular-nums text-slate-600">
                             {{ $saleId !== null ? '#'.$saleId : __('pos.common.none') }}

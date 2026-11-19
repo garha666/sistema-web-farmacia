@@ -1,7 +1,7 @@
 # Especificación 003 — Autenticación y acceso
 
 **Proyecto:** Sistema Web de Gestión y Simulación de Farmacia Privada Comercial (Grupo A)
-**Estado:** aprobada · **Versión:** 1.3 (2026-11-18: agrega RNF-28, el rol no asignable en masa, tras la auditoría de seguridad) · **Ámbito:** sólo el QUÉ y el POR QUÉ
+**Estado:** aprobada · **Versión:** 1.4 (2026-11-18: agrega RF-84, bitácora de eventos de seguridad, tras la auditoría de seguridad) · **Ámbito:** sólo el QUÉ y el POR QUÉ
 
 > **Relación con las specs anteriores.** La spec 001 (§7) y la 002 (§7) declararon la autenticación **fuera de alcance** «porque se asume existente». Las dos specs siguen vigentes en todo lo demás; esta spec 003 **agrega** la pantalla de inicio de sesión y el cierre de sesión, que hasta ahora sólo existían como precondición (el RBAC de `role:*` y el aterrizaje por rol de RF-41 a RF-45 ya funcionaban, pero no había forma de iniciar sesión desde el navegador: un invitado terminaba en error al ser enviado a `/login`).
 
@@ -57,6 +57,11 @@ Notación EARS. «El sistema» es el módulo de acceso. La numeración continúa
   - *Criterio:* Una autorización correcta deberá limpiar el contador de intentos fallidos de ese usuario.
   - *Criterio:* El freno deberá cubrir las tres vías de autorización en línea: el cobro, el descuento global y el descuento de línea (spec 001, RF-16 y RF-11).
   - *Criterio:* La autorización de supervisor **no** es un inicio de sesión: no deberá cambiar la sesión ni el rol de quien la pide.
+
+- **RF-84 — Bitácora de eventos de seguridad.** Cuando ocurra un intento fallido de inicio de sesión o de autorización de supervisor, el sistema deberá registrarlo en la auditoría con la cuenta afectada y la acción, nunca con la contraseña.
+  - *Criterio:* El registro deberá incluir la cuenta atacada (si existe) y distinguir el inicio de sesión de la autorización de supervisor.
+  - *Criterio:* La contraseña probada no deberá guardarse, mostrarse ni devolverse en ningún caso.
+  - *Criterio:* El Administrador deberá ver estos eventos en su panel y en la auditoría, con una etiqueta en español.
 
 ## 5. Requisitos no funcionales
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Models\AuditLog;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Models\User;
@@ -743,6 +744,9 @@ final class PosController extends Controller
             || ! in_array($supervisor->role, [User::ROLE_QUIMICO, User::ROLE_ADMIN], true)
             || ! Hash::check((string) $password, $supervisor->password)) {
             RateLimiter::hit($throttleKey, self::SUPERVISOR_DECAY_SECONDS);
+
+            // T28 - RF-84: el intento fallido queda en la bitácora sin credenciales.
+            AuditLog::recordSupervisorFailure(request()->user());
 
             throw ValidationException::withMessages([
                 $errorKey => __('pos.errors.supervisor_invalid'),
