@@ -14,11 +14,11 @@
   - *Hecho cuando:* el administrador ve un reporte de ventas por rango de fechas con totales y listado; puede exportarlo a CSV; otros roles reciben 403.
   - *Cierre:* test escrito primero en rojo; suite completa en verde; verificación a 375 px sin desbordes.
 
-- [ ] **T37. Arqueo de caja por turno.** RF-94 (spec 004-reportes)
+- [x] **T37. Arqueo de caja por turno.** RF-94 (spec 004-reportes)
   - *Depende de:* T36
-  - *Alcance:* `ReportesController::arqueo()`, vista `reportes.arqueo`, middleware `role:tecnico,admin`. Técnico ve el suyo; admin ve el de cualquier cajero.
-  - *Hecho cuando:* un cajero ve su arqueo con ventas, medios de pago y diferencia; el admin ve el de cualquier cajero; caja abierta muestra estado «abierta».
-  - *Cierre:* test escrito primero en rojo; suite completa en verde.
+  - *Alcance:* `ReportesController::arqueo()`, `ReportesService::arqueoPorTurno()`, vista `reportes.arqueo`, middleware `role:tecnico,admin`. Técnico ve el suyo; admin ve el de cualquier cajero.
+  - *Hecho cuando:* un cajero ve su arqueo con ventas, medios de pago y diferencia; el admin ve el de cualquier cajero; turno cerrado muestra efectivo esperado, declarado y diferencia.
+  - *Cierre:* **cerrada el 2026-11-19.** Test escrito primero en rojo (`ArqueoTest`: **4 failed, 0 passed**), verde en **4 tests, 12 aserciones**. Se corrigió un bug donde `$request->integer('cashier_id')` devolvía 0 en lugar de null para admin sin filtro; se usa `filled()` + cast a int. `SaleStatus` y `PaymentMethod` se comparan como enum (no como string) porque están casteados en el modelo Sale. Suite completa: **441 tests, 3305 aserciones, 0 fallos** (48,30 s), desde 437/3293. Pint en verde.
 
 - [ ] **T38. Reporte de descuentos y anulaciones.** RF-95 (spec 004-reportes)
   - *Depende de:* T36
