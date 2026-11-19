@@ -252,6 +252,10 @@ S8 del informe de seguridad, P6 de la constitución. `HardcodedTextTest` escrito
 
 Diez claves nuevas en `pos.errors`: `forbidden`, `sale_already_voided`, `void_reason_required`, `invoice_customer_required`, `convention_missing`, `convention_inactive`, `convention_expired`, `document_not_retryable`, `folios_exhausted`, y se reutiliza `cart_empty`. `VoidPolicy` sigue siendo pura: lanza la clave de traducción y `PosController` la traduce al mostrar el error, así su test unitario sin contenedor sigue pasando. El guardián recorre todo `app/` con una lista explícita de los diez textos. Los mensajes visibles no cambian.
 
+## T21 cerrada — feedback del cierre de caja (2026-11-18)
+
+H2 del informe de revisión, RF-59. El panel del Técnico mostraba la etiqueta del botón «Cerrar caja» como mensaje de éxito y nunca la diferencia. Test primero en `CashierPanelTest`; después, la clave `pos.cash_register.status_closed` («Caja cerrada. Diferencia: :amount (:kind).») y el panel compone el mensaje con el signo de la diferencia y el monto en valor absoluto. Verde en **7 tests, 33 aserciones**; suite completa **398 tests, 3094 aserciones, 0 fallos** (43,14 s), desde 397/3088.
+
 ## Pendientes conocidos
 
 - La skill `sdd` referenciada por los comandos **no existe**; los comandos la invocan igual.
@@ -259,7 +263,7 @@ Diez claves nuevas en `pos.errors`: `forbidden`, `sale_already_voided`, `void_re
 - **Resuelto (T20):** `.env.example` declara `America/Santiago`, PostgreSQL y sesión en base, con un guard (`EnvironmentTest`) que falla si el huso de la aplicación no es el del negocio.
 - **Resuelto (T24):** la autorización de supervisor tenía intentos ilimitados, así que el tope del 10% era evadible; ahora hay freno por cajero y dirección (RF-83).
 - **Abierto (seguridad):** `composer audit` ya no reporta avisos de Symfony (parcheados en T25); quedan cinco de `laravel/framework` 11.57.1 que exigen 12.x. Cabeceras de seguridad, proxies y HTTPS resueltos en T26; `role` fuera de `$fillable` en T27; bitácora de eventos de seguridad en T28; textos de usuario en `lang` en T29.
-- Tras cerrar la caja, el panel del Técnico muestra la etiqueta del botón «Cerrar caja» como mensaje de éxito y nunca muestra la diferencia declarada (T21).
+- **Resuelto (T21):** tras cerrar la caja, el panel del Técnico muestra «Caja cerrada» con la diferencia declarada, no la etiqueta del botón.
 - «Anulación del día» se calcula por fecha de venta en el panel del Administrador y por fecha de anulación en el del Químico: falta fijarlo en la spec 002 (T22).
 - El libro de controlados desborda a 375 px porque su filtro de fechas no envuelve (spec 001).
 - `app/Models/Sale.php` declara una `SaleFactory` que no existe; `Sale::factory()` fallaría (T23).

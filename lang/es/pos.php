@@ -649,6 +649,7 @@ return [
         'cancel' => 'Volver al panel',
         'empty' => 'El turno no tiene ventas registradas.',
         'status_open' => 'Caja abierta',
+        'status_closed' => 'Caja cerrada. Diferencia: :amount (:kind).',
         'summary_title' => 'Resumen del turno',
         'no_turn' => 'Aún no tienes un turno abierto.',
         'go_pos' => 'Ir al POS',

@@ -33,11 +33,11 @@
   - *Hecho cuando:* copiar `.env.example` a `.env` deja un entorno equivalente al de la suite y el test de zona horaria pasa.
   - *Cierre:* **cerrada el 2026-11-18.** `EnvironmentTest` (4 tests) escrito primero en rojo (**2 failed, 2 passed, 7 assertions**) y después el arreglo: verde en **4 tests, 9 aserciones**. Suite completa: **377 tests, 1939 aserciones, 0 fallos** (64,53 s); la partida era 373/1930. `.env.example` declara `APP_TIMEZONE=America/Santiago`, `DB_CONNECTION=pgsql` con host, puerto, base `farmacia_pos` y usuario, `APP_LOCALE=es` y `SESSION_DRIVER=database`, con un comentario que explica que el huso debe coincidir con `pos.timezone` (si no, las ventas de 21:00 a 23:59 se escriben con fecha del día siguiente y los paneles «de hoy» las buscan en otro huso). El cambio sólo afecta a un clon nuevo: tests y entorno local leen `.env`, no `.env.example`. El test comprueba además que el archivo de ejemplo declare el huso del negocio, PostgreSQL y la sesión en base; se verificó que el guard **no es vacío** (con `APP_TIMEZONE=UTC` el primer test falla con su mensaje explicativo).
 
-- [ ] **T21. Feedback del cierre de caja.** H2 del informe de revisión
+- [x] **T21. Feedback del cierre de caja.** H2 del informe de revisión · RF-59
   - *Depende de:* —
   - *Alcance:* clave `pos.cash_register.status_closed`, mensaje de cierre con la diferencia en `dashboard/tecnico.blade.php` y test que lo cubra (hoy la pantalla muestra la etiqueta del botón «Cerrar caja» y nunca muestra la diferencia).
   - *Hecho cuando:* tras cerrar, el panel muestra un mensaje de cierre y la diferencia; el test lo comprueba.
-  - *Cierre:* (pendiente)
+  - *Cierre:* **cerrada el 2026-11-18.** Test escrito primero en `CashierPanelTest` (rojo); después, clave `pos.cash_register.status_closed` («Caja cerrada. Diferencia: :amount (:kind).») y el panel compone el mensaje con el signo de la diferencia (`balanced`/`over`/`short`) y el monto en valor absoluto. Verde en **7 tests, 33 aserciones**; suite completa **398 tests, 3094 aserciones, 0 fallos** (43,14 s), desde 397/3088. La pantalla ya no reutiliza la etiqueta del botón «Cerrar caja» como mensaje de éxito.
 
 - [ ] **T22. Enmienda: definición de «anulación del día».** H3 del informe de revisión
   - *Depende de:* —
@@ -120,9 +120,10 @@
 | T27 | ✅ Cerrada |
 | T28 | ✅ Cerrada |
 | T29 | ✅ Cerrada |
-| T21–T23 | ⏳ Planificadas (mejoras de los informes de revisión y seguridad) |
+| T21 | ✅ Cerrada |
+| T22–T23 | ⏳ Planificadas (mejoras de los informes de revisión y seguridad) |
 | Auditoría RF por RF 002 | ⏳ Pendiente |
 
 ---
 
-*Actualizado: 2026-11-18. Suite actual: 397 tests, 3088 aserciones, 0 fallos.*
+*Actualizado: 2026-11-18. Suite actual: 398 tests, 3094 aserciones, 0 fallos.*

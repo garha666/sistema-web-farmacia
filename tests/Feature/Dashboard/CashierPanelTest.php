@@ -71,6 +71,23 @@ final class CashierPanelTest extends TestCase
             ->assertSeeText(__('pos.cash_register.go_pos'));
     }
 
+    public function test_after_closing_the_register_the_panel_shows_the_difference(): void
+    {
+        $register = $this->openCashRegister($this->cashier, 50000);
+
+        $this->patch(route('cash.close', $register), ['declared_amount' => 47000])
+            ->assertRedirect(route('dashboard.tecnico'));
+
+        $this->get(route('dashboard.tecnico'))
+            ->assertOk()
+            ->assertSeeText(__('pos.cash_register.status_closed', [
+                'amount' => '$3.000',
+                'kind' => __('pos.cash_register.kind.short'),
+            ]))
+            ->assertSeeText('$3.000')
+            ->assertSeeText(__('pos.cash_register.kind.short'));
+    }
+
     public function test_the_panel_shows_the_open_register_and_the_turn_summary(): void
     {
         $register = $this->openCashRegister($this->cashier, 50000);

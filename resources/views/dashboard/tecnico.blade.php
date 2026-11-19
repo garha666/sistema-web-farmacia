@@ -13,8 +13,18 @@
         @endif
 
         @if (session()->has('cash_closed'))
+            @php
+                // T21 - RF-59: al cerrar se muestra la diferencia del arqueo,
+                // no la etiqueta del botón. El signo decide el tipo.
+                $closedDifference = (int) session('cash_closed');
+                $closedKind = $closedDifference === 0 ? 'balanced' : ($closedDifference > 0 ? 'over' : 'short');
+                $closedMoney = fn (int $pesos): string => '$'.number_format(abs($pesos), 0, ',', '.');
+            @endphp
             <p class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800" role="status">
-                {{ __('pos.cash_register.confirm') }}
+                {{ __('pos.cash_register.status_closed', [
+                    'amount' => $closedMoney($closedDifference),
+                    'kind' => __('pos.cash_register.kind.'.$closedKind),
+                ]) }}
             </p>
         @endif
 
