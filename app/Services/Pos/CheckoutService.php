@@ -74,7 +74,7 @@ final class CheckoutService
         array $lineDiscountAuthorizedBy = [],
     ): Sale {
         if ($cart->isEmpty()) {
-            throw new EmptyCart('El carrito está vacío.');
+            throw new EmptyCart(__('pos.errors.cart_empty'));
         }
 
         // RF-14/RF-16: el carrito pudo cambiar desde que se autorizó el
@@ -85,7 +85,7 @@ final class CheckoutService
         $documentType ??= DocumentType::receipt;
 
         if ($documentType === DocumentType::invoice && $invoice === null) {
-            throw new DomainException('La factura exige los datos tributarios del cliente.');
+            throw new DomainException(__('pos.errors.invoice_customer_required'));
         }
 
         // RF-8/RF-9: validar la receta antes de tocar stock o dinero.

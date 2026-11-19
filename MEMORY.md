@@ -246,13 +246,19 @@ RF-84 (spec 003 v1.4), S7 del informe de seguridad. `SecurityAuditLogTest` escri
 
 `AuditLog::recordLoginFailure()` y `recordSupervisorFailure()` guardan la cuenta afectada y la acción (`auth.login_failed`, `auth.supervisor_failed`), nunca la contraseña. Se invocan desde `LoginRequest` (fallo de inicio de sesión) y desde la autorización de supervisor de `PosController`. Las acciones se traducen en el panel del Administrador y en la página de auditoría; dos tests existentes que asertaban el código crudo ahora asertan la etiqueta en español. El test comprueba que la contraseña probada no aparece en ningún atributo del registro.
 
+## T29 cerrada — textos de usuario en `lang` (2026-11-18)
+
+S8 del informe de seguridad, P6 de la constitución. `HardcodedTextTest` escrito primero en rojo (**2 failed**); después, verde en **2 tests, 1060 aserciones**. Suite completa: **397 tests, 3088 aserciones, 0 fallos** (41,20 s), desde 395/2028.
+
+Diez claves nuevas en `pos.errors`: `forbidden`, `sale_already_voided`, `void_reason_required`, `invoice_customer_required`, `convention_missing`, `convention_inactive`, `convention_expired`, `document_not_retryable`, `folios_exhausted`, y se reutiliza `cart_empty`. `VoidPolicy` sigue siendo pura: lanza la clave de traducción y `PosController` la traduce al mostrar el error, así su test unitario sin contenedor sigue pasando. El guardián recorre todo `app/` con una lista explícita de los diez textos. Los mensajes visibles no cambian.
+
 ## Pendientes conocidos
 
 - La skill `sdd` referenciada por los comandos **no existe**; los comandos la invocan igual.
 - `specs/004-reportes/` (reportes históricos y exportaciones) no ha sido redactada; el cierre de caja y el arqueo pasaron a la spec 002 (D-6).
 - **Resuelto (T20):** `.env.example` declara `America/Santiago`, PostgreSQL y sesión en base, con un guard (`EnvironmentTest`) que falla si el huso de la aplicación no es el del negocio.
 - **Resuelto (T24):** la autorización de supervisor tenía intentos ilimitados, así que el tope del 10% era evadible; ahora hay freno por cajero y dirección (RF-83).
-- **Abierto (seguridad, T29):** `composer audit` ya no reporta avisos de Symfony (parcheados en T25); quedan cinco de `laravel/framework` 11.57.1 que exigen 12.x; siete textos de usuario hardcodeados en `app/`. Cabeceras de seguridad, proxies y HTTPS resueltos en T26; `role` fuera de `$fillable` en T27; bitácora de eventos de seguridad en T28.
+- **Abierto (seguridad):** `composer audit` ya no reporta avisos de Symfony (parcheados en T25); quedan cinco de `laravel/framework` 11.57.1 que exigen 12.x. Cabeceras de seguridad, proxies y HTTPS resueltos en T26; `role` fuera de `$fillable` en T27; bitácora de eventos de seguridad en T28; textos de usuario en `lang` en T29.
 - Tras cerrar la caja, el panel del Técnico muestra la etiqueta del botón «Cerrar caja» como mensaje de éxito y nunca muestra la diferencia declarada (T21).
 - «Anulación del día» se calcula por fecha de venta en el panel del Administrador y por fecha de anulación en el del Químico: falta fijarlo en la spec 002 (T22).
 - El libro de controlados desborda a 375 px porque su filtro de fechas no envuelve (spec 001).
@@ -482,7 +488,7 @@ Datos demo usados para la verificación eliminados al terminar (venta, línea y 
 
 ## Próximo paso
 
-**T19, T20, T24, T25, T26, T27 y T28 cerradas.** T19: pantalla de inicio de sesión, autenticación real, freno por fuerza bruta y cierre de sesión con su botón. T20: `.env.example` con el stack real y un guard de zona horaria. T24: freno a la autorización de supervisor, que hasta ahora permitía probar contraseñas sin límite y evadir el tope del 10%. T25: parche de Symfony 7.4.22 → 7.4.23. T26: cabeceras de seguridad, proxies de confianza y HTTPS. T27: `role` fuera de `$fillable`. T28: bitácora de eventos de seguridad. Suite actual: **395 tests, 2028 aserciones, 0 fallos**.
+**T19, T20, T24, T25, T26, T27, T28 y T29 cerradas.** T19: pantalla de inicio de sesión, autenticación real, freno por fuerza bruta y cierre de sesión con su botón. T20: `.env.example` con el stack real y un guard de zona horaria. T24: freno a la autorización de supervisor, que hasta ahora permitía probar contraseñas sin límite y evadir el tope del 10%. T25: parche de Symfony 7.4.22 → 7.4.23. T26: cabeceras de seguridad, proxies de confianza y HTTPS. T27: `role` fuera de `$fillable`. T28: bitácora de eventos de seguridad. T29: textos de usuario en `lang`. Suite actual: **397 tests, 3088 aserciones, 0 fallos**.
 
 Cola de mejora (informes de revisión y de seguridad), en `specs/003-auth/tasks.md`:
 
@@ -493,7 +499,7 @@ Cola de mejora (informes de revisión y de seguridad), en `specs/003-auth/tasks.
 - **T26.** ✅ Cerrada: cabeceras de seguridad, proxies de confianza y HTTPS fuera de local (RNF-27).
 - **T27.** ✅ Cerrada: `role` fuera de `User::$fillable`, con `assignRole()` como vía explícita (RNF-28).
 - **T28.** ✅ Cerrada: bitácora de intentos fallidos de inicio de sesión y de autorización de supervisor (RF-84).
-- **T29.** Mover los siete textos de usuario hardcodeados en `app/` a `lang/es/pos.php`.
+- **T29.** ✅ Cerrada: los diez textos de usuario que quedaban en `app/` pasan a `lang/es/pos.php`, con guardián en `HardcodedTextTest`.
 
 Pendientes de mayor alcance (fuera de la cola actual): `specs/004-reportes/` sin redactar, desborde a 375 px del libro de controlados (spec 001) y los archivos de despliegue (Docker, Nginx, SSL) que `AGENTS.md` declara como stack y que no están en el repositorio.
 

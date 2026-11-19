@@ -14,12 +14,13 @@ final class VoidPolicy
 {
     public function assertCanVoid(SaleStatus $status, string $reason): void
     {
+        // T29: la política es pura; lanza la clave y el controlador la traduce.
         if ($status === SaleStatus::voided) {
-            throw new DomainException('La venta ya está anulada.');
+            throw new DomainException('pos.errors.sale_already_voided');
         }
 
         if (trim($reason) === '') {
-            throw new DomainException('El motivo de la anulación es obligatorio.');
+            throw new DomainException('pos.errors.void_reason_required');
         }
     }
 }

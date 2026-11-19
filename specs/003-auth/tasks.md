@@ -80,10 +80,10 @@
   - *Alcance:* registrar los intentos fallidos de autorización de supervisor y de inicio de sesión, sin credenciales, y traducir sus etiquetas en el panel.
   - *Cierre:* **cerrada el 2026-11-18.** `SecurityAuditLogTest` (5 tests) escrito primero en rojo; después `AuditLog::recordLoginFailure()` y `recordSupervisorFailure()` (sin contraseña), invocados desde `LoginRequest` y desde la autorización de supervisor de `PosController`. Verde en **5 tests, 9 aserciones**; suite completa **395 tests, 2028 aserciones, 0 fallos** (41,70 s), desde 390/2019. Las acciones `auth.login_failed` y `auth.supervisor_failed` se traducen en el panel y en la página de auditoría; dos tests existentes que asertaban el código crudo (`sale.void`, `sale.line_discount_authorized`) ahora asertan la etiqueta en español. El registro guarda la cuenta afectada y la acción, nunca la contraseña.
 
-- [ ] **T29. Textos de usuario fuera de `lang`.** S8
+- [x] **T29. Textos de usuario fuera de `lang`.** S8 · P6
   - *Depende de:* —
-  - *Alcance:* mover los siete literales en español de `RoleMiddleware`, `VoidPolicy`, `CheckoutService`, `ConventionService` y `DocumentService` a `lang/es/pos.php`.
-  - *Cierre:* (pendiente)
+  - *Alcance:* mover los literales en español de `RoleMiddleware`, `VoidPolicy`, `CheckoutService`, `ConventionService` y `DocumentService` a `lang/es/pos.php`.
+  - *Cierre:* **cerrada el 2026-11-18.** `HardcodedTextTest` escrito primero en rojo (**2 failed**); después, verde en **2 tests, 1060 aserciones**. Suite completa: **397 tests, 3088 aserciones, 0 fallos** (41,20 s), desde 395/2028. Diez claves nuevas en `pos.errors` (`forbidden`, `sale_already_voided`, `void_reason_required`, `invoice_customer_required`, `convention_missing`, `convention_inactive`, `convention_expired`, `document_not_retryable`, `folios_exhausted`) y se reutiliza `cart_empty`. `VoidPolicy` sigue siendo pura: lanza la **clave** y `PosController` la traduce al mostrar el error, así su test unitario sin contenedor sigue pasando; `VoidPolicyTest` ahora afirma la clave. El guardián recorre todo `app/` con una lista explícita de los diez textos.
 
 ---
 
@@ -103,8 +103,6 @@
 | T28 | 84 | — |
 | T29 | — | — |
 
----
-
 ## Estado actual del flujo SDD
 
 | Fase | Estado |
@@ -121,9 +119,10 @@
 | T26 | ✅ Cerrada |
 | T27 | ✅ Cerrada |
 | T28 | ✅ Cerrada |
-| T21–T23, T29 | ⏳ Planificadas (mejoras de los informes de revisión y seguridad) |
+| T29 | ✅ Cerrada |
+| T21–T23 | ⏳ Planificadas (mejoras de los informes de revisión y seguridad) |
 | Auditoría RF por RF 002 | ⏳ Pendiente |
 
 ---
 
-*Actualizado: 2026-11-18. Suite actual: 395 tests, 2028 aserciones, 0 fallos.*
+*Actualizado: 2026-11-18. Suite actual: 397 tests, 3088 aserciones, 0 fallos.*

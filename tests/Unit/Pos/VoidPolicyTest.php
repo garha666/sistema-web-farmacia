@@ -19,7 +19,7 @@ final class VoidPolicyTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->policy = new VoidPolicy();
+        $this->policy = new VoidPolicy;
     }
 
     public function test_a_confirmed_sale_with_a_reason_can_be_voided(): void
@@ -32,7 +32,7 @@ final class VoidPolicyTest extends TestCase
     public function test_an_already_voided_sale_cannot_be_voided_again(): void
     {
         $this->expectException(DomainException::class);
-        $this->expectExceptionMessage('La venta ya está anulada.');
+        $this->expectExceptionMessage('pos.errors.sale_already_voided');
 
         $this->policy->assertCanVoid(SaleStatus::voided, 'Cliente desiste de la compra');
     }
@@ -40,7 +40,7 @@ final class VoidPolicyTest extends TestCase
     public function test_the_reason_cannot_be_empty(): void
     {
         $this->expectException(DomainException::class);
-        $this->expectExceptionMessage('El motivo de la anulación es obligatorio.');
+        $this->expectExceptionMessage('pos.errors.void_reason_required');
 
         $this->policy->assertCanVoid(SaleStatus::confirmed, '');
     }

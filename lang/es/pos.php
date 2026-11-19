@@ -700,6 +700,15 @@ return [
         'supervisor_throttled' => 'Demasiados intentos de autorización fallidos. Vuelve a intentarlo en :seconds segundos.',
         'emission_failed' => 'La emisión simulada volvió a fallar. El documento sigue pendiente y puedes reintentar.',
         'voided_sale_document' => 'La venta está anulada: su documento pendiente ya no se puede emitir.',
+        'forbidden' => 'No tienes permiso para realizar esta acción.',
+        'sale_already_voided' => 'La venta ya está anulada.',
+        'void_reason_required' => 'El motivo de la anulación es obligatorio.',
+        'invoice_customer_required' => 'La factura exige los datos tributarios del cliente.',
+        'convention_missing' => 'El convenio seleccionado no existe.',
+        'convention_inactive' => 'El convenio seleccionado está desactivado.',
+        'convention_expired' => 'El convenio seleccionado está fuera de vigencia.',
+        'document_not_retryable' => 'Sólo se pueden reintentar documentos pendientes o rechazados.',
+        'folios_exhausted' => 'No quedan folios disponibles para este tipo de documento.',
     ],
 
 ];

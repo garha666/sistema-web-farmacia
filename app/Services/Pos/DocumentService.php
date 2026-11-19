@@ -36,8 +36,7 @@ final class DocumentService
     public function __construct(
         private readonly DocumentEmitter $emitter,
         private readonly FolioAllocator $allocator,
-    ) {
-    }
+    ) {}
 
     /**
      * Intenta la emisión simulada de un documento ya confirmado (RF-24).
@@ -86,7 +85,7 @@ final class DocumentService
             $locked = $this->lock($document);
 
             if ($locked->status === DocumentStatus::issued) {
-                throw new DomainException('Sólo se pueden reintentar documentos pendientes o rechazados.');
+                throw new DomainException(__('pos.errors.document_not_retryable'));
             }
 
             if ($this->saleIsVoided($locked)) {
@@ -98,7 +97,7 @@ final class DocumentService
             $folio = $locked->folio ?? $this->allocateFolio($locked->type);
 
             if ($folio === null) {
-                throw new DomainException('No quedan folios disponibles para este tipo de documento.');
+                throw new DomainException(__('pos.errors.folios_exhausted'));
             }
 
             $this->issue($locked, $folio);

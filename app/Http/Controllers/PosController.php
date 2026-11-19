@@ -569,7 +569,8 @@ final class PosController extends Controller
                 $request->user()?->id,
             );
         } catch (DomainException $exception) {
-            throw ValidationException::withMessages(['reason' => $exception->getMessage()]);
+            // T29: la política lanza una clave de traducción; se traduce aquí.
+            throw ValidationException::withMessages(['reason' => __($exception->getMessage())]);
         }
 
         return redirect()->route('pos.sales.receipt', $sale)

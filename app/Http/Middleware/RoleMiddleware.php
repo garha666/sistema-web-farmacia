@@ -21,7 +21,7 @@ final class RoleMiddleware
         $user = $request->user();
 
         if ($user === null || ! in_array($user->role, $roles, true)) {
-            abort(403, 'No tienes permiso para realizar esta acción.');
+            abort(403, __('pos.errors.forbidden'));
         }
 
         return $next($request);

@@ -110,15 +110,15 @@ final class ConventionService
         $convention = Convention::query()->find($id);
 
         if ($convention === null) {
-            throw new DomainException('El convenio seleccionado no existe.');
+            throw new DomainException(__('pos.errors.convention_missing'));
         }
 
         if (! $convention->active) {
-            throw new DomainException('El convenio seleccionado está desactivado.');
+            throw new DomainException(__('pos.errors.convention_inactive'));
         }
 
         if (! $convention->isApplicableOn($today)) {
-            throw new DomainException('El convenio seleccionado está fuera de vigencia.');
+            throw new DomainException(__('pos.errors.convention_expired'));
         }
 
         return $convention;
