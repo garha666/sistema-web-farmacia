@@ -272,7 +272,7 @@ final class PosController extends Controller
      * Bajo el tope se aplica directo. Sobre el tope no se guarda hasta que
      * vengan las credenciales de un supervisor; la vista abre el modal.
      */
-    public function applyDiscount(Request $request): RedirectResponse
+    public function applyDiscount(Request $request): RedirectResponse|JsonResponse
     {
         $data = $request->validate([
             'discount_type' => ['required', new Enum(DiscountType::class)],
@@ -338,15 +338,25 @@ final class PosController extends Controller
             $authorizedBy,
         );
 
+        if ($request->expectsJson()) {
+            // RF-87: descuento global sin recargar la página.
+            return response()->json($this->cartPayload());
+        }
+
         return redirect()->route('pos.index');
     }
 
     /**
      * Quita el descuento manual de la venta en curso (RF-13).
      */
-    public function removeDiscount(): RedirectResponse
+    public function removeDiscount(Request $request): RedirectResponse|JsonResponse
     {
         $this->manualDiscountService->clear();
+
+        if ($request->expectsJson()) {
+            // RF-87: quitar el descuento global sin recargar la página.
+            return response()->json($this->cartPayload());
+        }
 
         return redirect()->route('pos.index');
     }
@@ -357,7 +367,7 @@ final class PosController extends Controller
      * Exige motivo, no deja la línea en cero y el acumulado de la transacción
      * no supera el tope general; sobre el tope pide supervisor.
      */
-    public function applyLineDiscount(Request $request, Product $product): RedirectResponse
+    public function applyLineDiscount(Request $request, Product $product): RedirectResponse|JsonResponse
     {
         $data = $request->validate([
             'line_type' => ['required', new Enum(DiscountType::class)],
@@ -432,18 +442,28 @@ final class PosController extends Controller
             $this->cartService->authorizeLineDiscount($product->id, $lineAuthorizedBy);
         }
 
+        if ($request->expectsJson()) {
+            // RF-87: descuento de línea sin recargar la página.
+            return response()->json($this->cartPayload());
+        }
+
         return redirect()->route('pos.index');
     }
 
     /**
      * Quita el descuento de una línea del carrito (RF-13).
      */
-    public function removeLineDiscount(Product $product): RedirectResponse
+    public function removeLineDiscount(Request $request, Product $product): RedirectResponse|JsonResponse
     {
         $cart = $this->cartService->load()
             ->applyLineDiscount($product->id, null);
 
         $this->cartService->persist($cart);
+
+        if ($request->expectsJson()) {
+            // RF-87: quitar el descuento de línea sin recargar la página.
+            return response()->json($this->cartPayload());
+        }
 
         return redirect()->route('pos.index');
     }
