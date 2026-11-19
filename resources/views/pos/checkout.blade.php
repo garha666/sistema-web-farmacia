@@ -345,7 +345,7 @@
         @endif
     </div>
 
-    <script>
+    <script nonce="{{ $cspNonce }}">
         // S-2: los datos de factura sólo se piden cuando el documento es factura.
         (() => {
             const fields = document.querySelector('[data-invoice-fields]');

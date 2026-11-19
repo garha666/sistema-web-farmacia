@@ -1,7 +1,7 @@
 # Especificación 003 — Autenticación y acceso
 
 **Proyecto:** Sistema Web de Gestión y Simulación de Farmacia Privada Comercial (Grupo A)
-**Estado:** aprobada · **Versión:** 1.1 (2026-11-18: agrega RF-83 y RNF-26, el freno a la autorización de supervisor, tras la auditoría de seguridad) · **Ámbito:** sólo el QUÉ y el POR QUÉ
+**Estado:** aprobada · **Versión:** 1.2 (2026-11-18: agrega RNF-27, cabeceras de seguridad, proxies de confianza y HTTPS, tras la auditoría de seguridad) · **Ámbito:** sólo el QUÉ y el POR QUÉ
 
 > **Relación con las specs anteriores.** La spec 001 (§7) y la 002 (§7) declararon la autenticación **fuera de alcance** «porque se asume existente». Las dos specs siguen vigentes en todo lo demás; esta spec 003 **agrega** la pantalla de inicio de sesión y el cierre de sesión, que hasta ahora sólo existían como precondición (el RBAC de `role:*` y el aterrizaje por rol de RF-41 a RF-45 ya funcionaban, pero no había forma de iniciar sesión desde el navegador: un invitado terminaba en error al ser enviado a `/login`).
 
@@ -66,6 +66,10 @@ Numeración continua con la spec 002.
 - **RNF-24 — Higiene de sesión.** El identificador de sesión deberá regenerarse al autenticar, y al cerrar sesión se deberá invalidar la sesión y regenerar el token CSRF.
 - **RNF-25 — Idioma, formato y accesibilidad.** La pantalla deberá estar en español de Chile (RNF-16), con etiquetas en los campos, foco visible y utilizable a 375 px (RNF-17).
 - **RNF-26 — Credenciales de supervisor.** La contraseña de supervisor deberá compararse sólo contra su hash y nunca deberá registrarse, mostrarse ni devolverse al navegador; el límite de intentos es el de RF-83.
+- **RNF-27 — Cabeceras de seguridad, proxies y HTTPS.** SI el sistema atiende una petición, ENTONCES deberá responder con `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy` restrictiva y una `Content-Security-Policy` que sólo permita recursos del propio sitio y guiones autorizados por nonce; SI el entorno es producción, ENTONCES deberá forzar HTTPS en las URLs generadas y confiar sólo en los proxies declarados en la configuración.
+  - *Criterio:* Ningún guion en línea deberá ejecutarse sin el nonce de la petición; los manejadores de eventos en línea (`onclick` y similares) no se admiten y deberán migrarse a escuchadores.
+  - *Criterio:* La política no deberá romper la interfaz: los estilos compilados por Vite, las fuentes y las imágenes del propio sitio deberán cargarse sin errores de consola.
+  - *Criterio:* Ninguna cabecera de seguridad deberá depender de que el proxy o el servidor web las añada por su cuenta.
 
 ## 6. Casos límite
 

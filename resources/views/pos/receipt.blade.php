@@ -181,9 +181,14 @@
             <a href="{{ route('pos.index') }}" class="flex-1 rounded-lg bg-emerald-600 px-4 py-3 text-center text-sm font-semibold text-white hover:bg-emerald-700">
                 {{ __('pos.receipt.new_sale') }}
             </a>
-            <button type="button" onclick="window.print()" class="rounded-lg border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-700">
+            <button type="button" id="print-receipt" class="rounded-lg border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-700">
                 {{ __('pos.receipt.print') }}
             </button>
         </div>
     </div>
+
+    <script nonce="{{ $cspNonce }}">
+        // RNF-27: sin manejadores en línea; el botón se enlaza desde aquí.
+        document.getElementById('print-receipt')?.addEventListener('click', () => window.print());
+    </script>
 @endsection

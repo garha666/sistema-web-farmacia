@@ -64,10 +64,11 @@
   - *Cierre:* **cerrada el 2026-11-18.** `composer update "symfony/*" --dry-run` mostró 12 actualizaciones de parche (7.4.22 → 7.4.23), sin altas ni bajas de paquetes; se aplicó y `composer.lock` quedó en 7.4.23. `composer audit` ya no reporta ningún aviso de Symfony: sólo sobreviven **5 avisos de `laravel/framework`** (CRLF en la regla `email`, URL firmadas temporales, XSS en la página de depuración y salida de `Concurrency`), todos sin parche en 11.x y que exigen el salto a 12.x — se registran como decisión aparte. Suite completa: **382 tests, 1989 aserciones, 0 fallos** (52,71 s), sin regresiones.
   - *Incidente de entorno:* `php artisan package:discover` falló con «directory must be present and writable» porque OneDrive repuso el atributo `ReadOnly` sobre `bootstrap/cache` (un *placeholder* de OneDrive, no un junction). PHP interpreta ese atributo como no escribible aunque `file_put_contents()` sí escriba. Se resolvió con `attrib -R bootstrap\cache`; conviene repetirlo si OneDrive vuelve a marcarlo.
 
-- [ ] **T26. Cabeceras de seguridad, proxies de confianza y HTTPS.** S4 y S5
+- [x] **T26. Cabeceras de seguridad, proxies de confianza y HTTPS.** S4 y S5 · RNF-27
   - *Depende de:* —
   - *Alcance:* middleware de cabeceras (CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy), `trusted_proxies` y forzado de HTTPS fuera de local.
-  - *Cierre:* (pendiente)
+  - *Cierre:* **cerrada el 2026-11-18.** `SecurityHeadersTest` (4 tests) escrito primero en rojo (**4 failed, 6 assertions**) y después el middleware: verde en **4 tests, 22 aserciones**. Suite completa: **386 tests, 2011 aserciones, 0 fallos** (48,67 s); la partida era 382/1989, sin tests existentes rotos. `SecurityHeaders` (global, en `bootstrap/app.php`) emite `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy: camera=(), microphone=(), geolocation=()` y una CSP con `default-src 'self'`, `script-src 'self' 'nonce-…'`, `frame-ancestors 'none'`, `base-uri 'self'`, `form-action 'self'` y `object-src 'none'`; el nonce se genera por petición y se comparte con las vistas como `$cspNonce`. Los dos guiones en línea (`pos/checkout.blade.php` y `cash/close.blade.php`) llevan el nonce y el `onclick` del comprobante pasó a un escuchador (`#print-receipt`). `trustProxies` sólo confía en los proxies de `TRUSTED_PROXIES` (ninguno por defecto) y `AppServiceProvider` fuerza HTTPS en producción. Verificado en el navegador a 375 px: cabeceras presentes en `/login`, consola limpia en login, panel, cierre de caja y comprobante, diferencia en vivo ($3.000 en contra) y `scrollWidth = 375`; el turno de prueba se borró y la base dev volvió a 0 turnos.
+  - *Nota:* `style-src` mantiene `'unsafe-inline'` porque Vite inyecta estilos en desarrollo; no hay atributos `style` en las vistas.
 
 - [ ] **T27. Sacar `role` de `$fillable`.** S3
   - *Depende de:* —
@@ -97,7 +98,8 @@
 | T23 | — | — |
 | T24 | 83 | 26 |
 | T25 | — | — |
-| T26–T29 | — | — |
+| T26 | — | 27 |
+| T27–T29 | — | — |
 
 ---
 
@@ -108,15 +110,16 @@
 | Constitución | ✅ v1.0 |
 | Spec 001-pos | ✅ v1.1 |
 | Spec 002-dashboard | ✅ v1.0 implementada (360 tests, 1847 aserciones) |
-| Spec 003-auth | ✅ Aprobada v1.1 (RF-83 y RNF-26) |
+| Spec 003-auth | ✅ Aprobada v1.2 (RF-83, RNF-26 y RNF-27) |
 | Plan 003 | ✅ Completo (`specs/003-auth/plan.md`) |
 | T19 | ✅ Cerrada |
 | T20 | ✅ Cerrada |
 | T24 | ✅ Cerrada |
 | T25 | ✅ Cerrada |
-| T21–T23, T26–T29 | ⏳ Planificadas (mejoras de los informes de revisión y seguridad) |
+| T26 | ✅ Cerrada |
+| T21–T23, T27–T29 | ⏳ Planificadas (mejoras de los informes de revisión y seguridad) |
 | Auditoría RF por RF 002 | ⏳ Pendiente |
 
 ---
 
-*Actualizado: 2026-11-18. Suite actual: 382 tests, 1989 aserciones, 0 fallos.*
+*Actualizado: 2026-11-18. Suite actual: 386 tests, 2011 aserciones, 0 fallos.*

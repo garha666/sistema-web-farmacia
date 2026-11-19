@@ -224,13 +224,23 @@ S2 del informe de seguridad. `composer update "symfony/*"` llevó 12 paquetes de
 
 **Incidente de entorno:** `php artisan package:discover` falló con «directory must be present and writable» porque OneDrive repuso el atributo `ReadOnly` sobre `bootstrap/cache` (un *placeholder* de OneDrive, no un junction). PHP lo interpreta como no escribible aunque `file_put_contents()` sí escriba. Se resolvió con `attrib -R bootstrap\cache`.
 
+## T26 cerrada — cabeceras de seguridad, proxies y HTTPS (2026-11-18)
+
+RNF-27 (spec 003 v1.2), S4 y S5 del informe de seguridad. `SecurityHeadersTest` escrito primero en rojo (**4 failed, 6 assertions**); después, verde en **4 tests, 22 aserciones**. Suite completa: **386 tests, 2011 aserciones, 0 fallos** (48,67 s), desde 382/1989.
+
+El middleware `SecurityHeaders` (global, registrado en `bootstrap/app.php`) emite `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy` y una `Content-Security-Policy` con `default-src 'self'`, `script-src 'self' 'nonce-…'`, `frame-ancestors 'none'`, `base-uri 'self'`, `form-action 'self'` y `object-src 'none'`. El nonce se genera por petición y se comparte con las vistas como `$cspNonce`; los dos guiones en línea llevan el nonce y el `onclick` del comprobante pasó a un escuchador. `trustProxies` sólo confía en `TRUSTED_PROXIES` (ninguno por defecto) y `AppServiceProvider` fuerza HTTPS en producción.
+
+Verificado en el navegador a 375 px: cabeceras presentes en `/login`, consola limpia en login, panel, cierre de caja y comprobante, diferencia del arqueo en vivo ($3.000 en contra) y `scrollWidth = 375`. El turno de prueba se borró; la base dev volvió a 0 turnos.
+
+**Compromiso consciente:** `style-src` mantiene `'unsafe-inline'` porque Vite inyecta estilos en desarrollo; no hay atributos `style` en las vistas.
+
 ## Pendientes conocidos
 
 - La skill `sdd` referenciada por los comandos **no existe**; los comandos la invocan igual.
 - `specs/004-reportes/` (reportes históricos y exportaciones) no ha sido redactada; el cierre de caja y el arqueo pasaron a la spec 002 (D-6).
 - **Resuelto (T20):** `.env.example` declara `America/Santiago`, PostgreSQL y sesión en base, con un guard (`EnvironmentTest`) que falla si el huso de la aplicación no es el del negocio.
 - **Resuelto (T24):** la autorización de supervisor tenía intentos ilimitados, así que el tope del 10% era evadible; ahora hay freno por cajero y dirección (RF-83).
-- **Abierto (seguridad, T26 a T29):** `composer audit` ya no reporta avisos de Symfony (parcheados en T25); quedan cinco de `laravel/framework` 11.57.1 que exigen 12.x; sin cabeceras de seguridad ni proxies de confianza; `User::$fillable` incluye `role`; no se registran los eventos de seguridad; siete textos de usuario hardcodeados en `app/`.
+- **Abierto (seguridad, T27 a T29):** `composer audit` ya no reporta avisos de Symfony (parcheados en T25); quedan cinco de `laravel/framework` 11.57.1 que exigen 12.x; `User::$fillable` incluye `role`; no se registran los eventos de seguridad; siete textos de usuario hardcodeados en `app/`. Cabeceras de seguridad, proxies y HTTPS resueltos en T26.
 - Tras cerrar la caja, el panel del Técnico muestra la etiqueta del botón «Cerrar caja» como mensaje de éxito y nunca muestra la diferencia declarada (T21).
 - «Anulación del día» se calcula por fecha de venta en el panel del Administrador y por fecha de anulación en el del Químico: falta fijarlo en la spec 002 (T22).
 - El libro de controlados desborda a 375 px porque su filtro de fechas no envuelve (spec 001).
@@ -460,7 +470,7 @@ Datos demo usados para la verificación eliminados al terminar (venta, línea y 
 
 ## Próximo paso
 
-**T19, T20, T24 y T25 cerradas.** T19: pantalla de inicio de sesión, autenticación real, freno por fuerza bruta y cierre de sesión con su botón. T20: `.env.example` con el stack real y un guard de zona horaria. T24: freno a la autorización de supervisor, que hasta ahora permitía probar contraseñas sin límite y evadir el tope del 10%. T25: parche de Symfony 7.4.22 → 7.4.23. Suite actual: **382 tests, 1989 aserciones, 0 fallos**.
+**T19, T20, T24, T25 y T26 cerradas.** T19: pantalla de inicio de sesión, autenticación real, freno por fuerza bruta y cierre de sesión con su botón. T20: `.env.example` con el stack real y un guard de zona horaria. T24: freno a la autorización de supervisor, que hasta ahora permitía probar contraseñas sin límite y evadir el tope del 10%. T25: parche de Symfony 7.4.22 → 7.4.23. T26: cabeceras de seguridad, proxies de confianza y HTTPS. Suite actual: **386 tests, 2011 aserciones, 0 fallos**.
 
 Cola de mejora (informes de revisión y de seguridad), en `specs/003-auth/tasks.md`:
 
@@ -468,7 +478,7 @@ Cola de mejora (informes de revisión y de seguridad), en `specs/003-auth/tasks.
 - **T22.** Fijar en la spec 002 si «anulación del día» es por fecha de venta o de anulación, y alinear los paneles del Administrador y del Químico.
 - **T23.** Ajustes menores: `SaleFactory` inexistente, filtro `active` en `CartService::load()`, control de pertenencia en `PosController::receipt()`, `active` en `AdjustStockRequest`, inyección de `VoidSaleService` y las nueve etiquetas `RF-nn` que faltan en los tests de la spec 002.
 - **T25.** ✅ Cerrada: `composer update` acotado a `symfony/*` (7.4.22 → 7.4.23). Los cinco avisos de `laravel/framework` 11.57.1 exigen el salto a 12.x y quedan como decisión aparte.
-- **T26.** Cabeceras de seguridad, proxies de confianza y HTTPS fuera de local.
+- **T26.** ✅ Cerrada: cabeceras de seguridad, proxies de confianza y HTTPS fuera de local (RNF-27).
 - **T27.** Sacar `role` de `User::$fillable`.
 - **T28.** Bitácora de seguridad (intentos fallidos de supervisor y de inicio de sesión).
 - **T29.** Mover los siete textos de usuario hardcodeados en `app/` a `lang/es/pos.php`.

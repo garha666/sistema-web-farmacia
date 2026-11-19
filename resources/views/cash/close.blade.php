@@ -123,7 +123,7 @@
         </div>
     </div>
 
-    <script>
+    <script nonce="{{ $cspNonce }}">
         (function () {
             const input = document.getElementById('declared_amount');
             const expected = Number(document.querySelector('[data-expected]').dataset.expected);
