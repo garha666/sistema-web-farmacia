@@ -7,11 +7,25 @@
 @endphp
 
 @section('content')
-    <div class="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
+    {{-- T31 / T33 - RNF-32: zonas anunciadas a tecnologías de asistencia; el JS sólo escribe aquí. --}}
+    <div id="pos-status" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
+    <div id="pos-alert" role="alert" aria-live="assertive" aria-atomic="true"></div>
+
+    {{-- T31 / T33 - RF-85, RF-86, RF-88: configuración del POS asíncrono. Sin JS esta pantalla es un formulario por acción (RF-91). --}}
+    <div
+        id="pos-root"
+        class="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_380px]"
+        data-search-url="{{ route('pos.index') }}"
+        data-stock-url="{{ route('pos.stock') }}"
+        data-login-url="{{ route('login') }}"
+        data-search-delay="{{ config('pos.async.search_delay_ms') }}"
+        data-stock-interval="{{ config('pos.async.stock_interval_ms') }}"
+        data-messages="{{ json_encode(__('pos.async'), JSON_UNESCAPED_UNICODE) }}"
+    >
         <section aria-labelledby="search-title" class="rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200/70">
             <h2 id="search-title" class="text-base font-semibold">{{ __('pos.cash.search') }}</h2>
 
-            <form method="GET" action="{{ route('pos.index') }}" class="relative mt-3">
+            <form method="GET" action="{{ route('pos.index') }}" class="relative mt-3" data-pos-async="search">
                 <label for="q" class="sr-only">{{ __('pos.cash.search') }}</label>
                 <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" class="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400">
                     <path d="m21 21-4.35-4.35M17 10.5a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z" />
@@ -28,7 +42,8 @@
                 >
             </form>
 
-            <div class="mt-4 space-y-2">
+            <div id="pos-results" class="mt-4 space-y-2" aria-busy="false">
+                @fragment('results')
                 @if ($term !== '' && $results->isEmpty())
                     <p class="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
                         {{ __('pos.cash.no_results', ['term' => $term]) }}
@@ -58,7 +73,7 @@
                             </p>
                         </div>
 
-                        <form method="POST" action="{{ route('pos.cart.add') }}">
+                        <form method="POST" action="{{ route('pos.cart.add') }}" data-pos-async="cart">
                             @csrf
                             <input type="hidden" name="product_id" value="{{ $product->id }}">
                             <button
@@ -71,10 +86,12 @@
                         </form>
                     </div>
                 @endforeach
+                @endfragment
             </div>
         </section>
 
-        <aside aria-labelledby="cart-title" class="rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200/70 lg:sticky lg:top-24">
+        <aside id="pos-cart" aria-labelledby="cart-title" aria-live="polite" aria-atomic="false" aria-busy="false" class="rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200/70 lg:sticky lg:top-24">
+            @fragment('cart')
             <h2 id="cart-title" class="text-base font-semibold">{{ __('pos.cash.cart') }}</h2>
 
             @if ($cart->isEmpty())
@@ -89,7 +106,7 @@
                             $lineDiscountPesos = $calculator->lineDiscount($line)->pesos();
                             $lineTotalPesos = $lineBasePesos - $lineDiscountPesos;
                         @endphp
-                        <li class="py-3">
+                        <li class="py-3" data-cart-line data-product-id="{{ $line->productId() }}" data-product-name="{{ $line->name() }}">
                             <div class="flex items-start justify-between gap-2">
                                 <div class="min-w-0">
                                     <p class="truncate font-medium">{{ $line->name() }}</p>
@@ -102,8 +119,8 @@
                                 </p>
                             </div>
 
-                            <div class="mt-2 flex flex-wrap items-center justify-between gap-2">
-                                <form method="POST" action="{{ route('pos.cart.update', $line->productId()) }}" class="flex items-center gap-1">
+                            <div class="mt-2 flex flex-wrap items-center justify-between gap-2" data-line-controls>
+                                <form method="POST" action="{{ route('pos.cart.update', $line->productId()) }}" class="flex items-center gap-1" data-pos-async="cart">
                                     @csrf
                                     @method('PATCH')
                                     <label class="sr-only" for="qty-{{ $line->productId() }}">{{ __('pos.cash.quantity') }}</label>
@@ -121,7 +138,7 @@
                                     </button>
                                 </form>
 
-                                <form method="POST" action="{{ route('pos.cart.remove', $line->productId()) }}">
+                                <form method="POST" action="{{ route('pos.cart.remove', $line->productId()) }}" data-pos-async="cart" data-line-remove>
                                     @csrf
                                     @method('DELETE')
                                     <button type="submit" class="text-xs font-semibold text-red-600 hover:underline">
@@ -333,6 +350,7 @@
             @if ($cart->isEmpty())
                 <p class="mt-2 text-center text-xs text-slate-500">{{ __('pos.cash.empty_short') }}</p>
             @endif
+            @endfragment
         </aside>
     </div>
 
@@ -452,4 +470,6 @@
             </div>
         </div>
     @endif
+
+    @vite('resources/js/pos/cart.js')
 @endsection

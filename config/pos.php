@@ -48,4 +48,10 @@ return [
         'commune' => 'Santiago',
     ],
 
+    // POS asíncrono (spec 004): debounce de la búsqueda (S-17) e intervalo del sondeo de stock (S-18).
+    'async' => [
+        'search_delay_ms' => 300,
+        'stock_interval_ms' => 10000,
+    ],
+
 ];

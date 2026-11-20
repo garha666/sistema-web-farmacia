@@ -685,6 +685,28 @@ return [
         ],
     ],
 
+    // T31 / T33 - RF-85 a RF-90: textos que el JS del POS muestra y anuncia.
+    'async' => [
+        'network' => 'No hay conexión con el servidor. El carrito quedó como estaba.',
+        'server' => 'El servidor no pudo completar la operación (error :status). El carrito quedó como estaba.',
+        'generic' => 'No se pudo completar la operación. El carrito quedó como estaba.',
+        'forbidden' => 'No tienes permiso para realizar esta acción.',
+        'not_found' => 'El producto ya no existe. Se actualizó el carrito.',
+        'session_expired' => 'Tu sesión expiró. Vuelve a iniciar sesión.',
+        'csrf' => 'No se pudo renovar la sesión de seguridad. Recarga la página; el carrito se conserva.',
+        'search_failed' => 'No se pudo buscar: :reason La lista anterior se mantiene.',
+        'results_none' => 'Sin resultados.',
+        'results_one' => '1 producto encontrado.',
+        'results_many' => ':count productos encontrados.',
+        'scanned' => 'Producto agregado por código de barras.',
+        'stock_out' => ':name se quedó sin stock.',
+        'stock_low' => ':name: stock disponible :stock, menos que la cantidad del carrito.',
+        'stock_inactive_removed' => ':name salió del catálogo y se quitó del carrito.',
+        'stock_note_out' => 'Sin stock disponible.',
+        'stock_note_low' => 'Stock disponible: :stock.',
+        'dismiss' => 'Cerrar aviso',
+    ],
+
     'errors' => [
         'cart_empty' => 'El carrito está vacío.',
         'cart_product_unavailable' => 'Uno o más productos del carrito ya no están disponibles.',

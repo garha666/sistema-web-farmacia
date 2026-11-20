@@ -27,6 +27,7 @@ use App\Pos\Value\CartLine;
 use App\Pos\Value\Discount;
 use App\Pos\Value\InvoiceData;
 use App\Pos\Value\PrescriptionInput;
+use App\Pos\Value\ReceiptTotals;
 use App\Services\Cash\CashRegisterService;
 use App\Services\Pos\CartService;
 use App\Services\Pos\CheckoutService;
@@ -78,22 +79,60 @@ final class PosController extends Controller
     public function index(Request $request): View|RedirectResponse|JsonResponse
     {
         $term = trim((string) $request->query('q', ''));
+        $scannedProductId = null;
 
         // B2 (RF-1, RF-2, RNF-3): el lector entrega el código completo seguido
         // de Enter. El acierto exacto agrega al carrito y vuelve a la caja sin
         // ?q; un código que no puede venderse avisa y tampoco deja el término.
-        if ($term !== '') {
+        // La búsqueda al teclear (RF-86) manda scan=0 y nunca toca el carrito.
+        if ($term !== '' && $request->boolean('scan', true)) {
             $scan = $this->barcodeScanPolicy->evaluate($term, $this->barcodeCandidates($term));
 
             if ($scan['product_id'] !== null) {
-                return $this->addScannedProduct($scan['product_id']);
-            }
+                $redirect = $this->addScannedProduct($scan['product_id']);
 
-            if ($scan['error'] !== null) {
+                if (! $request->expectsJson()) {
+                    return $redirect;
+                }
+
+                $scannedProductId = $scan['product_id'];
+                $term = '';
+            } elseif ($scan['error'] !== null) {
+                if ($request->expectsJson()) {
+                    // RF-90: el motivo viaja en el 422 y el carrito no se toca.
+                    throw ValidationException::withMessages([
+                        'barcode' => __('pos.errors.'.$scan['error']),
+                    ]);
+                }
+
                 return redirect()
                     ->route('pos.index')
                     ->withErrors(['barcode' => __('pos.errors.'.$scan['error'])]);
             }
+        }
+
+        if ($request->expectsJson()) {
+            // RF-86: búsqueda asíncrona sin recargar la página.
+            $results = $this->search($term);
+
+            return response()->json(array_merge(
+                $this->cartPayload($term, $results),
+                [
+                    'scanned_product_id' => $scannedProductId,
+                    'results' => array_map(
+                        fn (Product $product): array => [
+                            'id' => $product->id,
+                            'name' => $product->name,
+                            'active_ingredient' => $product->active_ingredient,
+                            'barcode' => $product->barcode,
+                            'price' => $product->price,
+                            'stock' => $product->stock,
+                            'active' => $product->active,
+                        ],
+                        $results->all(),
+                    ),
+                ],
+            ));
         }
 
         $cart = $this->cartService->load();
@@ -102,25 +141,6 @@ final class PosController extends Controller
         if ($cart->isEmpty() && $manualDiscount !== null) {
             $this->manualDiscountService->clear();
             $manualDiscount = null;
-        }
-
-        if ($request->expectsJson()) {
-            // RF-86: búsqueda asíncrona sin recargar la página.
-            return response()->json(array_merge(
-                $this->cartPayload(),
-                ['results' => array_map(
-                    fn (Product $product): array => [
-                        'id' => $product->id,
-                        'name' => $product->name,
-                        'active_ingredient' => $product->active_ingredient,
-                        'barcode' => $product->barcode,
-                        'price' => $product->price,
-                        'stock' => $product->stock,
-                        'active' => $product->active,
-                    ],
-                    $this->search($term)->all(),
-                )],
-            ));
         }
 
         return view('pos.index', [
@@ -141,11 +161,14 @@ final class PosController extends Controller
      * RF-85 / RF-86: payload JSON del carrito y los resultados de búsqueda.
      *
      * Mismo dato que recibe la vista Blade, serializado para el cliente
-     * asíncrono. El servidor sigue siendo la fuente de verdad del carrito.
+     * asíncrono. El servidor sigue siendo la fuente de verdad del carrito: el
+     * cliente pinta el fragmento `cart` (y `results` si hubo búsqueda) tal cual
+     * lo renderiza la vista, así que nada se calcula ni se duplica en JS.
      *
+     * @param  Collection<int, Product>|null  $results  resultados de búsqueda; null en las operaciones del carrito
      * @return array<string, mixed>
      */
-    private function cartPayload(): array
+    private function cartPayload(string $term = '', ?Collection $results = null): array
     {
         $cart = $this->cartService->load();
         $manualDiscount = $this->manualDiscountService->load();
@@ -187,7 +210,37 @@ final class PosController extends Controller
                 'total' => $totals->total()->pesos(),
             ],
             'manual_discount' => $manualDiscount !== null,
+            'fragments' => $this->fragments($term, $results, $cart, $totals, $manualDiscount),
         ];
+    }
+
+    /**
+     * Fragmentos Blade `cart` y `results` de `pos.index` (mismo HTML que la
+     * página completa, RF-91). Sólo se devuelve `results` cuando hubo búsqueda.
+     *
+     * @param  Collection<int, Product>|null  $results
+     * @return array<string, string>
+     */
+    private function fragments(
+        string $term,
+        ?Collection $results,
+        Cart $cart,
+        ReceiptTotals $totals,
+        ?Discount $manualDiscount,
+    ): array {
+        // Se renderiza una sola vez y se leen ambos fragmentos del mismo render.
+        $fragments = view('pos.index', [
+            'term' => $term,
+            'results' => $results ?? new Collection,
+            'cart' => $cart,
+            'totals' => $totals,
+            'manualDiscount' => $manualDiscount,
+            'calculator' => $this->priceCalculator,
+        ])->render(fn (): array => view()->getFragments());
+
+        return $results === null
+            ? ['cart' => $fragments['cart']]
+            : ['cart' => $fragments['cart'], 'results' => $fragments['results']];
     }
 
     public function add(Request $request): RedirectResponse|JsonResponse
