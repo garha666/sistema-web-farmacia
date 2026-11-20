@@ -66,6 +66,7 @@ Todas las rutas son relativas a la raíz del proyecto Laravel.
 - **D-26 — `AuditLog::recordExport()` para auditoría de exportaciones.** Registra usuario, tipo de reporte, rango de fechas y marca de tiempo.
 - **D-27 — Consultas directas con Eloquent.** Los reportes usan `DB::table()` o consultas Eloquent con `selectRaw` y `groupBy` para agregaciones; no se crean modelos nuevos salvo los existentes.
 - **D-28 — Acceso por rol en el middleware de ruta.** Cada ruta de reporte declara qué roles pueden acceder (admin, quimico, tecnico, bodeguero según corresponda).
+- **D-29 — Rango de la auditoría cuando el reporte no lo tiene.** El arqueo (RF-94) no filtra por fechas y la pantalla de descuentos y anulaciones las acepta pero no las exige (T38). La exportación guarda el mismo filtro que la pantalla: si no hay fechas, el registro dice «sin rango» y el archivo es `reporte-{tipo}.csv`. Ventas e inventario siempre llevan rango (caso límite 1).
 
 ---
 

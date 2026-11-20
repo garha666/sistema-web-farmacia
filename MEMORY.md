@@ -532,20 +532,24 @@ Cola de mejora (informes de revisión y de seguridad), en `specs/003-auth/tasks.
 
 - **T30.** ✅ Cerrada: el grupo de navegación sale del rol en sesión (`LandingPolicy::navGroupFor()`), así que las pantallas compartidas ya no muestran el menú del Administrador a otros roles; de paso, el libro de controlados deja de desbordar a 375 px.
 
-- **T31.** ✅ Cerrada: carrito (agregar, cambiar cantidad, quitar) y búsqueda responden JSON sin recargar la página (`PosController` content negotiation); el flujo HTML de formulario queda como respaldo sin JavaScript; las validaciones fallidas preservan el carrito.
+- **T31.** ✅ Cerrada: carrito (agregar, cambiar cantidad, quitar) y búsqueda responden JSON sin recargar la página (`PosController` content negotiation); el flujo HTML de formulario queda como respaldo sin JavaScript; las validaciones fallidas preservan el carrito. Interfaz en `resources/js/pos/cart.js` (debounce 300 ms, cola de operaciones, 419 con reintento, 401 al login, avisos `aria-live`); el JSON trae los fragmentos Blade `cart` y `results`, así que el cliente no duplica el marcado ni calcula totales; `scan=0` evita que la búsqueda al teclear agregue por código de barras. `CartAsyncTest`: 33 tests.
 
 - **T32.** ✅ Cerrada: descuentos globales y de línea responden JSON sin recargar; sobre el tope (10%) piden credenciales de supervisor en la misma petición asíncrona (RF-83); el flujo HTML queda como respaldo sin JavaScript.
 
-- **T33.** ✅ Cerrada: endpoint `GET /pos/stock` devuelve `id`, `stock` y `active` por producto para sondeo sin recargar la página; productos inexistentes se saltan silenciosamente.
+- **T33.** ✅ Cerrada: endpoint `GET /pos/stock` devuelve `id`, `stock` y `active` por producto para sondeo sin recargar la página; productos inexistentes se saltan silenciosamente. Interfaz en `resources/js/pos/stock.js`: sondeo cada 10 s, avisos de agotamiento y retiro de líneas fuera de catálogo. `PosStockPollTest`: 12 tests. Suite: 540 tests, 3.683 aserciones.
 
 - **T34.** ✅ Cerrada: `POST /pos/checkout` verifica stock y catálogo justo antes de confirmar; `InsufficientStock` se convierte en error de validación con clave `cart`; el carrito se conserva si algo falló.
 
 - **T35.** ✅ Cerrada: doble clic e idempotencia del cobro con `checkout_token` (RF-22); `CheckoutService::checkout()` captura `QueryException` 23505 (token duplicado) y retorna la venta existente en lugar de error 500.
 
-- **T36.** ✅ Cerrada: reporte de ventas por rango de fechas con totales y exportación CSV. Solo Administrador.
+- **T36.** ✅ Cerrada: reporte de ventas por rango de fechas con totales y exportación CSV. Solo Administrador. CSV con todo el rango (antes sólo la primera página), total numérico, también por `Accept: text/csv`; totales sólo de ventas confirmadas; auditoría `report.exported`. Suite: **459 tests, 3350 aserciones**. Pendiente: verificación a 375 px (BD de desarrollo sin usuarios).
 
 - **T37.** ✅ Cerrada: arqueo de caja por turno. Técnico ve sus turnos; Administrador ve todos; Químico y Bodeguero reciben 403. Turnos abiertos calculan efectivo esperado en tiempo real; cerrados muestran valores grabados.
 
 - **T38.** ✅ Cerrada: reporte de descuentos y anulaciones por rango de fechas. Químico ve sus autorizaciones; Administrador ve todas; Técnico y Bodeguero reciben 403.
 
-Pendientes de mayor alcance (fuera de la cola actual): `specs/004-reportes/` (T39–T40 pendientes: inventario, auditoría de exportaciones), y los archivos de despliegue (Docker, Nginx, SSL) que `AGENTS.md` declara como stack y que no están en el repositorio.
+- **T39.** ✅ Cerrada: reporte de inventario (RF-96) para Bodeguero y Administrador; Técnico y Químico reciben 403. Productos bajo el mínimo (≤, S-11) y sin stock en listas separadas del catálogo vigente, valorización a precio de venta (S-20) y movimientos del rango paginados con autor y motivo; rango por defecto hoy, `dateRange()` compartido con ventas; sólo lectura. Verificado a 375 px sin desborde ni errores de consola. Suite: **471 tests, 3383 aserciones**. La exportación CSV del inventario queda en T40.
+
+- **T40.** ✅ Cerrada: auditoría de exportaciones y solo lectura (RF-97, RF-98, RNF-39). `AuditLog::recordExport()` (usuario, tipo, rango, marca de tiempo); los cuatro reportes exportan a CSV con el permiso de su pantalla; casos límite 2, 4, 5, 6 y 7 con test y reportes sin escritura fuera de `audit_logs`. D-29: sin fechas el registro queda «sin rango» (arqueo y descuentos). Suite: **501 tests, 3519 aserciones**. Pendiente: verificación a 375 px de los reportes de la spec 004-reportes.
+
+Pendientes de mayor alcance (fuera de la cola actual): los archivos de despliegue (Docker, Nginx, SSL) que `AGENTS.md` declara como stack y que no están en el repositorio.
