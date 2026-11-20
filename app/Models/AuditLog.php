@@ -19,6 +19,9 @@ final class AuditLog extends Model
     /** RF-84: intento fallido de autorización de supervisor. */
     public const SUPERVISOR_FAILED = 'auth.supervisor_failed';
 
+    /** RF-97, RNF-39: exportación de un reporte a CSV. */
+    public const REPORT_EXPORTED = 'report.exported';
+
     protected $fillable = [
         'user_id',
         'action',
@@ -77,6 +80,25 @@ final class AuditLog extends Model
         return self::query()->create([
             'user_id' => $user?->getKey(),
             'action' => self::LOGIN_FAILED,
+        ]);
+    }
+
+    /**
+     * T40 - RF-97, RNF-39: registra la exportación de un reporte.
+     *
+     * Guarda el usuario, el tipo de reporte y el rango pedido (la marca de
+     * tiempo es `created_at`). Un reporte sin filtro de fechas queda «sin rango».
+     */
+    public static function recordExport(?User $user, string $report, ?string $from, ?string $to): self
+    {
+        $range = $from === null && $to === null
+            ? 'sin rango'
+            : ($from ?? '…').' a '.($to ?? '…');
+
+        return self::query()->create([
+            'user_id' => $user?->getKey(),
+            'action' => self::REPORT_EXPORTED,
+            'reason' => "Reporte {$report}: {$range}",
         ]);
     }
 

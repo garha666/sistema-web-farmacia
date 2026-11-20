@@ -23,7 +23,7 @@ final class CsvExporter
         fputcsv($handle, $headers);
 
         foreach ($rows as $row) {
-            fputcsv($handle, array_values($row));
+            fputcsv($handle, array_map($this->neutralize(...), array_values($row)));
         }
 
         rewind($handle);
@@ -31,5 +31,18 @@ final class CsvExporter
         fclose($handle);
 
         return $content;
+    }
+
+    /**
+     * Antepone una comilla simple a los textos que empiezan con =, +, - o @
+     * para que la planilla no los interprete como fórmula.
+     */
+    private function neutralize(string|int|float|null $value): string|int|float|null
+    {
+        if (is_string($value) && $value !== '' && str_contains('=+-@', $value[0])) {
+            return "'".$value;
+        }
+
+        return $value;
     }
 }

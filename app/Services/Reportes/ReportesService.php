@@ -13,6 +13,8 @@ use App\Pos\Enum\PaymentMethod;
 use App\Pos\Enum\SaleStatus;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Consultas agregadas de reportes (RF-92, RF-94, RF-95, RF-96).
@@ -24,32 +26,25 @@ final class ReportesService
     /**
      * Ventas de un rango de fechas con totales y desglose por medio de pago.
      *
+     * El listado trae todas las ventas del rango (con su estado); los totales,
+     * las transacciones y el desglose cuentan sólo las confirmadas, igual que
+     * el panel del día (D-11).
+     *
      * @return array{
      *     sales: LengthAwarePaginator,
      *     totalSales: int,
      *     totalAmount: int,
-     *     byPaymentMethod: array<string, int>
+     *     byPaymentMethod: array<string, array{count: int, total: int}>
      * }
      */
     public function ventasPorRango(\DateTimeImmutable $from, \DateTimeImmutable $to, int $perPage = 20): array
     {
-        $fromStart = $from->setTime(0, 0, 0);
-        $toEnd = $to->setTime(23, 59, 59);
+        $sales = $this->ventasDelRangoQuery($from, $to)->paginate($perPage);
 
-        $query = Sale::query()
-            ->with('user')
-            ->whereBetween('sold_at', [$fromStart, $toEnd])
-            ->latest('sold_at')
-            ->latest('id');
+        $confirmed = fn (): Builder => $this->rangoQuery($from, $to)
+            ->where('status', SaleStatus::confirmed);
 
-        $sales = $query->paginate($perPage);
-
-        $totalAmount = Sale::query()
-            ->whereBetween('sold_at', [$fromStart, $toEnd])
-            ->sum('total');
-
-        $byPaymentMethod = Sale::query()
-            ->whereBetween('sold_at', [$fromStart, $toEnd])
+        $byPaymentMethod = $confirmed()
             ->selectRaw('payment_method, count(*) as count, sum(total) as total')
             ->groupBy('payment_method')
             ->get()
@@ -58,10 +53,36 @@ final class ReportesService
 
         return [
             'sales' => $sales,
-            'totalSales' => (int) $sales->total(),
-            'totalAmount' => (int) $totalAmount,
+            'totalSales' => (int) $confirmed()->count(),
+            'totalAmount' => (int) $confirmed()->sum('total'),
             'byPaymentMethod' => $byPaymentMethod,
         ];
+    }
+
+    /**
+     * Todas las ventas del rango, sin paginar, para la exportación (RF-93).
+     *
+     * @return Collection<int, Sale>
+     */
+    public function ventasParaExportar(\DateTimeImmutable $from, \DateTimeImmutable $to): Collection
+    {
+        return $this->ventasDelRangoQuery($from, $to)->get();
+    }
+
+    private function rangoQuery(\DateTimeImmutable $from, \DateTimeImmutable $to): Builder
+    {
+        return Sale::query()->whereBetween('sold_at', [
+            $from->setTime(0, 0, 0),
+            $to->setTime(23, 59, 59),
+        ]);
+    }
+
+    private function ventasDelRangoQuery(\DateTimeImmutable $from, \DateTimeImmutable $to): Builder
+    {
+        return $this->rangoQuery($from, $to)
+            ->with('user')
+            ->latest('sold_at')
+            ->latest('id');
     }
 
     /**
@@ -218,10 +239,10 @@ final class ReportesService
         $items = $query->latest('created_at')->get()->map(function ($log): array {
             $amount = 0;
             $actionLabel = match ($log->action) {
-                'sale.discount_authorized' => __('pos.audit_action.sale.discount_authorized'),
-                'sale.line_discount_authorized' => __('pos.audit_action.sale.line_discount_authorized'),
-                'sale.prescription_reuse' => __('pos.audit_action.sale.prescription_reuse'),
-                'sale.void' => __('pos.audit_action.sale.void'),
+                'sale.discount_authorized' => __('pos.panel.audit_action.sale.discount_authorized'),
+                'sale.line_discount_authorized' => __('pos.panel.audit_action.sale.line_discount_authorized'),
+                'sale.prescription_reuse' => __('pos.panel.audit_action.sale.prescription_reuse'),
+                'sale.void' => __('pos.panel.audit_action.sale.void'),
                 default => $log->action,
             };
 
@@ -245,38 +266,62 @@ final class ReportesService
     }
 
     /**
-     * Inventario por rango de fechas (RF-96).
+     * Inventario vigente y movimientos de stock de un rango (RF-96).
      *
-     * @return array<int, array>
+     * Las listas salen de los mismos scopes del panel (`belowMinimum`,
+     * `outOfStock`); «bajo el mínimo» excluye lo agotado para no repetir
+     * productos. La valorización usa el precio de venta (S-20).
+     *
+     * @return array{
+     *     belowMinimum: Collection<int, Product>,
+     *     outOfStock: Collection<int, Product>,
+     *     valuation: int,
+     *     movements: LengthAwarePaginator
+     * }
      */
-    public function inventarioPorRango(?string $from = null, ?string $to = null): array
+    public function inventario(\DateTimeImmutable $from, \DateTimeImmutable $to, int $perPage = 50): array
     {
-        $products = Product::query()->orderBy('name')->get();
+        return [
+            ...$this->existencias(),
+            'movements' => $this->movementsQuery($from, $to)->paginate($perPage),
+        ];
+    }
 
-        return $products->map(function (Product $product) use ($from, $to): array {
-            $movements = StockMovement::query()
-                ->where('product_id', $product->id)
-                ->with('user')
-                ->when($from, fn ($q) => $q->whereDate('created_at', '>=', $from))
-                ->when($to, fn ($q) => $q->whereDate('created_at', '<=', $to))
-                ->latest('created_at')
-                ->get();
+    /**
+     * Existencias vigentes: bajo el mínimo, sin stock y valorización (RF-96).
+     *
+     * @return array{belowMinimum: Collection<int, Product>, outOfStock: Collection<int, Product>, valuation: int}
+     */
+    public function existencias(): array
+    {
+        $catalog = fn (): Builder => Product::query()->active();
 
-            return [
-                'id' => $product->id,
-                'name' => $product->name,
-                'stock' => (int) $product->stock,
-                'min_stock' => (int) $product->min_stock,
-                'is_below_minimum' => (int) $product->stock < (int) $product->min_stock,
-                'is_out_of_stock' => (int) $product->stock === 0,
-                'movements' => $movements->map(fn (StockMovement $movement): array => [
-                    'type' => $movement->type->value,
-                    'quantity' => (int) $movement->quantity,
-                    'reason' => $movement->note,
-                    'date' => $movement->created_at,
-                    'user' => $movement->user?->name ?? __('pos.common.none'),
-                ])->values()->all(),
-            ];
-        })->values()->all();
+        return [
+            'belowMinimum' => $catalog()->belowMinimum()->where('stock', '>', 0)->orderBy('name')->get(),
+            'outOfStock' => $catalog()->outOfStock()->orderBy('name')->get(),
+            'valuation' => (int) $catalog()->where('stock', '>', 0)->sum(DB::raw('stock * price')),
+        ];
+    }
+
+    /**
+     * Movimientos de stock del rango completo, sin paginar, para el CSV (RF-97).
+     *
+     * @return Collection<int, StockMovement>
+     */
+    public function movimientosParaExportar(\DateTimeImmutable $from, \DateTimeImmutable $to): Collection
+    {
+        return $this->movementsQuery($from, $to)->get();
+    }
+
+    /**
+     * @return Builder<StockMovement>
+     */
+    private function movementsQuery(\DateTimeImmutable $from, \DateTimeImmutable $to): Builder
+    {
+        return StockMovement::query()
+            ->with(['product', 'user'])
+            ->whereBetween('created_at', [$from->setTime(0, 0, 0), $to->setTime(23, 59, 59)])
+            ->latest('created_at')
+            ->latest('id');
     }
 }

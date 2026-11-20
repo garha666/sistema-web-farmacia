@@ -19,6 +19,11 @@
     </div>
 
     <form method="GET" action="{{ route('admin.reportes.ventas') }}" class="mt-4 grid gap-3 rounded-xl bg-white p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-4">
+        @if ($errors->any())
+            <div role="alert" class="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700 sm:col-span-2 lg:col-span-4">
+                {{ $errors->first() }}
+            </div>
+        @endif
         <div>
             <label for="from" class="text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('pos.reportes.ventas.from') }}</label>
             <input id="from" name="from" type="date" value="{{ $from }}" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
@@ -66,7 +71,7 @@
     </div>
 
     <div class="mt-4">
-        {{ $sales->links() }}
+        {{ $sales->withQueryString()->links() }}
     </div>
 
     <div class="mt-6 rounded-xl bg-white p-4 shadow-sm">
@@ -106,7 +111,7 @@
                 <tbody class="divide-y divide-slate-100">
                     @foreach ($byPaymentMethod as $method => $data)
                         <tr>
-                            <td class="px-4 py-3">{{ $method }}</td>
+                            <td class="px-4 py-3">{{ \App\Pos\Enum\PaymentMethod::from($method)->label() }}</td>
                             <td class="px-4 py-3 text-right tabular-nums">{{ $data['count'] }}</td>
                             <td class="px-4 py-3 text-right tabular-nums">{{ '$'.number_format($data['total'], 0, ',', '.') }}</td>
                         </tr>

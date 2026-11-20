@@ -9,13 +9,20 @@
             <p class="text-sm text-slate-500">{{ __('pos.reportes.arqueo.subtitle') }}</p>
         </div>
 
-        @if ($selectedCashier !== null && auth()->user()->isAdmin())
+        <div class="flex flex-wrap items-end gap-2">
+            @if ($selectedCashier !== null && auth()->user()->isAdmin())
+                <a
+                    href="{{ route('admin.reportes.arqueo') }}"
+                    class="rounded-lg bg-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2">
+                    {{ __('pos.reportes.arqueo.clear_filter') }}
+                </a>
+            @endif
             <a
-                href="{{ route('admin.reportes.arqueo') }}"
-                class="rounded-lg bg-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2">
-                {{ __('pos.reportes.arqueo.clear_filter') }}
+                href="{{ route('admin.reportes.arqueo', array_filter(['cashier_id' => $selectedCashier, 'export' => 1])) }}"
+                class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2">
+                {{ __('pos.reportes.arqueo.export') }}
             </a>
-        @endif
+        </div>
     </div>
 
     @if (auth()->user()->isAdmin())
