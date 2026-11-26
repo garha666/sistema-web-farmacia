@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
@@ -48,6 +49,45 @@ final class AuditLog extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Filtro rápido de la bitácora: coincide con el código de la acción, con su
+     * etiqueta en español o con el nombre y el correo del autor.
+     *
+     * @param  Builder<AuditLog>  $query
+     * @return Builder<AuditLog>
+     */
+    public function scopeSearch(Builder $query, ?string $term): Builder
+    {
+        $term = trim((string) $term);
+
+        if ($term === '') {
+            return $query;
+        }
+
+        $like = '%'.mb_strtolower($term).'%';
+
+        $codes = [];
+        foreach ((array) __('pos.panel.audit_action') as $group => $labels) {
+            foreach ((array) $labels as $key => $label) {
+                if (mb_stripos((string) $label, $term) !== false) {
+                    $codes[] = $group.'.'.$key;
+                }
+            }
+        }
+
+        return $query->where(function (Builder $inner) use ($like, $codes): void {
+            $inner->whereRaw('lower(action) like ?', [$like])
+                ->orWhereHas('user', function (Builder $user) use ($like): void {
+                    $user->whereRaw('lower(name) like ?', [$like])
+                        ->orWhereRaw('lower(email) like ?', [$like]);
+                });
+
+            if ($codes !== []) {
+                $inner->orWhereIn('action', $codes);
+            }
+        });
     }
 
     /**

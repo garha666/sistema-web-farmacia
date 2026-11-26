@@ -24,15 +24,18 @@ use App\Pos\Policy\ReceiptPolicy;
 use App\Pos\Policy\StockPolicy;
 use App\Pos\Value\Cart;
 use App\Pos\Value\CartLine;
+use App\Pos\Value\ChileanRut;
 use App\Pos\Value\Discount;
 use App\Pos\Value\InvoiceData;
 use App\Pos\Value\PrescriptionInput;
 use App\Pos\Value\ReceiptTotals;
 use App\Services\Cash\CashRegisterService;
+use App\Services\Inventory\LotStock;
 use App\Services\Pos\CartService;
 use App\Services\Pos\CheckoutService;
 use App\Services\Pos\ConventionService;
 use App\Services\Pos\ManualDiscountService;
+use App\Services\Pos\PrescriptionReviewService;
 use App\Services\Pos\VoidSaleService;
 use DateTimeImmutable;
 use DateTimeZone;
@@ -43,6 +46,8 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Enum;
 use Illuminate\Validation\ValidationException;
@@ -126,7 +131,7 @@ final class PosController extends Controller
                             'active_ingredient' => $product->active_ingredient,
                             'barcode' => $product->barcode,
                             'price' => $product->price,
-                            'stock' => $product->stock,
+                'stock' => (int) $product->pos_stock,
                             'active' => $product->active,
                         ],
                         $results->all(),
@@ -249,7 +254,7 @@ final class PosController extends Controller
             'product_id' => ['required', 'integer'],
         ]);
 
-        $product = Product::query()->find($data['product_id']);
+        $product = Product::query()->withPosStock(LotStock::today())->find($data['product_id']);
 
         if ($product === null) {
             throw ValidationException::withMessages([
@@ -263,7 +268,7 @@ final class PosController extends Controller
             ]);
         }
 
-        if ($product->stock < 1) {
+        if ($product->pos_stock < 1) {
             throw ValidationException::withMessages([
                 'product_id' => __('pos.errors.product_out_of_stock'),
             ]);
@@ -282,13 +287,14 @@ final class PosController extends Controller
 
     public function update(Request $request, Product $product): RedirectResponse|JsonResponse
     {
+        $product = Product::query()->withPosStock(LotStock::today())->findOrFail($product->id);
         $data = $request->validate([
             'quantity' => ['required', 'integer', 'min:1'],
         ]);
 
-        if ($data['quantity'] > $product->stock) {
+        if ($data['quantity'] > $product->pos_stock) {
             throw ValidationException::withMessages([
-                'quantity' => __('pos.errors.quantity_available', ['stock' => $product->stock]),
+                'quantity' => __('pos.errors.quantity_available', ['stock' => $product->pos_stock]),
             ]);
         }
 
@@ -374,13 +380,11 @@ final class PosController extends Controller
             ]);
         }
 
-        $authorizedBy = $decision->requiresSupervisor() ? $this->supervisorId($data) : null;
+        $authorizedBy = $this->supervisorId($data, errorKey: 'discount_supervisor');
 
-        if ($decision->requiresSupervisor() && $authorizedBy === null) {
+        if ($authorizedBy === null) {
             throw ValidationException::withMessages([
-                'discount_supervisor' => __('pos.errors.discount_above_cap', [
-                    'cap' => (int) config('pos.discount.general_cap_percent'),
-                ]),
+                'discount_supervisor' => __('pos.authorization.required'),
             ]);
         }
 
@@ -467,23 +471,14 @@ final class PosController extends Controller
             );
         }
 
-        $lineAuthorizedBy = null;
+        $lineAuthorizedBy = $this->supervisorId(
+            $data, 'line_supervisor_email', 'line_supervisor_password', 'line_discount_supervisor',
+        );
 
-        if ($decision->requiresSupervisor()) {
-            $lineAuthorizedBy = $this->supervisorId(
-                $data,
-                'line_supervisor_email',
-                'line_supervisor_password',
-                'line_discount_supervisor',
-            );
-
-            if ($lineAuthorizedBy === null) {
-                throw ValidationException::withMessages([
-                    'line_discount_supervisor' => __('pos.errors.discount_above_cap', [
-                        'cap' => (int) config('pos.discount.general_cap_percent'),
-                    ]),
-                ]);
-            }
+        if ($lineAuthorizedBy === null) {
+            throw ValidationException::withMessages([
+                'line_discount_supervisor' => __('pos.authorization.required'),
+            ]);
         }
 
         $this->cartService->persist(
@@ -491,9 +486,7 @@ final class PosController extends Controller
         );
 
         // S12/RF-36: recuerda al supervisor para auditarlo al confirmar el cobro.
-        if ($lineAuthorizedBy !== null) {
-            $this->cartService->authorizeLineDiscount($product->id, $lineAuthorizedBy);
-        }
+        $this->cartService->authorizeLineDiscount($product->id, $lineAuthorizedBy);
 
         if ($request->expectsJson()) {
             // RF-87: descuento de línea sin recargar la página.
@@ -560,7 +553,7 @@ final class PosController extends Controller
 
         $products = Product::query()
             ->whereIn('id', $productIds)
-            ->get(['id', 'stock', 'active'])
+            ->select('id', 'stock', 'active')->withPosStock(LotStock::today())->get()
             ->keyBy('id');
 
         $availableByProductId = [];
@@ -576,7 +569,7 @@ final class PosController extends Controller
                 continue;
             }
 
-            $availableByProductId[$productId] = (int) $product->stock;
+            $availableByProductId[$productId] = (int) $product->pos_stock;
         }
 
         if ($unavailable !== []) {
@@ -625,7 +618,7 @@ final class PosController extends Controller
 
         $products = Product::query()
             ->whereIn('id', $productIds)
-            ->get(['id', 'stock', 'active'])
+            ->select('id', 'stock', 'active')->withPosStock(LotStock::today())->get()
             ->keyBy('id');
 
         $result = [];
@@ -639,7 +632,7 @@ final class PosController extends Controller
 
             $result[] = [
                 'id' => $product->id,
-                'stock' => (int) $product->stock,
+                'stock' => (int) $product->pos_stock,
                 'active' => (bool) $product->active,
             ];
         }
@@ -650,7 +643,7 @@ final class PosController extends Controller
     /**
      * Pantalla de cobro (RF-20, RF-21).
      */
-    public function checkout(Request $request): View|RedirectResponse
+    public function checkout(Request $request, PrescriptionReviewService $reviews): View|RedirectResponse
     {
         $cart = $this->cartService->load();
 
@@ -661,6 +654,10 @@ final class PosController extends Controller
         }
 
         $manualDiscount = $this->manualDiscountService->load();
+        $benefitInput = $request->old('customer_rut', $request->old('benefit_rut'));
+        $benefitRut = is_string($benefitInput) ? ChileanRut::normalize($benefitInput) : null;
+        $requiresPrescription = $this->prescriptionPolicy->cartRequiresPrescription($cart);
+        $openRegister = $this->cashRegisters->openFor($request->user());
 
         // RF-29: avisar si la existencia cambió mientras el carrito estaba armado.
         $liveStock = $this->cartService->liveStock($cart);
@@ -670,27 +667,145 @@ final class PosController extends Controller
             $this->cartService->snapshottedStock(),
         );
 
+        $conventions = $this->conventionService->forCheckout($benefitRut);
+        $selected = $request->session()->get('benefit_lookup') && $benefitRut !== null && $conventions->count() === 1 ? $conventions->first() : null;
+        $totals = $this->priceCalculator->totals($cart, (int) config('pos.iva_rate'), $manualDiscount);
+        if ($selected !== null) {
+            try {
+                $totals = $this->checkoutService->totalsFor($cart, $selected->id, $manualDiscount, $this->manualDiscountService->authorizedBy(), $this->cartService->lineDiscountAuthors(), $benefitRut);
+            } catch (DomainException $error) {
+                return to_route('pos.checkout')->withErrors(['convention_id' => $error->getMessage()]);
+            }
+        }
+
         return view('pos.checkout', [
             'cart' => $cart,
-            'totals' => $this->priceCalculator->totals(
-                $cart,
-                (int) config('pos.iva_rate'),
-                $manualDiscount,
-            ),
+            'totals' => $totals,
+            'selected' => $selected,
+            'controlledExcluded' => $selected && ! $selected->applies_to_controlled && $this->prescriptionPolicy->effectiveCategory($cart) === \App\Pos\Enum\SaleCategory::controlled,
             'calculator' => $this->priceCalculator,
             'manualDiscount' => $manualDiscount,
             'stockChanges' => $this->stockChanges($cart, $liveStock, $changedIds),
             'methods' => PaymentMethod::cases(),
-            'conventions' => $this->conventionService->applicable(),
-            'requiresPrescription' => $this->prescriptionPolicy->cartRequiresPrescription($cart),
-            'openRegister' => $this->cashRegisters->openFor($request->user()),
+            'conventions' => $conventions,
+            'benefitRut' => $benefitRut,
+            'membershipConventions' => $this->conventionService->applicable(now(config('pos.timezone'))->toDateTimeImmutable()),
+            'chemists' => $requiresPrescription && $openRegister !== null
+                ? User::query()->where('role', User::ROLE_QUIMICO)->whereNull('disabled_at')->orderBy('name')->get(['name', 'email']) : collect(),
+            'prescriptionReview' => $requiresPrescription
+                ? $reviews->findForCart($request->user()->id, $this->cartService->token(), $cart) : null,
+            'requiresPrescription' => $requiresPrescription,
+            'openRegister' => $openRegister,
+        ]);
+    }
+
+    public function lookupBenefit(Request $request): RedirectResponse
+    {
+        abort_unless($this->cashRegisters->openFor($request->user()) !== null, 403);
+        $input = $request->input('customer_rut', $request->input('benefit_rut'));
+        $rut = is_string($input) && strlen($input) <= 20 ? ChileanRut::normalize($input) : null;
+        $fields = $request->only(['document_type', 'payment_method', 'received_amount', 'invoice_business_name',
+            'invoice_business_activity', 'invoice_address', 'invoice_commune', 'prescription_number',
+            'prescription_prescriber_name', 'prescription_prescriber_rut', 'prescription_issued_at']);
+        $fields = array_filter($fields, 'is_scalar');
+
+        if ($input !== null && $rut === null) {
+            return to_route('pos.checkout')->withInput($fields)->withErrors(['benefit_rut' => __('pos.checkout.benefit_invalid')]);
+        }
+
+        return to_route('pos.checkout')->withInput($fields + ['customer_rut' => $rut])->with('benefit_lookup', true);
+    }
+
+    public function registerMembership(Request $request): RedirectResponse
+    {
+        abort_unless($this->cashRegisters->openFor($request->user()) !== null, 403);
+        $data = $request->validateWithBag('membership', [
+            'membership_rut' => ['required', 'string', 'max:20'],
+            'membership_name' => ['required', 'string', 'max:120'],
+            'membership_convention' => ['required', 'integer', 'min:1'],
+            'supervisor_email' => ['required', 'email', 'max:255'],
+            'supervisor_password' => ['required', 'string', 'max:72'],
+        ]);
+
+        try {
+            $rut = ChileanRut::normalize($data['membership_rut']);
+            if ($rut === null) {
+                throw ValidationException::withMessages(['membership_rut' => __('pos.checkout.benefit_invalid')]);
+            }
+            $authorizedBy = $this->supervisorId($data);
+            $this->conventionService->registerMembership($rut, $data['membership_name'], (int) $data['membership_convention'], $authorizedBy);
+        } catch (ValidationException $exception) {
+            throw $exception->errorBag('membership');
+        } catch (DomainException) {
+            throw ValidationException::withMessages(['membership_convention' => __('pos.authorization.convention_unavailable')])->errorBag('membership');
+        }
+
+        return to_route('pos.checkout')->withInput(['benefit_rut' => $rut])->with('membership_registered', true);
+    }
+
+    public function previewCheckout(Request $request): JsonResponse
+    {
+        abort_unless($this->cashRegisters->openFor($request->user()) !== null, 403);
+        $cart = $this->cartService->load();
+        if ($cart->isEmpty()) {
+            throw ValidationException::withMessages(['cart' => __('pos.errors.cart_empty')]);
+        }
+
+        $data = $request->validate([
+            'benefit_rut' => ['nullable', 'string', 'max:20'],
+            'convention_id' => ['nullable', 'integer', 'min:1'],
+            'lookup' => ['sometimes', 'boolean'],
+        ]);
+        $input = $data['benefit_rut'] ?? null;
+        $rut = $input === null || trim($input) === '' ? null : ChileanRut::normalize($input);
+        if ($input !== null && trim($input) !== '' && $rut === null) {
+            throw ValidationException::withMessages(['benefit_rut' => __('pos.checkout.benefit_invalid')]);
+        }
+
+        $conventions = $this->conventionService->forCheckout($rut);
+        $selected = isset($data['convention_id']) ? $conventions->firstWhere('id', (int) $data['convention_id']) : null;
+        if ($request->boolean('lookup') && $rut !== null && $conventions->count() === 1) {
+            $selected = $conventions->first();
+        }
+        if (isset($data['convention_id']) && $selected === null) {
+            throw ValidationException::withMessages(['convention_id' => __('pos.checkout.benefit_ineligible')]);
+        }
+
+        try {
+            $totals = $this->checkoutService->totalsFor(
+                $cart,
+                $selected?->id,
+                $this->manualDiscountService->load(),
+                $this->manualDiscountService->authorizedBy(),
+                $this->cartService->lineDiscountAuthors(),
+                $rut,
+            );
+        } catch (DiscountRejected $exception) {
+            throw ValidationException::withMessages([$exception->field() => $exception->getMessage()]);
+        } catch (DomainException $exception) {
+            throw ValidationException::withMessages(['convention_id' => $exception->getMessage()]);
+        }
+
+        return response()->json([
+            'subtotal' => $totals->subtotal()->pesos(),
+            'selected_convention_id' => $selected?->id,
+            'controlled_excluded' => $selected !== null && ! $selected->applies_to_controlled && $this->prescriptionPolicy->effectiveCategory($cart) === \App\Pos\Enum\SaleCategory::controlled,
+            'discounts' => $totals->discounts()->pesos(),
+            'convention_savings' => $selected === null ? 0 : $totals->globalDiscount()->pesos(),
+            'total' => $totals->total()->pesos(),
+            'conventions' => $conventions->map(fn ($convention): array => [
+                'id' => $convention->id,
+                'name' => $convention->name,
+                'percent' => $convention->percent,
+            ])->values(),
+            'benefit_rut' => $rut,
         ]);
     }
 
     /**
      * Confirma la venta (RF-22 a RF-26).
      */
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, PrescriptionReviewService $reviews): RedirectResponse
     {
         $cart = $this->cartService->load();
 
@@ -715,19 +830,47 @@ final class PosController extends Controller
             'invoice_address' => ['nullable', 'string', 'max:255', 'required_if:document_type,invoice'],
             'invoice_commune' => ['nullable', 'string', 'max:100', 'required_if:document_type,invoice'],
             'convention_id' => ['nullable', 'integer'],
+            'benefit_rut' => ['nullable', 'string', 'max:20'],
             'prescription_number' => ['nullable', 'string', 'max:50', 'required_with:prescription_prescriber_name,prescription_prescriber_rut,prescription_issued_at'],
             'prescription_prescriber_name' => ['nullable', 'string', 'max:255', 'required_with:prescription_number,prescription_prescriber_rut,prescription_issued_at'],
             'prescription_prescriber_rut' => ['nullable', 'string', 'max:20', 'required_with:prescription_number,prescription_prescriber_name,prescription_issued_at'],
             'prescription_issued_at' => ['nullable', 'date', 'required_with:prescription_number,prescription_prescriber_name,prescription_prescriber_rut'],
-            'supervisor_email' => ['nullable', 'email'],
-            'supervisor_password' => ['nullable', 'string'],
+            'chemist_email' => ['nullable', 'email', 'max:255'],
+            'pharmacist_pin' => ['nullable', 'string', 'regex:/\A[0-9]{8,12}\z/'],
+            'request_review' => ['nullable', 'in:1'],
         ]);
 
         $prescription = $this->prescriptionInput($data);
-        $supervisorId = $this->supervisorId($data);
+        $category = $this->prescriptionPolicy->effectiveCategory($cart);
+        if (isset($data['request_review'])) {
+            abort_unless($category->requiresPrescription() && $this->cashRegisters->openFor($request->user()) !== null, 403);
+            $validation = $this->prescriptionPolicy->evaluate($category, $prescription, (int) config('pos.prescription.validity_days'), false,
+                now(config('pos.timezone'))->toDateTimeImmutable());
+            if ($validation->isInvalid() || $prescription === null) {
+                throw ValidationException::withMessages($this->prescriptionErrors($validation->errors()));
+            }
+
+            try {
+                $reviews->request($request->user()->id, $this->cartService->token(), $cart, $prescription);
+            } catch (PrescriptionRejected $exception) {
+                throw ValidationException::withMessages($this->prescriptionErrors($exception->errors()));
+            }
+
+            return to_route('pos.checkout')->withInput(Arr::except($data, ['supervisor_password', 'pharmacist_pin', 'request_review']));
+        }
+
+        $pharmacistByPin = $category->requiresPrescription() ? $this->supervisorId(
+            $data, 'chemist_email', 'pharmacist_pin', 'prescription_approval', pharmacistOnly: true,
+        ) : null;
 
         // RF-23/S-2: boleta por defecto; factura con datos tributarios.
         $documentType = DocumentType::from($data['document_type'] ?? DocumentType::receipt->value);
+        if ($documentType === DocumentType::invoice) {
+            $data['customer_rut'] = ChileanRut::normalize($data['customer_rut']);
+            if ($data['customer_rut'] === null) {
+                throw ValidationException::withMessages(['customer_rut' => __('pos.checkout.invoice_rut_required')]);
+            }
+        }
         $invoice = $documentType === DocumentType::invoice
             ? new InvoiceData(
                 rut: (string) $data['customer_rut'],
@@ -739,8 +882,22 @@ final class PosController extends Controller
             : null;
 
         $manualDiscount = $this->manualDiscountService->load();
-        $discountAuthorizedBy = $supervisorId ?? $this->manualDiscountService->authorizedBy();
+        $discountAuthorizedBy = $this->manualDiscountService->authorizedBy();
+        $lineAuthors = $this->cartService->lineDiscountAuthors();
+        if ($manualDiscount !== null && $discountAuthorizedBy === null) {
+            return to_route('pos.index')->withErrors(['discount' => __('pos.authorization.required')]);
+        }
+        foreach ($cart->lines() as $line) {
+            if ($line->discount() !== null && ! isset($lineAuthors[$line->productId()])) {
+                return to_route('pos.index')->withErrors(['discount' => __('pos.authorization.required')]);
+            }
+        }
         $conventionId = isset($data['convention_id']) ? (int) $data['convention_id'] : null;
+        $benefitRut = $conventionId !== null && array_key_exists('customer_rut', $data)
+            ? $data['customer_rut'] : ($data['benefit_rut'] ?? null);
+        if ($benefitRut !== null && ($benefitRut = ChileanRut::normalize($benefitRut)) === null) {
+            throw ValidationException::withMessages(['benefit_rut' => __('pos.checkout.benefit_invalid')]);
+        }
 
         try {
             $totals = $this->checkoutService->totalsFor(
@@ -749,6 +906,7 @@ final class PosController extends Controller
                 $manualDiscount,
                 $discountAuthorizedBy,
                 $this->cartService->lineDiscountAuthors(),
+                $benefitRut,
             );
         } catch (DiscountRejected $exception) {
             throw ValidationException::withMessages([$exception->field() => $exception->getMessage()]);
@@ -777,16 +935,20 @@ final class PosController extends Controller
                 userId: $request->user()?->id,
                 conventionId: $conventionId,
                 prescription: $prescription,
-                reuseAuthorizedBy: $supervisorId,
                 manualDiscount: $manualDiscount,
                 discountAuthorizedBy: $discountAuthorizedBy,
                 documentType: $documentType,
                 invoice: $invoice,
-                lineDiscountAuthorizedBy: $this->cartService->lineDiscountAuthors(),
+                lineDiscountAuthorizedBy: $lineAuthors,
+                benefitRut: $benefitRut,
+                pharmacistByPin: $pharmacistByPin,
             );
         } catch (DiscountRejected $exception) {
             throw ValidationException::withMessages([$exception->field() => $exception->getMessage()]);
         } catch (PrescriptionRejected $exception) {
+            if (isset($exception->errors()['approval'])) {
+                throw ValidationException::withMessages(['prescription_approval' => __('pos.rx_review.required')]);
+            }
             if ($exception->requiresSupervisor()) {
                 throw ValidationException::withMessages([
                     'prescription_reuse' => __('pos.errors.prescription_reuse'),
@@ -806,7 +968,7 @@ final class PosController extends Controller
         $this->cartService->clear();
         $this->manualDiscountService->clear();
 
-        return redirect()->route('pos.sales.receipt', $sale);
+        return redirect()->to(URL::signedRoute('pos.sales.receipt', $sale));
     }
 
     /**
@@ -867,7 +1029,7 @@ final class PosController extends Controller
             throw ValidationException::withMessages(['reason' => __($exception->getMessage())]);
         }
 
-        return redirect()->route('pos.sales.receipt', $sale)
+        return redirect()->to(URL::signedRoute('pos.sales.receipt', $sale))
             ->with('voided', true);
     }
 
@@ -916,12 +1078,13 @@ final class PosController extends Controller
         return Product::query()
             ->active()
             ->where('barcode', $term)
+            ->withPosStock(LotStock::today())
             ->get()
             ->map(fn (Product $product): array => [
                 'id' => (int) $product->id,
                 'barcode' => $product->barcode,
                 'sellable' => (bool) $product->sellable,
-                'stock' => (int) $product->stock,
+                'stock' => (int) $product->pos_stock,
             ])
             ->all();
     }
@@ -931,7 +1094,7 @@ final class PosController extends Controller
      */
     private function addScannedProduct(int $productId): RedirectResponse
     {
-        $product = Product::query()->find($productId);
+        $product = Product::query()->withPosStock(LotStock::today())->find($productId);
 
         if ($product === null) {
             return redirect()->route('pos.index');
@@ -950,7 +1113,7 @@ final class PosController extends Controller
      */
     private function search(string $term)
     {
-        $query = Product::query()->where('sellable', true)->active();
+        $query = Product::query()->where('sellable', true)->active()->withPosStock(LotStock::today());
 
         if ($term !== '') {
             $like = '%'.mb_strtolower($term).'%';
@@ -1015,6 +1178,7 @@ final class PosController extends Controller
         string $emailKey = 'supervisor_email',
         string $passwordKey = 'supervisor_password',
         string $errorKey = 'supervisor_email',
+        bool $pharmacistOnly = false,
     ): ?int {
         $email = $data[$emailKey] ?? null;
         $password = $data[$passwordKey] ?? null;
@@ -1024,11 +1188,13 @@ final class PosController extends Controller
         }
 
         $throttleKey = $this->supervisorThrottleKey();
+        $pharmacistKey = 'rx-pin|'.hash('sha256', strtolower((string) $email));
 
-        if (RateLimiter::tooManyAttempts($throttleKey, self::SUPERVISOR_MAX_ATTEMPTS)) {
+        if (RateLimiter::tooManyAttempts($throttleKey, self::SUPERVISOR_MAX_ATTEMPTS)
+            || ($pharmacistOnly && RateLimiter::tooManyAttempts($pharmacistKey, 10))) {
             throw ValidationException::withMessages([
                 $errorKey => __('pos.errors.supervisor_throttled', [
-                    'seconds' => RateLimiter::availableIn($throttleKey),
+                    'seconds' => max(RateLimiter::availableIn($throttleKey), $pharmacistOnly ? RateLimiter::availableIn($pharmacistKey) : 0),
                 ]),
             ]);
         }
@@ -1036,9 +1202,14 @@ final class PosController extends Controller
         $supervisor = User::query()->where('email', $email)->first();
 
         if ($supervisor === null
-            || ! in_array($supervisor->role, [User::ROLE_QUIMICO, User::ROLE_ADMIN], true)
-            || ! Hash::check((string) $password, $supervisor->password)) {
+            || $supervisor->disabled_at !== null
+            || ! in_array($supervisor->role, $pharmacistOnly ? [User::ROLE_QUIMICO] : [User::ROLE_QUIMICO, User::ROLE_ADMIN], true)
+            || preg_match('/\A[0-9]{8,12}\z/', (string) $password) !== 1
+            || ! Hash::check((string) $password, $supervisor->pharmacist_pin_hash)) {
             RateLimiter::hit($throttleKey, self::SUPERVISOR_DECAY_SECONDS);
+            if ($pharmacistOnly) {
+                RateLimiter::hit($pharmacistKey, self::SUPERVISOR_DECAY_SECONDS);
+            }
 
             // T28 - RF-84: el intento fallido queda en la bitácora sin credenciales.
             AuditLog::recordSupervisorFailure(request()->user());
@@ -1049,6 +1220,9 @@ final class PosController extends Controller
         }
 
         RateLimiter::clear($throttleKey);
+        if ($pharmacistOnly) {
+            RateLimiter::clear($pharmacistKey);
+        }
 
         return $supervisor->id;
     }
@@ -1081,6 +1255,7 @@ final class PosController extends Controller
             'required' => __('pos.errors.prescription_required'),
             'expired' => __('pos.errors.prescription_expired'),
             'issued_in_future' => __('pos.errors.prescription_future'),
+            'registered_mismatch' => __('pos.rx_review.registered_mismatch'),
         ];
 
         $mapped = [];

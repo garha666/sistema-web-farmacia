@@ -15,7 +15,9 @@ use App\Pos\Enum\DocumentStatus;
 use App\Pos\Enum\DocumentType;
 use App\Pos\Enum\SaleStatus;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -109,7 +111,7 @@ final class AdministrationTest extends TestCase
         $items = config('navigation.admin');
 
         $this->assertIsArray($items);
-        $this->assertCount(6, $items);
+        $this->assertCount(7, $items);
 
         foreach ($items as $item) {
             $this->assertArrayHasKey('route', $item);
@@ -127,7 +129,7 @@ final class AdministrationTest extends TestCase
     }
 
     /**
-     * B12 - RNF-11: la barra lateral y la barra móvil muestran los mismos seis
+     * B12 - RNF-11: la barra lateral y la barra móvil muestran los mismos siete
      * enlaces y ambas marcan la sección activa.
      */
     public function test_both_admin_navigations_render_the_same_links_and_mark_the_current_page(): void
@@ -310,6 +312,95 @@ final class AdministrationTest extends TestCase
         $this->assertNotNull(Convention::query()->find($convention->id));
     }
 
+    public function test_checkout_can_lookup_a_demo_membership_and_apply_its_discount(): void
+    {
+        $this->signIn('tecnico');
+        $this->addToCart();
+
+        $this->from('/pos/checkout')->post('/pos/checkout/benefit', ['benefit_rut' => '1-8'])
+            ->assertRedirect('/pos/checkout')->assertSessionHasErrors('benefit_rut');
+
+        $this->seed(\Database\Seeders\DemoConventionSeeder::class);
+        $benefit = Convention::query()->where('name', 'Convenio Académico Demo')->firstOrFail();
+        $this->get('/pos/checkout')->assertDontSee('data-benefit-option="'.$benefit->id.'"', false);
+        $this->post('/pos/checkout/benefit', ['benefit_rut' => '2-7'])->assertRedirect('/pos/checkout');
+        $this->get('/pos/checkout')->assertSee(__('pos.checkout.benefit_none'))->assertDontSee('data-benefit-option="'.$benefit->id.'"', false);
+        $this->post('/pos/checkout/benefit', ['customer_rut' => '00.001-9'])->assertRedirect('/pos/checkout');
+        $this->get('/pos/checkout')->assertSee($benefit->name)->assertSee('10%');
+
+        $this->from('/pos/checkout')->post('/pos/checkout', ['payment_method' => 'debit', 'convention_id' => $benefit->id])
+            ->assertSessionHasErrors('convention_id');
+        $this->from('/pos/checkout')->post('/pos/checkout', ['payment_method' => 'debit', 'convention_id' => $benefit->id, 'benefit_rut' => '2-7'])
+            ->assertSessionHasErrors('convention_id');
+        $benefit->update(['active' => false]);
+        $this->from('/pos/checkout')->post('/pos/checkout', ['payment_method' => 'debit', 'convention_id' => $benefit->id, 'benefit_rut' => '1-9'])
+            ->assertSessionHasErrors('convention_id');
+        $benefit->update(['active' => true]);
+        $this->post('/pos/checkout', ['payment_method' => 'debit', 'convention_id' => $benefit->id, 'customer_rut' => '1-9'])
+            ->assertSessionHasNoErrors();
+
+        $sale = Sale::query()->sole();
+        $this->assertSame(900, $sale->total);
+        $this->assertSame($benefit->id, $sale->convention_id);
+        $this->assertSame('1-9', $sale->customer_rut);
+    }
+
+    public function test_checkout_preview_uses_server_totals_without_creating_a_sale(): void
+    {
+        $this->signIn('tecnico');
+        $this->addToCart();
+        $this->seed(\Database\Seeders\DemoConventionSeeder::class);
+        $benefit = Convention::query()->where('name', 'Convenio Académico Demo')->firstOrFail();
+
+        $this->postJson(route('pos.checkout.preview'), ['benefit_rut' => '1-9', 'convention_id' => $benefit->id])
+            ->assertOk()->assertJsonPath('subtotal', 1000)->assertJsonPath('convention_savings', 100)
+            ->assertJsonPath('total', 900);
+        $this->postJson(route('pos.checkout.preview'), ['benefit_rut' => ' 00.001 - 9 ', 'lookup' => true])
+            ->assertOk()->assertJsonPath('benefit_rut', '1-9')->assertJsonPath('selected_convention_id', $benefit->id)
+            ->assertJsonPath('total', 900);
+        $this->postJson(route('pos.checkout.preview'), ['benefit_rut' => '1-9', 'convention_id' => null])
+            ->assertOk()->assertJsonPath('selected_convention_id', null)->assertJsonPath('total', 1000);
+        $this->postJson(route('pos.checkout.preview'), ['benefit_rut' => '2-7', 'convention_id' => $benefit->id])
+            ->assertUnprocessable();
+        $this->postJson(route('pos.checkout.preview'), ['benefit_rut' => '2-7'])
+            ->assertOk()->assertJsonPath('convention_savings', 0)->assertJsonPath('total', 1000);
+        $another = Convention::factory()->create();
+        \Illuminate\Support\Facades\DB::table('convention_memberships')->insert(['rut' => '1-9', 'convention_id' => $another->id]);
+        $this->postJson(route('pos.checkout.preview'), ['benefit_rut' => '1-9', 'lookup' => true])->assertOk()
+            ->assertJsonCount(2, 'conventions')->assertJsonPath('selected_convention_id', null)->assertJsonPath('total', 1000);
+        $this->assertDatabaseCount('sales', 0);
+    }
+
+    public function test_controlled_coverage_changes_only_the_eligible_base(): void
+    {
+        $this->signIn('tecnico');
+        $controlled = Product::factory()->create(['sale_category' => 'controlled', 'price' => 500, 'stock' => 10]);
+        $this->post('/pos/cart', ['product_id' => $controlled->id]);
+        $benefit = Convention::factory()->create(['percent' => 10]);
+        $this->postJson(route('pos.checkout.preview'), ['convention_id' => $benefit->id])->assertOk()
+            ->assertJsonPath('controlled_excluded', true)->assertJsonPath('convention_savings', 0)->assertJsonPath('total', 500);
+        $this->addToCart();
+        $this->postJson(route('pos.checkout.preview'), ['convention_id' => $benefit->id])->assertOk()
+            ->assertJsonPath('controlled_excluded', true)->assertJsonPath('total', 1400);
+        $benefit->update(['applies_to_controlled' => true]);
+        $this->postJson(route('pos.checkout.preview'), ['convention_id' => $benefit->id])->assertOk()
+            ->assertJsonPath('controlled_excluded', false)->assertJsonPath('total', 1350);
+    }
+
+    public function test_admin_imports_delimited_csv_and_preserves_membership_authorship(): void
+    {
+        $admin = $this->signIn('admin');
+        $benefit = Convention::factory()->create();
+        $upload = fn ($csv) => $this->post(route('admin.conventions.import.store'), ['convention_id' => $benefit->id,
+            'csv' => \Illuminate\Http\UploadedFile::fake()->createWithContent('lista.csv', $csv)]);
+        $upload("\xef\xbb\xbfrut;nombre\n11.111.111-1;José\n1-8;Omitido\n")->assertOk()->assertSee('Fila 3')->assertSee('Clientes creados: 1');
+        $upload("rut,nombre\n11111111-1,Actualizado")->assertOk()->assertSee('existentes: 1');
+        $this->assertDatabaseHas('pos_clients', ['rut' => '11111111-1', 'name' => 'Actualizado']);
+        $this->assertDatabaseHas('convention_memberships', ['rut' => '11111111-1', 'authorized_by' => $admin->id]);
+        $this->actingAs(User::factory()->create(['role' => 'quimico']));
+        $this->get(route('admin.conventions.import.template'))->assertForbidden();
+    }
+
     public function test_an_active_convention_applies_its_percentage_and_is_recorded(): void
     {
         $this->signIn('tecnico');
@@ -337,7 +428,7 @@ final class AdministrationTest extends TestCase
         $this->assertSame(900, $sale->total);
         $this->assertSame('debit', $sale->payment_method->value);
 
-        $this->get(route('pos.sales.receipt', $sale))
+        $this->get(URL::signedRoute('pos.sales.receipt', $sale))
             ->assertOk()
             ->assertSee('Banmédica');
     }
@@ -578,8 +669,7 @@ final class AdministrationTest extends TestCase
             'line_type' => 'percent',
             'line_value' => '20',
             'line_reason' => 'Convenio interno',
-            'line_supervisor_email' => $supervisor->email,
-            'line_supervisor_password' => 'password',
+            ...$this->discountCredentials(true, $supervisor),
         ])->assertRedirect(route('pos.index'));
 
         $this->post('/pos/checkout', ['payment_method' => 'debit'])->assertSessionHasNoErrors();
@@ -819,6 +909,85 @@ final class AdministrationTest extends TestCase
 
         $this->signIn('tecnico');
         $this->get(route('admin.audit.index'))->assertForbidden();
+    }
+
+    public function test_the_admin_navigation_starts_with_home_and_the_convention_table_counts_members(): void
+    {
+        $this->signIn('admin');
+
+        $this->assertSame('dashboard.admin', config('navigation.admin.0.route'));
+
+        $convention = Convention::factory()->create(['name' => 'Convenio Afiliados']);
+        Convention::factory()->create(['name' => 'Convenio Vacío']);
+
+        foreach (['11111111-1', '22222222-2', '33333333-3'] as $rut) {
+            DB::table('convention_memberships')->insert(['convention_id' => $convention->id, 'rut' => $rut]);
+        }
+
+        $html = $this->get(route('admin.conventions.index'))
+            ->assertOk()
+            ->assertSee(__('pos.admin.conventions.members'))
+            ->assertSee(__('benefits.import'))
+            ->getContent();
+
+        $this->assertStringContainsString('href="'.url('/panel/admin').'"', $html);
+        preg_match('/Convenio Afiliados.*?<\/tr>/s', $html, $withMembers);
+        preg_match('/Convenio Vacío.*?<\/tr>/s', $html, $withoutMembers);
+
+        $this->assertMatchesRegularExpression('/>\s*3\s*<\/td>/', $withMembers[0] ?? '');
+        $this->assertMatchesRegularExpression('/>\s*0\s*<\/td>/', $withoutMembers[0] ?? '');
+    }
+
+    public function test_the_admin_subtitles_show_no_internal_requirement_codes(): void
+    {
+        $this->signIn('admin');
+
+        foreach ([route('admin.sales.index'), route('admin.documents.index')] as $url) {
+            $this->assertDoesNotMatchRegularExpression('/\bRF-\d+/', strip_tags($this->get($url)->assertOk()->getContent()));
+        }
+    }
+
+    public function test_the_audit_quick_filter_matches_action_label_and_author(): void
+    {
+        $this->signIn('admin');
+        $sale = $this->sell();
+        $this->post(route('pos.sales.void', $sale), ['reason' => 'Error de cobro'])->assertSessionHasNoErrors();
+
+        $author = User::factory()->create(['name' => 'Zulema Unica', 'role' => 'tecnico']);
+        AuditLog::query()->create(['user_id' => $author->id, 'action' => AuditLog::LOGIN_FAILED]);
+        AuditLog::query()->create(['user_id' => $author->id, 'action' => AuditLog::REPORT_EXPORTED, 'reason' => 'sin rango']);
+
+        $rows = fn (string $query): string => (string) Str::between(
+            $this->get(route('admin.audit.index', ['q' => $query]))->assertOk()->getContent(),
+            '<tbody',
+            '</tbody>',
+        );
+
+        $void = __('pos.panel.audit_action.sale.void');
+        $login = __('pos.panel.audit_action.auth.login_failed');
+        $export = __('pos.panel.audit_action.report.exported');
+
+        $voids = $rows('anulación');
+        $this->assertStringContainsString($void, $voids);
+        $this->assertStringNotContainsString($export, $voids);
+        $this->assertStringNotContainsString($login, $voids);
+
+        $access = $rows('inicio de sesión');
+        $this->assertStringContainsString($login, $access);
+        $this->assertStringNotContainsString($void, $access);
+
+        $byCode = $rows('report.exported');
+        $this->assertStringContainsString($export, $byCode);
+        $this->assertStringNotContainsString($login, $byCode);
+
+        $byAuthor = $rows('zulema');
+        $this->assertStringContainsString($login, $byAuthor);
+        $this->assertStringContainsString($export, $byAuthor);
+        $this->assertStringNotContainsString($void, $byAuthor);
+
+        $this->get(route('admin.audit.index', ['q' => 'nada coincide xyz']))
+            ->assertOk()
+            ->assertSee(__('pos.admin.audit.no_matches', ['query' => 'nada coincide xyz']));
     }
 
     // ------------------------------------------------------------------

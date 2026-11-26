@@ -10,9 +10,14 @@
         </div>
 
         @if (auth()->user()?->isAdmin())
-            <a href="{{ route('admin.conventions.create') }}" class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
-                {{ __('pos.admin.conventions.new') }}
-            </a>
+            <div class="flex flex-wrap items-center gap-2">
+                <a href="{{ route('admin.conventions.import') }}" class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2">
+                    {{ __('benefits.import') }}
+                </a>
+                <a href="{{ route('admin.conventions.create') }}" class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2">
+                    {{ __('pos.admin.conventions.new') }}
+                </a>
+            </div>
         @endif
     </div>
 
@@ -23,6 +28,7 @@
                     <th class="px-4 py-3">{{ __('pos.admin.conventions.name') }}</th>
                     <th class="px-4 py-3">{{ __('pos.admin.conventions.discount') }}</th>
                     <th class="px-4 py-3">{{ __('pos.admin.conventions.validity') }}</th>
+                    <th class="px-4 py-3 text-right">{{ __('pos.admin.conventions.members') }}</th>
                     <th class="px-4 py-3">{{ __('pos.admin.conventions.status') }}</th>
                     <th class="px-4 py-3 text-right">{{ __('pos.admin.conventions.actions') }}</th>
                 </tr>
@@ -35,6 +41,7 @@
                         <td class="px-4 py-3 tabular-nums text-slate-600">
                             {{ $convention->valid_from->format('d-m-Y') }} {{ __('pos.admin.conventions.until') }} {{ $convention->valid_until->format('d-m-Y') }}
                         </td>
+                        <td class="px-4 py-3 text-right tabular-nums text-slate-700">{{ number_format((int) $convention->memberships_count, 0, ',', '.') }}</td>
                         <td class="px-4 py-3">
                             @if ($convention->active)
                                 <span class="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800">{{ __('pos.admin.conventions.active') }}</span>
@@ -64,7 +71,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="5" class="px-4 py-6 text-center text-slate-500">{{ __('pos.admin.conventions.empty') }}</td>
+                        <td colspan="6" class="px-4 py-6 text-center text-slate-500">{{ __('pos.admin.conventions.empty') }}</td>
                     </tr>
                 @endforelse
             </tbody>

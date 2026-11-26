@@ -10,6 +10,7 @@ use App\Models\Sale;
 use App\Models\StockMovement;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\URL;
 use Tests\TestCase;
 
 /**
@@ -83,7 +84,7 @@ final class CheckoutFlowTest extends TestCase
 
         $sale = Sale::query()->firstOrFail();
 
-        $response->assertRedirect(route('pos.sales.receipt', $sale));
+        $response->assertRedirect(URL::signedRoute('pos.sales.receipt', $sale));
         $this->assertSame(1990, $sale->total);
         $this->assertSame(5000, $sale->received_amount);
         $this->assertSame(3010, $sale->change_amount);
@@ -220,8 +221,8 @@ final class CheckoutFlowTest extends TestCase
         $this->post('/pos/checkout', ['payment_method' => 'debit']);
         $sale = Sale::query()->firstOrFail();
 
-        $this->get(route('pos.sales.receipt', $sale))->assertOk();
-        $this->get(route('pos.sales.receipt', $sale))->assertOk();
+        $this->get(URL::signedRoute('pos.sales.receipt', $sale))->assertOk();
+        $this->get(URL::signedRoute('pos.sales.receipt', $sale))->assertOk();
 
         $this->assertSame(1, Sale::query()->count());
         $this->assertSame(1, Document::query()->count());
@@ -255,11 +256,11 @@ final class CheckoutFlowTest extends TestCase
         $other = User::factory()->tecnico()->create();
 
         $this->actingAs($other)
-            ->get(route('pos.sales.receipt', $sale))
+            ->get(URL::signedRoute('pos.sales.receipt', $sale))
             ->assertForbidden();
 
         $this->actingAs($this->cashier)
-            ->get(route('pos.sales.receipt', $sale))
+            ->get(URL::signedRoute('pos.sales.receipt', $sale))
             ->assertOk();
     }
 
@@ -275,12 +276,31 @@ final class CheckoutFlowTest extends TestCase
         $sale = Sale::query()->firstOrFail();
 
         $this->actingAs(User::factory()->quimico()->create())
-            ->get(route('pos.sales.receipt', $sale))
+            ->get(URL::signedRoute('pos.sales.receipt', $sale))
             ->assertOk();
 
         $this->actingAs(User::factory()->admin()->create())
-            ->get(route('pos.sales.receipt', $sale))
+            ->get(URL::signedRoute('pos.sales.receipt', $sale))
             ->assertOk();
+    }
+
+    public function test_changing_a_receipt_link_does_not_open_another_receipt_of_the_same_cashier(): void
+    {
+        $product = Product::factory()->create();
+        $this->post('/pos/cart', ['product_id' => $product->id]);
+        $first = $this->post('/pos/checkout', ['payment_method' => 'debit']);
+        $this->post('/pos/cart', ['product_id' => $product->id]);
+        $second = $this->post('/pos/checkout', ['payment_method' => 'debit']);
+
+        [$firstSale, $secondSale] = Sale::query()->orderBy('id')->get()->all();
+        $link = $first->headers->get('Location');
+        $firstPath = route('pos.sales.receipt', $firstSale, false);
+        $secondPath = route('pos.sales.receipt', $secondSale, false);
+
+        $this->get($link)->assertOk();
+        $this->get(str_replace($firstPath, $secondPath, $link))->assertForbidden();
+        $this->get($secondPath)->assertForbidden();
+        $this->get($second->headers->get('Location'))->assertOk();
     }
 
     public function test_sale_keeps_the_seller_and_the_local_timestamp(): void

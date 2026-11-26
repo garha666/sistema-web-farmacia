@@ -8,12 +8,16 @@ use App\Models\CashRegister;
 use App\Models\ControlledRegisterEntry;
 use App\Models\Convention;
 use App\Models\Prescription;
+use App\Models\PrescriptionReview;
+use App\Models\User;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Models\StockMovement;
+use App\Services\Inventory\LotStock;
 use App\Pos\Calculator\PriceCalculator;
 use App\Pos\Enum\DocumentStatus;
 use App\Pos\Enum\DocumentType;
+use App\Pos\Enum\DiscountOrigin;
 use App\Pos\Enum\PaymentMethod;
 use App\Pos\Enum\SaleCategory;
 use App\Pos\Enum\SaleStatus;
@@ -52,10 +56,12 @@ final class CheckoutService
     public function __construct(
         private readonly PriceCalculator $calculator,
         private readonly ConventionService $conventions,
+        private readonly LotStock $lots,
         private readonly PrescriptionPolicy $prescriptions,
         private readonly DiscountPolicy $discounts,
         private readonly AuditService $audit,
         private readonly DocumentService $documents,
+        private readonly PrescriptionReviewService $prescriptionReviews,
     ) {}
 
     public function checkout(
@@ -73,6 +79,8 @@ final class CheckoutService
         ?DocumentType $documentType = null,
         ?InvoiceData $invoice = null,
         array $lineDiscountAuthorizedBy = [],
+        ?string $benefitRut = null,
+        ?int $pharmacistByPin = null,
     ): Sale {
         if ($cart->isEmpty()) {
             throw new EmptyCart(__('pos.errors.cart_empty'));
@@ -111,28 +119,24 @@ final class CheckoutService
             throw new PrescriptionRejected($result->errors());
         }
 
-        // RF-11: receta ya usada en otra venta; exige supervisor.
-        if ($result->requiresSupervisor() && $reuseAuthorizedBy === null) {
-            throw new PrescriptionRejected(
-                ['number' => 'prescription_already_used'],
-                requiresSupervisor: true,
-            );
-        }
-
         // RF-16/RF-17/RF-40: el descuento se re-evalúa al confirmar. El convenio
         // prevalece sobre el descuento manual; sobre el tope exige supervisor.
-        [$convention, $globalDiscount, $discountNeedsSupervisor] = $this->resolveDiscount(
+        [$convention, $globalDiscount] = $this->resolveDiscount(
             $cart,
             $conventionId,
             $manualDiscount,
             $discountAuthorizedBy,
+            $benefitRut,
         );
 
         $totals = $this->calculator->totals($cart, (int) config('pos.iva_rate'), $globalDiscount);
+        if ($globalDiscount?->origin !== DiscountOrigin::manual || $totals->globalDiscount()->pesos() === 0) {
+            $discountAuthorizedBy = null;
+        }
 
         // 3 intentos: reintenta si PostgreSQL detecta un deadlock (SQLSTATE 40P01)
         // o una espera de lock agotada por concurrencia entre cajas (RF-28).
-        $sale = DB::transaction(function () use ($cart, $method, $receivedAmount, $customerRut, $token, $userId, $convention, $totals, $prescription, $reuseAuthorizedBy, $alreadyUsed, $category, $globalDiscount, $discountAuthorizedBy, $discountNeedsSupervisor, $documentType, $invoice, $lineDiscountAuthorizedBy): Sale {
+        $sale = DB::transaction(function () use ($cart, $method, $receivedAmount, $customerRut, $token, $userId, $convention, $totals, $prescription, $alreadyUsed, $category, $globalDiscount, $discountAuthorizedBy, $documentType, $invoice, $lineDiscountAuthorizedBy, $pharmacistByPin): Sale {
             $existing = Sale::query()->where('token', $token)->first();
 
             if ($existing !== null) {
@@ -143,6 +147,15 @@ final class CheckoutService
             // cobro. El bloqueo serializa el cobro con el cierre del turno.
             $register = $this->openRegisterFor($userId);
 
+            $pharmacistId = null;
+            if ($category->requiresPrescription() && $prescription !== null) {
+                $pharmacistId = $pharmacistByPin ?? $this->prescriptionReviews->pharmacistFor($register->user_id, $token, $cart, $prescription);
+                if ($pharmacistId === null || ! User::query()->whereKey($pharmacistId)->where('role', User::ROLE_QUIMICO)
+                    ->whereNull('disabled_at')->sharedLock()->first()) {
+                    throw new PrescriptionRejected(['approval' => 'required']);
+                }
+            }
+
             // RF-27/RF-28: bloqueo pesimista de las filas de producto en orden
             // de id (mismo orden que VoidSaleService) para serializar la venta
             // de la última unidad y evitar deadlocks.
@@ -151,6 +164,8 @@ final class CheckoutService
             // RF-74: existencia resultante por producto, calculada con la
             // existencia bloqueada antes de descontar.
             $resultingStock = [];
+            $allocations = [];
+            $saleDate = LotStock::today();
 
             // RF-11: la receta se guarda una sola vez y se reutiliza la existente
             // cuando un supervisor autorizó su repetición.
@@ -167,9 +182,17 @@ final class CheckoutService
                         'issued_on' => $prescription->issuedAt->format('Y-m-d'),
                     ],
                 );
+                $this->prescriptionReviews->assertConsistent($prescriptionModel, $prescription);
+                $alreadyUsed = ! $prescriptionModel->wasRecentlyCreated;
             }
 
             foreach ($cart->lines() as $line) {
+                $productId = $line->productId();
+                $allocation = $this->lots->consume($productId, $lockedStock[$productId] ?? 0, $line->quantity(), $saleDate);
+                if ($allocation === null) {
+                    throw new InsufficientStock($this->shortageMessage($line));
+                }
+                $allocations[$productId] = $allocation;
                 $affected = Product::query()
                     ->whereKey($line->productId())
                     ->where('stock', '>=', $line->quantity())
@@ -194,7 +217,7 @@ final class CheckoutService
                     'global_discount' => $totals->globalDiscount()->pesos(),
                     'discount_origin' => $globalDiscount?->origin,
                     'discount_reason' => $globalDiscount?->reason,
-                    'discount_authorized_by' => $discountNeedsSupervisor ? $discountAuthorizedBy : null,
+                    'discount_authorized_by' => $discountAuthorizedBy,
                     'net' => $totals->net()->pesos(),
                     'iva' => $totals->iva()->pesos(),
                     'total' => $totals->total()->pesos(),
@@ -233,6 +256,7 @@ final class CheckoutService
                     'discount_amount' => $this->calculator->lineDiscount($line)->pesos(),
                     'subtotal' => $this->calculator->lineSubtotal($line)->pesos(),
                 ]);
+                $createdLines[$line->productId()]->lots()->attach($allocations[$line->productId()]);
 
                 StockMovement::query()->create([
                     'product_id' => $line->productId(),
@@ -309,22 +333,28 @@ final class CheckoutService
             }
 
             // RF-11/RF-36: la reutilización autorizada queda auditada con su autor.
-            if ($alreadyUsed && $reuseAuthorizedBy !== null && $prescription !== null) {
+            if ($pharmacistId !== null) {
+                $this->audit->record('sale.prescription_approved', $sale, $pharmacistId,
+                    __($pharmacistByPin === null ? 'pos.rx_review.audit_panel' : 'pos.rx_review.audit_pin'));
+                PrescriptionReview::query()->where('cashier_id', $register->user_id)->where('checkout_token', $token)->delete();
+            }
+
+            if ($alreadyUsed && $pharmacistId !== null && $prescription !== null) {
                 $this->audit->record(
                     'sale.prescription_reuse',
                     $sale,
-                    $reuseAuthorizedBy,
-                    "Receta {$prescription->number} reutilizada con autorización de supervisor.",
+                    $pharmacistId,
+                    "Receta {$prescription->number} reutilizada con autorización del Químico.",
                 );
             }
 
             // RF-16/RF-36: el descuento sobre el tope queda auditado con su autor.
-            if ($discountNeedsSupervisor && $discountAuthorizedBy !== null) {
+            if ($globalDiscount !== null && $discountAuthorizedBy !== null) {
                 $this->audit->record(
                     'sale.discount_authorized',
                     $sale,
                     $discountAuthorizedBy,
-                    'Descuento manual sobre el tope autorizado por supervisor.',
+                    __('pos.authorization.manual_audit'),
                 );
             }
 
@@ -375,6 +405,7 @@ final class CheckoutService
         ?Discount $manualDiscount = null,
         ?int $discountAuthorizedBy = null,
         array $lineDiscountAuthorizedBy = [],
+        ?string $benefitRut = null,
     ): ReceiptTotals {
         $this->assertLineDiscountsAuthorized($cart, $lineDiscountAuthorizedBy);
 
@@ -383,6 +414,7 @@ final class CheckoutService
             $conventionId,
             $manualDiscount,
             $discountAuthorizedBy,
+            $benefitRut,
         );
 
         return $this->calculator->totals($cart, (int) config('pos.iva_rate'), $globalDiscount);
@@ -452,13 +484,14 @@ final class CheckoutService
         ?int $conventionId,
         ?Discount $manualDiscount,
         ?int $discountAuthorizedBy,
+        ?string $benefitRut,
     ): array {
         $today = new DateTimeImmutable('now', new DateTimeZone((string) config('pos.timezone')));
 
         // RF-40: el convenio se valida al confirmar, no al armar el carrito.
         $convention = $conventionId === null
             ? null
-            : $this->conventions->findApplicable($conventionId, $today);
+            : $this->conventions->findForCheckout($conventionId, $today, $benefitRut);
 
         if ($convention === null && $manualDiscount === null) {
             return [null, null, false];
@@ -473,6 +506,14 @@ final class CheckoutService
             validUntil: $convention->valid_until->toDateTimeImmutable(),
         );
 
+        $excludedBase = 0;
+        if ($convention !== null && ! $convention->applies_to_controlled) {
+            foreach ($cart->lines() as $line) {
+                if ($line->category() === SaleCategory::controlled) {
+                    $excludedBase += $this->calculator->lineSubtotal($line)->pesos() - $this->calculator->lineDiscount($line)->pesos();
+                }
+            }
+        }
         $decision = $this->discounts->evaluate(
             subtotal: $this->calculator->subtotal($cart)->pesos(),
             discount: $manualDiscount,
@@ -480,6 +521,7 @@ final class CheckoutService
             generalCapPercent: (int) config('pos.discount.general_cap_percent'),
             today: $today,
             lineDiscountsPesos: $this->calculator->lineDiscounts($cart)->pesos(),
+            excludedBase: $excludedBase,
         );
 
         if ($decision->isRejected()) {
@@ -520,7 +562,7 @@ final class CheckoutService
     {
         $available = Product::query()
             ->whereKey($line->productId())
-            ->value('stock');
+            ->withPosStock(LotStock::today())->first()?->pos_stock;
 
         return __('pos.errors.concurrent_stock', [
             'name' => $line->name(),
@@ -546,13 +588,20 @@ final class CheckoutService
 
         sort($ids);
 
-        return Product::query()
+        $locked = Product::query()
             ->whereIn('id', $ids)
             ->orderBy('id')
             ->lockForUpdate()
-            ->get()
-            ->pluck('stock', 'id')
-            ->all();
+            ->get()->keyBy('id');
+
+        foreach ($cart->lines() as $line) {
+            $product = $locked->get($line->productId());
+            if ($product !== null && $product->sale_category !== $line->category()) {
+                throw new InsufficientStock(__('pos.rx_review.category_changed'));
+            }
+        }
+
+        return $locked->pluck('stock', 'id')->all();
     }
 
     /**

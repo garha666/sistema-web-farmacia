@@ -54,7 +54,7 @@ final class SaleController extends Controller
     public function show(Sale $sale): View
     {
         $sale->load([
-            'lines',
+            'lines.lots',
             'document',
             'reversal',
             'convention',

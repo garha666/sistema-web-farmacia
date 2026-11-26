@@ -34,6 +34,8 @@ final class CashRegister extends Model
         'expected_cash',
         'declared_cash',
         'difference',
+        'close_reason',
+        'closed_payment_breakdown',
     ];
 
     /**
@@ -52,6 +54,7 @@ final class CashRegister extends Model
             'expected_cash' => 'integer',
             'declared_cash' => 'integer',
             'difference' => 'integer',
+            'closed_payment_breakdown' => 'array',
         ];
     }
 

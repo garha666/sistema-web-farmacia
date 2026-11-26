@@ -62,7 +62,7 @@
                             </p>
                             <p class="mt-1 text-sm">
                                 <span class="font-semibold">{{ $money($product->price) }}</span>
-                                <span class="text-slate-500">· {{ __('pos.cash.stock', ['stock' => $product->stock]) }}</span>
+                                <span class="text-slate-500">· {{ __('pos.cash.stock', ['stock' => $product->pos_stock]) }}</span>
                                 @if ($product->sale_category->requiresPrescription())
                                     <span class="ml-2 rounded bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
                                         {{ $product->sale_category === \App\Pos\Enum\SaleCategory::controlled
@@ -79,7 +79,7 @@
                             <button
                                 type="submit"
                                 class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-300 disabled:opacity-50"
-                                @disabled($product->stock < 1)
+                                @disabled($product->pos_stock < 1)
                             >
                                 {{ __('pos.cash.add') }}
                             </button>
@@ -162,7 +162,7 @@
                                             · {{ $line->discount()->reason }}
                                         </span>
                                     </span>
-                                    <form method="POST" action="{{ route('pos.cart.discount.remove', $line->productId()) }}">
+                                    <form method="POST" action="{{ route('pos.cart.discount.remove', $line->productId()) }}" data-pos-async="discount-remove">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit" class="shrink-0 font-semibold text-red-700 underline-offset-2 hover:underline focus:outline-none focus:ring-2 focus:ring-red-300 rounded" aria-label="{{ __('pos.cash.line_discount.remove') }}: {{ $line->name() }}">
@@ -179,7 +179,7 @@
                                         {{ __('pos.cash.line_discount.title') }}
                                     </summary>
 
-                                    <form method="POST" action="{{ route('pos.cart.discount', $line->productId()) }}" class="space-y-2 border-t border-slate-200 p-2">
+                                    <form method="POST" action="{{ route('pos.cart.discount', $line->productId()) }}" data-pos-async="discount" class="space-y-2 border-t border-slate-200 p-2">
                                         @csrf
                                         <input type="hidden" name="line_product_id" value="{{ $line->productId() }}">
 
@@ -275,7 +275,7 @@
                             <span class="font-medium">{{ $manualDiscount->reason }}</span>
                         </p>
 
-                        <form method="POST" action="{{ route('pos.discount.remove') }}" class="mt-2">
+                        <form method="POST" action="{{ route('pos.discount.remove') }}" data-pos-async="discount-remove" class="mt-2">
                             @csrf
                             @method('DELETE')
                             <button type="submit" class="text-xs font-semibold text-red-600 hover:underline">
@@ -283,7 +283,7 @@
                             </button>
                         </form>
                     @else
-                        <form method="POST" action="{{ route('pos.discount.apply') }}" class="mt-2 space-y-2">
+                        <form method="POST" action="{{ route('pos.discount.apply') }}" data-pos-async="discount" class="mt-2 space-y-2">
                             @csrf
 
                             <div class="flex gap-2">
@@ -353,6 +353,30 @@
             @endfragment
         </aside>
     </div>
+
+    <dialog id="pos-discount-authorization" aria-labelledby="pos-discount-authorization-title" class="w-11/12 max-w-md rounded-xl bg-white p-5 text-slate-900 shadow-xl backdrop:bg-slate-900/60">
+        <h2 id="pos-discount-authorization-title" class="text-lg font-semibold">{{ __('pos.cash.discount.supervisor_title') }}</h2>
+        <p data-supervisor-message role="alert" class="mt-2 text-sm text-red-700"></p>
+
+        <form method="dialog" class="mt-4 space-y-3">
+            <label class="block text-sm font-semibold">
+                {{ __('pos.cash.discount.supervisor_email') }}
+                <input type="email" name="email" autocomplete="username" required autofocus class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">
+            </label>
+            <label class="block text-sm font-semibold">
+                {{ __('pos.cash.discount.supervisor_password') }}
+                <input type="password" name="password" inputmode="numeric" pattern="[0-9]{8,12}" maxlength="12" autocomplete="off" required class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">
+            </label>
+            <div class="flex flex-wrap justify-end gap-2 pt-2">
+                <button type="button" data-supervisor-cancel class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold">
+                    {{ __('pos.cash.discount.cancel') }}
+                </button>
+                <button type="submit" class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50">
+                    {{ __('pos.cash.discount.authorize') }}
+                </button>
+            </div>
+        </form>
+    </dialog>
 
     @if ($errors->has('discount_supervisor'))
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">

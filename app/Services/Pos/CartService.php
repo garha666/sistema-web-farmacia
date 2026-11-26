@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Pos;
 
 use App\Models\Product;
+use App\Services\Inventory\LotStock;
 use App\Pos\Enum\DiscountType;
 use App\Pos\Money;
 use App\Pos\Value\Cart;
@@ -43,6 +44,7 @@ final class CartService
         }
 
         $products = Product::query()
+            ->withPosStock(LotStock::today())
             ->whereIn('id', array_map('intval', array_keys($stored)))
             // B2: un producto fuera de catálogo no se vende, aunque el carrito
             // guardado en sesión lo tenga de antes.
@@ -189,8 +191,9 @@ final class CartService
 
         return Product::query()
             ->whereIn('id', $ids)
-            ->get(['id', 'stock'])
-            ->mapWithKeys(fn (Product $product): array => [$product->id => $product->stock])
+            ->select('id', 'stock')->withPosStock(LotStock::today())
+            ->get()
+            ->mapWithKeys(fn (Product $product): array => [$product->id => (int) $product->pos_stock])
             ->all();
     }
 
@@ -226,7 +229,7 @@ final class CartService
             name: $product->name,
             unitPrice: Money::fromPesos($product->price),
             category: $product->sale_category,
-            availableStock: $product->stock,
+            availableStock: (int) ($product->pos_stock ?? $product->stock),
             sellable: $product->sellable,
         );
     }

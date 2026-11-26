@@ -185,6 +185,32 @@
                 {{ __('pos.receipt.print') }}
             </button>
         </div>
+
+        @if (in_array(auth()->user()?->role, \App\Models\User::rolesThatCanVoid(), true)
+            && $sale->status === \App\Pos\Enum\SaleStatus::confirmed)
+            <section class="mt-6 rounded-xl border border-rose-200 bg-rose-50 p-4 sm:p-5 print:hidden" aria-labelledby="void-sale-title">
+                <h2 id="void-sale-title" class="text-base font-semibold text-rose-950">{{ __('pos.receipt.void_heading') }}</h2>
+                <p class="mt-1 text-sm leading-6 text-rose-900">{{ __('pos.receipt.void_help') }}</p>
+
+                <form method="POST" action="{{ route('pos.sales.void', $sale) }}" class="mt-4 space-y-3">
+                    @csrf
+                    <div>
+                        <label for="void-reason" class="block text-sm font-semibold text-slate-900">{{ __('pos.receipt.void_reason_label') }}</label>
+                        <p id="void-reason-hint" class="mt-1 text-xs text-slate-600">{{ __('pos.receipt.void_reason_hint') }}</p>
+                        <textarea id="void-reason" name="reason" rows="3" minlength="3" maxlength="500" required
+                            aria-describedby="void-reason-hint @error('reason') void-reason-error @enderror"
+                            @error('reason') aria-invalid="true" @enderror
+                            class="mt-2 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-rose-600 focus:outline-none focus:ring-2 focus:ring-rose-300">{{ old('reason') }}</textarea>
+                        @error('reason')
+                            <p id="void-reason-error" role="alert" class="mt-1 text-sm font-medium text-rose-800">{{ $message }}</p>
+                        @enderror
+                    </div>
+                    <button type="submit" class="w-full rounded-lg bg-rose-700 px-4 py-3 text-sm font-semibold text-white hover:bg-rose-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-700 focus-visible:ring-offset-2 sm:w-auto">
+                        {{ __('pos.receipt.void_submit') }}
+                    </button>
+                </form>
+            </section>
+        @endif
     </div>
 
     <script nonce="{{ $cspNonce }}">

@@ -75,6 +75,24 @@ final class ControlledRegisterTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_clinical_register_shows_dispensations_and_approvals_but_not_report_exports(): void
+    {
+        $entry = $this->seedControlledEntry();
+        $chemist = User::factory()->quimico()->create();
+        $audit = app(\App\Services\Pos\AuditService::class);
+        $audit->record('sale.prescription_approved', $entry->sale, $chemist->id, 'Aprobada en caja');
+        $audit->record('report.exported', $entry->sale, $chemist->id, 'Exportación exclusiva de prueba');
+
+        $url = route('dashboard.quimico.clinical-register');
+        $this->actingAs($chemist)->get($url)->assertOk()
+            ->assertSeeText('Tramadol 50 mg')
+            ->assertSeeTextInOrder(['Aprobaciones asociadas a ventas', 'REC-001'])
+            ->assertDontSeeText('Exportación exclusiva de prueba');
+        $this->get($url.'?from='.now()->addYears(10)->toDateString())->assertOk()
+            ->assertDontSeeText('REC-001');
+        $this->actingAs(User::factory()->tecnico()->create())->get($url)->assertForbidden();
+    }
+
     private function seedControlledEntry(): ControlledRegisterEntry
     {
         $cashier = User::factory()->create(['role' => 'tecnico']);
@@ -91,6 +109,7 @@ final class ControlledRegisterTest extends TestCase
             'payment_method' => 'debit',
             'customer_rut' => '12.345.678-9',
             'prescription_number' => 'REC-001',
+            ...$this->pharmacistCredentials(),
             'prescription_prescriber_name' => 'Dra. Ana Pérez',
             'prescription_prescriber_rut' => '9.876.543-2',
             'prescription_issued_at' => now()->subDays(5)->format('Y-m-d'),

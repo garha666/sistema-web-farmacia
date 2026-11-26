@@ -52,7 +52,7 @@ final class LoginRequest extends FormRequest
     {
         $this->ensureIsNotRateLimited();
 
-        if (! Auth::attempt($this->only('email', 'password'), $this->boolean('remember'))) {
+        if (! Auth::attempt($this->only('email', 'password') + ['disabled_at' => null], $this->boolean('remember'))) {
             RateLimiter::hit($this->throttleKey(), self::DECAY_SECONDS);
 
             // T28 - RF-84: el intento fallido queda en la bitácora sin credenciales.

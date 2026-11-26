@@ -22,6 +22,7 @@ final class StockAdjustmentService
 {
     public function __construct(
         private readonly StockAdjustmentPolicy $policy,
+        private readonly LotStock $lots,
     ) {}
 
     public function adjust(
@@ -42,6 +43,10 @@ final class StockAdjustmentService
 
             if (! $decision->accepted()) {
                 return $decision;
+            }
+
+            if ($type === StockMovementType::out) {
+                $this->lots->consume($locked->id, $locked->stock, $quantity, null);
             }
 
             $locked->update(['stock' => $decision->resultingStock()]);

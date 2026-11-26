@@ -91,6 +91,11 @@
                                     {{ $turno['is_closed'] ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-800' }}">
                                     {{ $turno['status'] }}
                                 </span>
+                                @if ($turno['is_closed'])
+                                    <a class="mt-1 block whitespace-nowrap text-xs font-semibold text-emerald-800 underline" href="{{ route('cash.report', $turno['id']) }}">
+                                        {{ __('pos.cash_register.report_title') }}
+                                    </a>
+                                @endif
                             </td>
                         </tr>
                     @endforeach

@@ -72,16 +72,21 @@ Notación EARS. «El sistema» es el módulo completo. La numeración continúa 
 - **RF-53 — Autorizaciones del día.** El panel deberá listar las autorizaciones otorgadas hoy por el usuario de la sesión —descuento global sobre el tope, descuento de línea y reutilización de receta— con la venta, el motivo y el monto o porcentaje autorizado.
 - **RF-54 — Anulaciones registradas hoy.** El panel deberá listar las anulaciones registradas hoy —los eventos de anulación con fecha de hoy, aunque la venta sea de un día anterior— con su motivo y su autor.
   - *Criterio:* La cifra de anulaciones registradas hoy deberá coincidir con la que informa el panel del Administrador (RF-46), porque ambas toman la misma fuente (D-11).
-- **RF-55 — Salidas de lectura.** El panel deberá ofrecer acceso a convenios y a auditoría en modo lectura, sin ofrecer acciones de escritura que su rol no tiene.
+- **RF-55 — Acceso de lectura.** CUANDO el Químico acceda directamente a las rutas de convenios o auditoría, conservará el acceso de solo lectura. El panel y su menú no mostrarán enlaces a esas rutas.
+  - El menú del Químico contiene Inicio, Recepciones controladas, Libro de controlados / Autorizaciones y PIN del POS.
+- **Pulido del panel del Administrador (v1.1.1).** El menú del Administrador deberá empezar por Inicio (`/panel/admin`), igual que los demás roles. La tabla de convenios deberá mostrar cuántos afiliados (RUT) tiene cada convenio, y el acceso a «Importar afiliados» deberá ser un botón secundario junto a «Nuevo convenio». La auditoría deberá ofrecer un filtro rápido por texto sobre la acción o el autor. Los subtítulos de las pantallas no deberán mostrar códigos internos de requisitos.
+- **Bandeja clínica del Químico.** CUANDO el Químico abra su panel, la cabecera deberá mostrar el rol, la fecha local y si tiene configurado el PIN del POS. Debajo, la bandeja deberá mostrar el total de recetas pendientes vigentes y hasta 20 solicitudes, comenzando por las más antiguas. MIENTRAS el panel esté abierto, consultará la bandeja cada ocho segundos por JSON, solo con sesión del Químico, sin recargar la página ni modificar el flujo de aprobación.
+- **Consulta clínica.** CUANDO el Químico abra el libro clínico, podrá consultar por fecha las dispensaciones controladas y las revisiones que conservan una aprobación registrada, separadas de la auditoría administrativa y sin permiso de exportación. Las solicitudes vencidas no se muestran como rechazos: el flujo actual no registra rechazos clínicos.
 
 ### 4.4 Panel del Técnico
 
 - **RF-56 — Estado de la caja.** El panel del Técnico deberá mostrar si tiene una caja abierta y, si la tiene, desde cuándo, con qué monto inicial y cuánto se vendió en ese turno por medio de pago.
 - **RF-57 — Caja cerrada.** Si el usuario no tiene una caja abierta, entonces el panel deberá ofrecer abrirla indicando el monto inicial en efectivo y deberá explicar que sin apertura no puede cobrar.
 - **RF-58 — Apertura de caja.** Cuando el cajero abre una caja, el sistema deberá registrar el monto inicial, el responsable y la fecha y hora local, y deberá impedir una segunda caja abierta para el mismo usuario.
-- **RF-59 — Cierre de caja.** Cuando el cajero cierra su caja, el sistema deberá mostrar antes de confirmar: el total vendido en el turno por medio de pago, el efectivo esperado —monto inicial más ventas en efectivo menos anulaciones en efectivo—, y deberá pedir el monto declarado.
-  - *Criterio:* El sistema deberá calcular y mostrar la diferencia entre el efectivo esperado y el declarado, indicando si es a favor o en contra.
-  - *Criterio:* El cierre deberá ser posible con diferencia distinta de cero, y esa diferencia deberá quedar registrada.
+- **RF-59 — Cierre de caja.** Cuando el cajero inicia el cierre, la pantalla de conteo no deberá mostrar ni enviar el efectivo esperado ni los totales del turno; deberá pedir cantidades enteras no negativas por denominación de pesos chilenos. Un campo vacío equivale a cero. El servidor calcula el monto contado. Se conserva el campo histórico `declared_amount` como alternativa de entrada para consumidores existentes, sujeto a las mismas reglas de cierre.
+  - *Criterio:* El servidor calcula el efectivo esperado —monto inicial más ventas en efectivo menos anulaciones en efectivo— y muestra la diferencia con su signo solo después de cerrar. El panel operativo del turno conserva su resumen (RF-61); el conteo sin referencia aplica a la pantalla de cierre.
+  - *Criterio:* Si hay diferencia, el cierre exige una justificación no vacía y la guarda con el arqueo. Si falta, se conserva el conteo ingresado sin revelar el saldo ni cerrar el turno.
+  - *Criterio:* Una vez cerrado el turno, su técnico y el administrador pueden descargar un CSV con los valores registrados y el técnico puede abrir un acta imprimible para guardar como PDF desde el navegador. El acta y el CSV no recalculan importes si hay anulaciones posteriores.
 - **RF-60 — Requisito de cobro.** Mientras el cajero no tenga una caja abierta, el sistema deberá impedir confirmar un cobro e indicar cómo abrirla.
 - **RF-61 — Resumen del turno.** El panel deberá mostrar la cantidad de ventas del turno, el total cobrado, el desglose por medio de pago y las anulaciones del turno.
 - **RF-62 — Enlace a la caja.** El panel deberá ofrecer acceso directo al POS.
@@ -108,6 +113,13 @@ Notación EARS. «El sistema» es el módulo completo. La numeración continúa 
 - **RF-73 — Ajuste de stock.** El Administrador y el Bodeguero deberán poder registrar un movimiento de entrada o salida de stock indicando producto, cantidad entera positiva y motivo obligatorio.
   - *Criterio:* Si una salida dejaría la existencia en negativo, entonces el sistema deberá rechazarla e indicar la existencia disponible.
 - **RF-74 — Trazabilidad del inventario.** Todo movimiento de stock deberá registrar producto, tipo, cantidad, existencia resultante, autor, fecha y hora local y motivo, y deberá ser consultable.
+
+### Recepción de mercadería y revisión técnica
+
+- **RF-102 — Recepción por lote.** CUANDO el bodeguero registra una entrega, el sistema deberá guardar producto, lote, vencimiento, cantidades esperada y recibida, responsable y fotografía privada. La diferencia es la cantidad recibida menos la esperada. Para un producto no controlado, la entrada al stock deberá ser por la cantidad recibida, no por la pedida. Por ejemplo, recibir 18 de 20 registra una diferencia de −2 y una entrada de 18.
+- **RF-103 — Revisión de controlados.** MIENTRAS una recepción de un medicamento controlado esté pendiente, sus unidades no deberán sumarse al stock disponible. CUANDO un químico distinto de quien registró la recepción la apruebe o rechace, el sistema deberá guardar responsable, motivo y fecha de la decisión. Una aprobación ingresa la cantidad recibida una sola vez; un rechazo no genera entrada. Repetir la decisión no deberá alterar el stock.
+  - *Criterios:* Solo bodega registra recepciones; bodega consulta las propias y el químico consulta la bandeja de controlados. Solo sus respectivos usuarios autorizados pueden abrir la evidencia (JPEG, PNG o WebP de hasta 1,5 MiB). No se admiten lotes vencidos y, si vencen mientras esperan, se pueden rechazar pero no aprobar.
+- **RF-105 — Existencias por lote.** Las nuevas recepciones ingresadas o aprobadas conservan saldo por lote. No se reconstruyen saldos de recepciones históricas sin trazabilidad: el stock preexistente y las entradas manuales permanecen sin lote. Las salidas manuales sin lote específico descuentan primero unidades sin lote y luego unidades de los lotes por vencimiento, incluidos los vencidos; la venta sigue RF-104 de la spec 001.
   - *Criterio:* La existencia de un producto deberá poder reconstruirse como la existencia inicial más la suma de sus movimientos.
 
 ### 4.7 Coherencia de los indicadores
@@ -123,6 +135,7 @@ Numeración continua con la spec 001.
 - **RNF-14 — Rendimiento del panel.** El panel deberá responder en menos de 800 ms en el percentil 95 con 20.000 ventas históricas y 5.000 productos.
 - **RNF-15 — Sin consultas por fila.** La carga de un panel o de una lista no deberá ejecutar una consulta por cada elemento mostrado.
 - **RNF-16 — Idioma y formato.** La interfaz, los mensajes y los estados deberán estar en español de Chile; los montos en pesos chilenos; las fechas en formato dd-mm-aaaa; la zona horaria `America/Santiago`.
+  - *Presentación del Administrador (RF-46 a RF-51):* destacar el total vendido del día y ubicar el desglose por pago y las alertas de inventario junto al resumen en escritorio. En pantallas estrechas, apilar los bloques sin desplazar horizontalmente la página. La presentación no modifica los indicadores ni sus permisos.
 - **RNF-17 — Accesibilidad.** Todo panel deberá tener foco visible, encabezados de tabla semánticos, etiquetas en los campos y contraste suficiente para uso prolongado.
 - **RNF-18 — Operación sin mouse.** La apertura y el cierre de caja y el ajuste de stock deberán poder completarse con teclado.
 - **RNF-19 — Permisos.** Cada panel y cada acción deberá estar disponible sólo para el rol que esta spec le atribuye; el rechazo se informa sin exponer datos.
@@ -156,8 +169,8 @@ Numeración continua con la spec 001.
 
 ## 7. Fuera de alcance
 
-- Gestión de usuarios, alta de cuentas, cambio de contraseña y asignación de roles (el rol Bodeguero se define acá, pero se provisiona por seed o base de datos).
-- Autenticación y **pantalla de inicio de sesión**: ~~fuera de alcance~~ → **trasladado a la spec 003** (`specs/003-auth/`, RF-78 a RF-82), que sí define cómo se entra al sistema. El alta de usuarios y el cambio de contraseña siguen fuera de alcance.
+- Gestión de cuentas: el alta operativa y la desactivación se definen en la spec 003 (RF-99 y RF-100). El cambio de contraseña y la edición de roles quedan fuera de esta spec.
+- Autenticación y **pantalla de inicio de sesión**: definidas en la spec 003 (`specs/003-auth/`, RF-78 a RF-82).
 - Compras a proveedores, órdenes de compra y recepción de mercadería con documento: los ajustes de stock son movimientos manuales con motivo, no recepciones.
 - Inventario avanzado: multi-bodega, transferencias entre ubicaciones, lotes, vencimientos y trazabilidad por lote.
 - Reportes exportables y tableros analíticos históricos más allá de los indicadores descritos.

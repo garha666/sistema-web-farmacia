@@ -17,6 +17,7 @@ use App\Pos\Enum\SaleStatus;
 use App\Pos\Exception\EmissionFailed;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\URL;
 use Tests\TestCase;
 
 /**
@@ -51,7 +52,7 @@ final class DocumentEmissionTest extends TestCase
         $sale = Sale::query()->firstOrFail();
         $document = Document::query()->firstOrFail();
 
-        $response->assertRedirect(route('pos.sales.receipt', $sale));
+        $response->assertRedirect(URL::signedRoute('pos.sales.receipt', $sale));
         $this->assertSame(SaleStatus::confirmed, $sale->status);
         $this->assertSame(DocumentStatus::issued, $document->status);
         $this->assertSame(1, $document->folio);
@@ -60,7 +61,7 @@ final class DocumentEmissionTest extends TestCase
         $this->assertSame(1, Document::query()->count());
         $this->assertSame(9, $product->fresh()->stock);
 
-        $this->get(route('pos.sales.receipt', $sale))
+        $this->get(URL::signedRoute('pos.sales.receipt', $sale))
             ->assertOk()
             ->assertSee('Folio 1')
             ->assertDontSee('Provisorio');
@@ -76,7 +77,7 @@ final class DocumentEmissionTest extends TestCase
         $sale = Sale::query()->firstOrFail();
         $document = Document::query()->firstOrFail();
 
-        $response->assertRedirect(route('pos.sales.receipt', $sale));
+        $response->assertRedirect(URL::signedRoute('pos.sales.receipt', $sale));
 
         // La venta quedó confirmada una sola vez.
         $this->assertSame(SaleStatus::confirmed, $sale->status);
@@ -96,7 +97,7 @@ final class DocumentEmissionTest extends TestCase
         // El carrito se consumió: el comprobante se muestra sin volver al cobro.
         $this->get('/pos')->assertSee('Carrito vacío');
 
-        $receipt = $this->get(route('pos.sales.receipt', $sale));
+        $receipt = $this->get(URL::signedRoute('pos.sales.receipt', $sale));
 
         $receipt->assertOk();
         $receipt->assertSee('Provisorio');
@@ -198,8 +199,8 @@ final class DocumentEmissionTest extends TestCase
         $this->assertNull($documents[1]->folio);
         $this->assertSame(1, (int) Document::query()->max('folio'));
 
-        $response->assertRedirect(route('pos.sales.receipt', $sales[1]));
-        $this->get(route('pos.sales.receipt', $sales[1]))->assertSee('Provisorio');
+        $response->assertRedirect(URL::signedRoute('pos.sales.receipt', $sales[1]));
+        $this->get(URL::signedRoute('pos.sales.receipt', $sales[1]))->assertSee('Provisorio');
     }
 
     public function test_invoice_details_survive_an_emission_failure_and_retry(): void
@@ -243,7 +244,7 @@ final class DocumentEmissionTest extends TestCase
         // Los rangos siguen separados: la boleta no cambió.
         $this->assertSame(1, Document::query()->where('type', DocumentType::receipt)->value('folio'));
 
-        $this->get(route('pos.sales.receipt', $invoiceSale))
+        $this->get(URL::signedRoute('pos.sales.receipt', $invoiceSale))
             ->assertOk()
             ->assertSee('Factura electrónica')
             ->assertSee('Razón social: Comercial Andes SpA')
@@ -266,8 +267,8 @@ final class DocumentEmissionTest extends TestCase
 
         $sale = Sale::query()->firstOrFail();
 
-        $first->assertRedirect(route('pos.sales.receipt', $sale));
-        $second->assertRedirect(route('pos.sales.receipt', $sale));
+        $first->assertRedirect(URL::signedRoute('pos.sales.receipt', $sale));
+        $second->assertRedirect(URL::signedRoute('pos.sales.receipt', $sale));
 
         $this->assertSame(1, Sale::query()->count());
         $this->assertSame(1, Document::query()->count());
@@ -384,7 +385,7 @@ final class DocumentEmissionTest extends TestCase
         return [
             'payment_method' => 'debit',
             'document_type' => 'invoice',
-            'customer_rut' => '12.345.678-9',
+            'customer_rut' => '12.345.678-5',
             'invoice_business_name' => 'Comercial Andes SpA',
             'invoice_business_activity' => 'Comercio al por menor',
             'invoice_address' => 'Av. Providencia 1234',

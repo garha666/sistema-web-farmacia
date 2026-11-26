@@ -92,7 +92,9 @@ export function readForm(form) {
     const data = {};
 
     for (const [key, value] of formData.entries()) {
-        data[key] = typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : value;
+        data[key] = key.endsWith('_reason') || typeof value !== 'string' || !/^\d+$/.test(value)
+            ? value
+            : Number(value);
     }
 
     return { method, url: form.getAttribute('action'), data };
@@ -120,7 +122,6 @@ function init(root) {
     const resultsEl = document.getElementById('pos-results');
     const searchForm = root.querySelector('form[data-pos-async="search"]');
     const searchInput = searchForm?.querySelector('input[name="q"]') ?? null;
-
     if (!cartEl || !resultsEl || !statusEl || !alertEl) {
         return;
     }
@@ -138,6 +139,7 @@ function init(root) {
     let searchSeq = 0;
     let searchController = null;
     let stock = null;
+    let supervisorBlock = null;
 
     function announce(text) {
         statusEl.textContent = '';
@@ -246,7 +248,7 @@ function init(root) {
      * Ejecuta una operación del carrito. Devuelve true si el servidor la aceptó.
      * Si falla no se toca el DOM del carrito (RF-90): sólo se muestra el motivo.
      */
-    function runCart(request) {
+    function runCart(request, onFailure = () => false) {
         return enqueue(async () => {
             try {
                 const { data } = await send(request);
@@ -255,7 +257,9 @@ function init(root) {
 
                 return true;
             } catch (error) {
-                await handleFailure(error);
+                if (!onFailure(error)) {
+                    await handleFailure(error);
+                }
 
                 return false;
             }
@@ -296,6 +300,147 @@ function init(root) {
         return () => (id ? document.getElementById(`qty-${id}`) : null) ?? searchInput;
     }
 
+    function removeSupervisorBlock() {
+        supervisorBlock?.remove();
+        supervisorBlock = null;
+    }
+
+    /**
+     * Descuento sobre el tope: el bloque de credenciales de supervisor
+     * aparece DENTRO del carrito (RF-87, RF-83) y el carrito se mantiene
+     * igual mientras se autoriza.
+     */
+    function openSupervisorBlock(request, failure, isLine) {
+        removeSupervisorBlock();
+
+        const emailKey = isLine ? 'line_supervisor_email' : 'supervisor_email';
+        const passwordKey = isLine ? 'line_supervisor_password' : 'supervisor_password';
+
+        const block = document.createElement('div');
+        block.dataset.supervisorBlock = isLine ? 'line' : 'global';
+        block.className = 'mt-3 space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-3';
+
+        const heading = document.createElement('p');
+        heading.className = 'text-sm font-semibold text-slate-700';
+        heading.textContent = messages.supervisor_title;
+        block.append(heading);
+
+        const message = document.createElement('p');
+        message.className = 'text-xs text-red-700';
+        message.textContent = failure.text;
+        block.append(message);
+
+        const supForm = document.createElement('form');
+        supForm.className = 'space-y-3';
+        supForm.method = 'POST';
+        supForm.action = request.url;
+
+        // Vuelve a enviar el mismo descuento: el servidor valida las
+        // credenciales y aplica en una sola petición (RF-83).
+        for (const [key, value] of Object.entries(request.data)) {
+            const hidden = document.createElement('input');
+            hidden.type = 'hidden';
+            hidden.name = key;
+            hidden.value = String(value);
+            supForm.append(hidden);
+        }
+
+        const emailLabel = document.createElement('label');
+        emailLabel.className = 'block text-xs font-semibold text-slate-700';
+        emailLabel.textContent = messages.supervisor_email;
+
+        const emailInput = document.createElement('input');
+        emailInput.type = 'email';
+        emailInput.name = emailKey;
+        emailInput.required = true;
+        emailInput.autocomplete = 'username';
+        emailInput.className = 'mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm';
+
+        const passwordLabel = document.createElement('label');
+        passwordLabel.className = 'block text-xs font-semibold text-slate-700';
+        passwordLabel.textContent = messages.supervisor_password;
+
+        const passwordInput = document.createElement('input');
+        passwordInput.type = 'password';
+        passwordInput.name = passwordKey;
+        passwordInput.required = true;
+        passwordInput.autocomplete = 'off';
+        passwordInput.inputMode = 'numeric';
+        passwordInput.pattern = '[0-9]{8,12}';
+        passwordInput.maxLength = 12;
+        passwordInput.className = 'mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm';
+
+        supForm.append(emailLabel, emailInput, passwordLabel, passwordInput);
+
+        const controls = document.createElement('div');
+        controls.className = 'flex flex-wrap justify-end gap-2 pt-1';
+
+        const cancelButton = document.createElement('button');
+        cancelButton.type = 'button';
+        cancelButton.className = 'rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold';
+        cancelButton.textContent = messages.supervisor_cancel;
+        cancelButton.addEventListener('click', removeSupervisorBlock);
+
+        const authorizeButton = document.createElement('button');
+        authorizeButton.type = 'submit';
+        authorizeButton.className = 'rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50';
+        authorizeButton.textContent = messages.supervisor_authorize;
+
+        controls.append(cancelButton, authorizeButton);
+        supForm.append(controls);
+
+        supForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            const key = `${request.method} ${request.url} authorization`;
+
+            if (pendingForms.has(key)) {
+                return;
+            }
+
+            pendingForms.add(key);
+            authorizeButton.disabled = true;
+
+            const data = { ...request.data };
+            data[emailKey] = emailInput.value;
+            data[passwordKey] = passwordInput.value;
+
+            try {
+                const { data: payload } = await send({ ...request, data });
+                applyCart(payload);
+                clearAlert();
+            } catch (error) {
+                // Las credenciales no valen: el carrito queda como estaba; el aviso sigue visible.
+                showAlert(describeFailure(error, messages).text);
+            } finally {
+                pendingForms.delete(key);
+                authorizeButton.disabled = false;
+            }
+        });
+
+        block.append(supForm);
+
+        // "dentro del carrito": lo inserta en el panel del carrito sin vaciarlo.
+        cartEl.append(block);
+        supervisorBlock = block;
+        emailInput.focus();
+    }
+
+    function requestAuthorization(error, request) {
+        const failure = describeFailure(error, messages);
+        const isLine = Object.hasOwn(request.data, 'line_type');
+        const field = isLine ? 'line_discount_supervisor' : 'discount_supervisor';
+
+        if (failure.kind !== 'validation' || failure.field !== field) {
+            return false;
+        }
+
+        // El bloque de credenciales abre DENTRO del carrito, que queda intacto.
+        openSupervisorBlock(request, failure, isLine);
+
+        return true;
+    }
+
     function submitCartForm(form) {
         const request = readForm(form);
         const key = `${request.method} ${request.url}`;
@@ -318,7 +463,11 @@ function init(root) {
         const qtyId = qtyInput?.id ?? null;
         const nextFocus = form.hasAttribute('data-line-remove') ? focusAfterRemoval(line) : null;
 
-        runCart(request)
+        const onFailure = form.dataset.posAsync === 'discount'
+            ? (error) => requestAuthorization(error, request)
+            : undefined;
+
+        runCart(request, onFailure)
             .then((accepted) => {
                 if (!accepted) {
                     // El carrito conserva lo que tenía: el campo vuelve al valor del servidor.

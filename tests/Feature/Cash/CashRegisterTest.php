@@ -147,7 +147,7 @@ final class CashRegisterTest extends TestCase
         $this->assertSame(0, $register->difference);
     }
 
-    public function test_the_close_screen_shows_the_turn_totals_before_confirming(): void
+    public function test_the_close_screen_asks_for_denominations_without_revealing_turn_totals(): void
     {
         $register = $this->openRegister(50000);
         $this->saleOf($register, 10000, 'cash');
@@ -157,12 +157,11 @@ final class CashRegisterTest extends TestCase
         $response = $this->get(route('cash.close.show'));
 
         $response->assertOk();
-        // Efectivo esperado: apertura + lo cobrado en efectivo (la anulación
-        // se descuenta una sola vez).
-        $response->assertSee('$60.000');
-        $response->assertSee('$10.000');
-        $response->assertSee('$6.000');
-        $response->assertSee(__('pos.cash_register.declared_amount'));
+        $response->assertDontSee('$60.000');
+        $response->assertDontSee('$6.000');
+        $response->assertDontSee('data-expected');
+        $response->assertSee('name="denominations[10000]"', false);
+        $response->assertSee('name="denominations[10]"', false);
     }
 
     public function test_the_close_screen_requires_an_open_register(): void
@@ -218,7 +217,7 @@ final class CashRegisterTest extends TestCase
     {
         $register = $this->openRegister(50000);
 
-        $this->patch(route('cash.close', $register), ['declared_amount' => 47000])
+        $this->patch(route('cash.close', $register), ['declared_amount' => 47000, 'reason' => 'Faltante tras el recuento'])
             ->assertRedirect(route('dashboard.tecnico'))
             ->assertSessionHasNoErrors();
 
@@ -234,13 +233,47 @@ final class CashRegisterTest extends TestCase
     {
         $register = $this->openRegister(50000);
 
-        $this->patch(route('cash.close', $register), ['declared_amount' => 53000])
+        $this->patch(route('cash.close', $register), ['declared_amount' => 53000, 'reason' => 'Sobrante tras el recuento'])
             ->assertSessionHasNoErrors();
 
         $register->refresh();
 
         $this->assertSame(3000, $register->difference);
         $this->assertNotNull($register->closed_at);
+    }
+
+    public function test_a_discrepancy_requires_a_reason_and_preserves_the_count_for_retry(): void
+    {
+        $register = $this->openRegister(50000);
+        $form = route('cash.close.show');
+        $payload = ['denominations' => [20000 => 2, 5000 => 1, 1000 => 3, 100 => null]];
+
+        $this->from($form)->patch(route('cash.close', $register), $payload)
+            ->assertRedirect($form)
+            ->assertSessionHasInput('denominations.20000', 2)
+            ->assertSessionHasErrors('reason');
+        $this->assertNull($register->fresh()->closed_at);
+
+        $this->patch(route('cash.close', $register), $payload + ['reason' => 'Recuento confirmado'])
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('cash_closed', -2000);
+        $this->assertSame('Recuento confirmado', $register->fresh()->close_reason);
+    }
+
+    public function test_only_the_owner_and_admin_can_download_the_closed_turn_report(): void
+    {
+        $register = $this->openRegister(50000);
+        $report = url('/cash-registers/'.$register->id.'/report');
+        $this->get($report.'?format=csv')->assertNotFound();
+
+        $this->saleOf($register, 5000, 'debit');
+        $this->patch(route('cash.close', $register), ['declared_amount' => 49000, 'reason' => 'Recuento confirmado'])
+            ->assertSessionHasNoErrors();
+        $this->get($report)->assertOk()->assertSee('Recuento confirmado')->assertSee('$49.000');
+        $this->get($report.'?format=csv')->assertDownload('cierre-caja-'.$register->id.'.csv')
+            ->assertSee('49000')->assertSee('Recuento confirmado');
+        $this->actingAs(User::factory()->admin()->create())->get($report.'?format=csv')->assertOk();
+        $this->actingAs(User::factory()->create(['role' => 'tecnico']))->get($report.'?format=csv')->assertForbidden();
     }
 
     public function test_a_negative_declared_amount_is_rejected(): void

@@ -4,15 +4,32 @@
 
 @section('content')
     <div class="space-y-4">
-        <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
                 <h2 class="text-lg font-semibold">{{ __('pos.inventory.movements.heading') }}</h2>
                 <p class="text-sm text-slate-500">{{ __('pos.inventory.movements.subtitle') }}</p>
             </div>
 
-            <a href="{{ route('dashboard.bodeguero') }}" class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2">
-                {{ __('pos.inventory.movements.back') }}
-            </a>
+            <div class="flex flex-col gap-2 sm:flex-row sm:items-end">
+                <form method="GET" action="{{ route('inventory.movements.index') }}" class="flex items-end gap-2" role="search">
+                    <div>
+                        <label for="type" class="block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('pos.inventory.movements.filter_label') }}</label>
+                        <select id="type" name="type" class="mt-1 rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                            <option value="" @selected($selectedType === '')>{{ __('pos.inventory.movements.filter_all') }}</option>
+                            @foreach ($filterTypes as $option)
+                                <option value="{{ $option->value }}" @selected($selectedType === $option->value)>{{ $option->label() }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <button type="submit" class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2">
+                        {{ __('pos.inventory.movements.filter_submit') }}
+                    </button>
+                </form>
+
+                <a href="{{ route('dashboard.bodeguero') }}" class="rounded-lg border border-slate-300 px-4 py-2 text-center text-sm font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2">
+                    {{ __('pos.inventory.movements.back') }}
+                </a>
+            </div>
         </div>
 
         <div class="overflow-x-auto rounded-xl bg-white shadow-sm">

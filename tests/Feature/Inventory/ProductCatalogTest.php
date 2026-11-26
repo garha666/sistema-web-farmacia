@@ -266,6 +266,23 @@ final class ProductCatalogTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_the_actions_column_only_appears_when_the_user_has_actions(): void
+    {
+        Product::factory()->create();
+        $bodeguero = User::factory()->bodeguero()->create();
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($bodeguero)
+            ->get(route('inventory.products.index'))
+            ->assertOk()
+            ->assertDontSee('<th scope="col" class="px-4 py-3 text-right">'.__('pos.inventory.products.actions').'</th>', false);
+
+        $this->actingAs($admin)
+            ->get(route('inventory.products.index'))
+            ->assertOk()
+            ->assertSee('<th scope="col" class="px-4 py-3 text-right">'.__('pos.inventory.products.actions').'</th>', false);
+    }
+
     /**
      * @return array<string, mixed>
      */

@@ -52,6 +52,7 @@ final class LineDiscountTest extends TestCase
             'line_type' => 'percent',
             'line_value' => '10',
             'line_reason' => 'Promoción',
+            ...$this->discountCredentials(true),
         ])->assertRedirect(route('pos.index'));
 
         $this->get('/pos')
@@ -70,6 +71,7 @@ final class LineDiscountTest extends TestCase
             'line_type' => 'amount',
             'line_value' => '100',
             'line_reason' => 'Ajuste',
+            ...$this->discountCredentials(true),
         ])->assertRedirect(route('pos.index'));
 
         $this->get('/pos')
@@ -85,6 +87,7 @@ final class LineDiscountTest extends TestCase
             'line_type' => 'percent',
             'line_value' => '10',
             'line_reason' => 'Promoción',
+            ...$this->discountCredentials(true),
         ]);
 
         $this->delete(route('pos.cart.discount.remove', $product))
@@ -145,8 +148,7 @@ final class LineDiscountTest extends TestCase
             'line_type' => 'percent',
             'line_value' => '20',
             'line_reason' => 'Convenio interno',
-            'line_supervisor_email' => $supervisor->email,
-            'line_supervisor_password' => 'password',
+            ...$this->discountCredentials(true, $supervisor),
         ])->assertRedirect(route('pos.index'));
 
         $this->get('/pos')
@@ -184,6 +186,7 @@ final class LineDiscountTest extends TestCase
             'line_type' => 'percent',
             'line_value' => '10',
             'line_reason' => 'Promoción',
+            ...$this->discountCredentials(true),
         ]);
 
         // Nueva petición: la sesión debe rehidratar el descuento de la línea.
@@ -201,6 +204,7 @@ final class LineDiscountTest extends TestCase
             'line_type' => 'percent',
             'line_value' => '10',
             'line_reason' => 'Promoción',
+            ...$this->discountCredentials(true),
         ]);
 
         $this->patch(route('pos.cart.update', $product), ['quantity' => 3])
@@ -224,6 +228,7 @@ final class LineDiscountTest extends TestCase
             'line_type' => 'percent',
             'line_value' => '10',
             'line_reason' => 'Promoción',
+            ...$this->discountCredentials(true),
         ])->assertRedirect(route('pos.index'));
 
         $this->post(route('pos.discount.apply'), [
@@ -239,8 +244,7 @@ final class LineDiscountTest extends TestCase
             'discount_type' => 'percent',
             'discount_value' => '10',
             'discount_reason' => 'Convenio interno',
-            'supervisor_email' => $supervisor->email,
-            'supervisor_password' => 'password',
+            ...$this->discountCredentials(supervisor: $supervisor),
         ])->assertRedirect(route('pos.index'));
 
         $this->get('/pos')
@@ -249,7 +253,7 @@ final class LineDiscountTest extends TestCase
             ->assertSee('data-testid="cart-total">$810', false);
     }
 
-    public function test_a_global_discount_within_the_cap_needs_no_supervisor(): void
+    public function test_an_authorized_global_discount_combines_with_an_authorized_line_discount(): void
     {
         $product = Product::factory()->create(['price' => 1000]);
         $this->post('/pos/cart', ['product_id' => $product->id]);
@@ -257,6 +261,7 @@ final class LineDiscountTest extends TestCase
             'line_type' => 'percent',
             'line_value' => '5',
             'line_reason' => 'Promoción',
+            ...$this->discountCredentials(true),
         ]);
 
         // 5% de línea + 5% global = 9,8% acumulado: dentro del tope del 10%.
@@ -264,6 +269,7 @@ final class LineDiscountTest extends TestCase
             'discount_type' => 'percent',
             'discount_value' => '5',
             'discount_reason' => 'Ajuste',
+            ...$this->discountCredentials(),
         ])->assertRedirect(route('pos.index'));
 
         $this->get('/pos')
@@ -284,6 +290,7 @@ final class LineDiscountTest extends TestCase
             'line_type' => 'percent',
             'line_value' => '10',
             'line_reason' => 'Promoción',
+            ...$this->discountCredentials(true),
         ])->assertRedirect(route('pos.index'));
 
         // 20% en la segunda: acumulado $300 sobre $2.000 = 15%, sobre el tope.
@@ -307,6 +314,7 @@ final class LineDiscountTest extends TestCase
             'line_type' => 'percent',
             'line_value' => '10',
             'line_reason' => 'Promoción',
+            ...$this->discountCredentials(true),
         ]);
 
         $this->get('/pos/checkout')
@@ -323,6 +331,7 @@ final class LineDiscountTest extends TestCase
             'line_type' => 'percent',
             'line_value' => '10',
             'line_reason' => 'Promoción',
+            ...$this->discountCredentials(true),
         ]);
 
         $this->post('/pos/checkout', ['payment_method' => 'debit'])->assertRedirect();
@@ -336,7 +345,7 @@ final class LineDiscountTest extends TestCase
         $this->assertSame(1, $line->quantity);
     }
 
-    public function test_checkout_rejects_a_line_discount_that_exceeds_the_cap_after_the_cart_changes(): void
+    public function test_checkout_rejects_an_old_line_discount_without_pos_authorization(): void
     {
         $discounted = Product::factory()->create(['price' => 1000, 'stock' => 10]);
         $other = Product::factory()->create(['price' => 1000, 'stock' => 10]);
@@ -350,27 +359,23 @@ final class LineDiscountTest extends TestCase
             'line_type' => 'amount',
             'line_value' => '300',
             'line_reason' => 'Promoción',
+            ...$this->discountCredentials(true),
         ])->assertRedirect(route('pos.index'));
 
         // Al bajar la cantidad, $300 sobre un carrito de $2.000 ya es 15%.
         $this->patch(route('pos.cart.update', $discounted), ['quantity' => 1])
             ->assertRedirect(route('pos.index'));
 
-        // RF-14/RF-16: sobre el tope hace falta supervisor, también al cobrar.
-        $this->post('/pos/checkout', ['payment_method' => 'debit'])
-            ->assertSessionHasErrors('line_discount_supervisor');
+        // Simula un carrito abierto antes del cambio de política.
+        $discounts = session('pos.line_discounts');
+        unset($discounts[$discounted->id]['authorized_by']);
+        $this->withSession(['pos.line_discounts' => $discounts])
+            ->post('/pos/checkout', ['payment_method' => 'debit'])
+            ->assertSessionHasErrors('discount');
 
         $this->assertSame(0, Sale::query()->count());
         $this->assertSame(10, $discounted->fresh()->stock);
 
-        // El aviso queda visible en el cobro, con la vuelta a la caja.
-        $this->get('/pos/checkout')
-            ->assertOk()
-            ->assertSeeText(__('pos.checkout.line_discount_blocked_title'))
-            ->assertSeeText(__('pos.errors.line_discount_revalidate', [
-                'name' => $discounted->name,
-                'cap' => 10,
-            ]));
     }
 
     public function test_checkout_accepts_a_line_discount_authorized_by_a_supervisor_after_the_cart_changes(): void
@@ -388,8 +393,7 @@ final class LineDiscountTest extends TestCase
             'line_type' => 'percent',
             'line_value' => '20',
             'line_reason' => 'Convenio interno',
-            'line_supervisor_email' => $supervisor->email,
-            'line_supervisor_password' => 'password',
+            ...$this->discountCredentials(true, $supervisor),
         ])->assertRedirect(route('pos.index'));
 
         $this->patch(route('pos.cart.update', $discounted), ['quantity' => 1])
@@ -417,8 +421,7 @@ final class LineDiscountTest extends TestCase
             'line_type' => 'amount',
             'line_value' => '2999',
             'line_reason' => 'Ajuste de precio',
-            'line_supervisor_email' => $supervisor->email,
-            'line_supervisor_password' => 'password',
+            ...$this->discountCredentials(true, $supervisor),
         ])->assertRedirect(route('pos.index'));
 
         // Al bajar la cantidad el monto iguala la base: la línea queda en cero.

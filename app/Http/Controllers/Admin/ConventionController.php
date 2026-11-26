@@ -108,6 +108,7 @@ final class ConventionController extends Controller
             'valid_from' => ['required', 'date'],
             'valid_until' => ['required', 'date', 'after_or_equal:valid_from'],
             'active' => ['sometimes', 'boolean'],
+            'applies_to_controlled' => ['sometimes', 'boolean'],
         ]);
     }
 }

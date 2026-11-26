@@ -30,6 +30,7 @@ final class DiscountPolicy
         int $generalCapPercent,
         DateTimeImmutable $today,
         int $lineDiscountsPesos = 0,
+        int $excludedBase = 0,
     ): DiscountDecision {
         if ($subtotal <= 0) {
             return DiscountDecision::rejected('total_not_positive');
@@ -45,7 +46,7 @@ final class DiscountPolicy
         }
 
         if ($convention !== null) {
-            return $this->evaluateConvention($base, $convention, $today);
+            return $this->evaluateConvention($base, $convention, $today, $excludedBase);
         }
 
         if ($discount === null) {
@@ -115,6 +116,7 @@ final class DiscountPolicy
         int $subtotal,
         ConventionSnapshot $convention,
         DateTimeImmutable $today,
+        int $excludedBase,
     ): DiscountDecision {
         if (! $convention->isApplicableOn($today)) {
             return DiscountDecision::rejected('convention_not_applicable');
@@ -126,7 +128,10 @@ final class DiscountPolicy
             DiscountOrigin::convention,
         );
 
-        $amount = $discount->amountFor(Money::fromPesos($subtotal));
+        $amount = $discount->amountFor(Money::fromPesos($subtotal - $excludedBase));
+        if ($excludedBase > 0) {
+            $discount = Discount::amount($amount, $discount->reason, DiscountOrigin::convention);
+        }
 
         if ($subtotal - $amount->pesos() <= 0) {
             return DiscountDecision::rejected('total_not_positive');

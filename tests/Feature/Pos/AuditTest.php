@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Pos;
 
 use App\Models\AuditLog;
+use App\Models\Convention;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Models\SaleLine;
@@ -49,8 +50,7 @@ final class AuditTest extends TestCase
             'line_type' => 'percent',
             'line_value' => '20',
             'line_reason' => 'Convenio interno',
-            'line_supervisor_email' => $supervisor->email,
-            'line_supervisor_password' => 'password',
+            ...$this->discountCredentials(true, $supervisor),
         ])->assertRedirect(route('pos.index'));
 
         $this->post('/pos/checkout', ['payment_method' => 'debit'])->assertRedirect();
@@ -80,8 +80,7 @@ final class AuditTest extends TestCase
             'line_type' => 'percent',
             'line_value' => '20',
             'line_reason' => 'Cliente frecuente',
-            'line_supervisor_email' => $supervisor->email,
-            'line_supervisor_password' => 'password',
+            ...$this->discountCredentials(true, $supervisor),
         ])->assertRedirect(route('pos.index'));
 
         $this->post('/pos/checkout', ['payment_method' => 'debit'])->assertRedirect();
@@ -113,8 +112,7 @@ final class AuditTest extends TestCase
             'line_type' => 'amount',
             'line_value' => '200',
             'line_reason' => 'Ajuste',
-            'line_supervisor_email' => $supervisor->email,
-            'line_supervisor_password' => 'password',
+            ...$this->discountCredentials(true, $supervisor),
         ]);
 
         $this->post('/pos/checkout', ['payment_method' => 'debit']);
@@ -129,7 +127,7 @@ final class AuditTest extends TestCase
         $this->assertSame(200, $log->discount_value);
     }
 
-    public function test_a_line_discount_within_the_cap_is_not_audited(): void
+    public function test_a_line_discount_within_the_cap_is_audited(): void
     {
         $product = Product::factory()->create(['price' => 1000]);
         $this->post('/pos/cart', ['product_id' => $product->id]);
@@ -138,12 +136,13 @@ final class AuditTest extends TestCase
             'line_type' => 'percent',
             'line_value' => '10',
             'line_reason' => 'Promoción',
+            ...$this->discountCredentials(true),
         ])->assertRedirect(route('pos.index'));
 
         $this->post('/pos/checkout', ['payment_method' => 'debit']);
 
         $this->assertSame(
-            0,
+            1,
             AuditLog::query()->where('action', 'sale.line_discount_authorized')->count(),
         );
     }
@@ -159,8 +158,7 @@ final class AuditTest extends TestCase
             'line_type' => 'percent',
             'line_value' => '20',
             'line_reason' => 'Convenio interno',
-            'line_supervisor_email' => $supervisor->email,
-            'line_supervisor_password' => 'password',
+            ...$this->discountCredentials(true, $supervisor),
         ]);
 
         $this->delete(route('pos.cart.discount.remove', $product));
@@ -184,8 +182,7 @@ final class AuditTest extends TestCase
             'line_type' => 'percent',
             'line_value' => '20',
             'line_reason' => 'Convenio interno',
-            'line_supervisor_email' => $supervisor->email,
-            'line_supervisor_password' => 'password',
+            ...$this->discountCredentials(true, $supervisor),
         ]);
 
         $cartService = app(CartService::class);
@@ -233,8 +230,7 @@ final class AuditTest extends TestCase
             'discount_type' => 'percent',
             'discount_value' => '20',
             'discount_reason' => 'Convenio interno',
-            'supervisor_email' => $supervisor->email,
-            'supervisor_password' => 'password',
+            ...$this->discountCredentials(supervisor: $supervisor),
         ])->assertRedirect(route('pos.index'));
 
         $this->post('/pos/checkout', ['payment_method' => 'debit']);
@@ -245,6 +241,25 @@ final class AuditTest extends TestCase
 
         $this->assertSame($supervisor->id, $log->user_id);
         $this->assertNull($log->discount_type);
+    }
+
+    public function test_a_convention_does_not_inherit_authorization_for_a_discarded_manual_discount(): void
+    {
+        $product = Product::factory()->create(['price' => 1000]);
+        $this->post('/pos/cart', ['product_id' => $product->id]);
+        $this->post(route('pos.discount.apply'), [
+            'discount_type' => 'percent', 'discount_value' => 5, 'discount_reason' => 'Ajuste manual',
+            ...$this->discountCredentials(),
+        ])->assertSessionHasNoErrors();
+        $convention = Convention::factory()->create(['percent' => 20]);
+
+        $this->post('/pos/checkout', ['payment_method' => 'debit', 'convention_id' => $convention->id])->assertSessionHasNoErrors();
+
+        $sale = Sale::query()->sole();
+        $this->assertSame(200, $sale->global_discount);
+        $this->assertSame($convention->id, $sale->convention_id);
+        $this->assertNull($sale->discount_authorized_by);
+        $this->assertDatabaseMissing('audit_logs', ['action' => 'sale.discount_authorized']);
     }
 
     public function test_the_audit_view_shows_the_line_discount_type_and_product(): void
@@ -258,8 +273,7 @@ final class AuditTest extends TestCase
             'line_type' => 'percent',
             'line_value' => '20',
             'line_reason' => 'Convenio interno',
-            'line_supervisor_email' => $supervisor->email,
-            'line_supervisor_password' => 'password',
+            ...$this->discountCredentials(true, $supervisor),
         ]);
 
         $this->post('/pos/checkout', ['payment_method' => 'debit']);

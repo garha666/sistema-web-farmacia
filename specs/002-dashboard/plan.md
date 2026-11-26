@@ -277,7 +277,7 @@ FIN
 - Ventas del día, monto vendido y desglose por medio de pago.
 - Autorizaciones de hoy del usuario en sesión: tipo traducido (descuento global, descuento de línea, receta reutilizada), venta, motivo y monto o porcentaje.
 - Anulaciones de hoy con motivo y autor.
-- Enlaces de lectura a convenios y auditoría; sin botones de escritura.
+- Sin tarjeta ni enlaces de convenios y auditoría; las rutas de lectura conservan sus permisos.
 
 ### 4.4 Panel del Técnico — `dashboard/tecnico` (RF-56, RF-57, RF-61, RF-62)
 

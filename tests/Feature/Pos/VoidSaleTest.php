@@ -16,6 +16,7 @@ use App\Pos\Enum\SaleStatus;
 use App\Services\Pos\VoidSaleService;
 use DomainException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\URL;
 use Tests\TestCase;
 
 /**
@@ -58,7 +59,7 @@ final class VoidSaleTest extends TestCase
             'reason' => 'Cliente desiste de la compra',
         ]);
 
-        $response->assertRedirect(route('pos.sales.receipt', $sale));
+        $response->assertRedirect(URL::signedRoute('pos.sales.receipt', $sale));
         $response->assertSessionHasNoErrors();
 
         $this->assertSame(SaleStatus::voided, $sale->fresh()->status);
@@ -68,6 +69,38 @@ final class VoidSaleTest extends TestCase
         $voidMovements = StockMovement::query()->where('type', 'void')->get();
         $this->assertCount(1, $voidMovements);
         $this->assertSame(2, $voidMovements[0]->quantity);
+    }
+
+    public function test_only_supervisors_see_a_void_form_on_a_confirmed_sale_receipt(): void
+    {
+        [, $sale] = $this->sell();
+        $receipt = URL::signedRoute('pos.sales.receipt', $sale);
+        $action = route('pos.sales.void', $sale);
+
+        $this->get($receipt)->assertOk()->assertDontSee('action="'.$action.'"', false);
+        foreach (['quimico', 'admin'] as $role) {
+            $this->actingAs(User::factory()->create(['role' => $role]))
+                ->get($receipt)->assertOk()
+                ->assertSee('action="'.$action.'"', false)
+                ->assertSee('name="reason"', false)
+                ->assertSee(__('pos.receipt.void_submit'));
+        }
+
+        $this->post($action, ['reason' => 'Anulación de prueba'])->assertSessionHasNoErrors();
+        $this->get($receipt)->assertOk()->assertDontSee('action="'.$action.'"', false);
+    }
+
+    public function test_void_form_keeps_the_reason_and_shows_validation_errors(): void
+    {
+        [, $sale] = $this->sell();
+        $receipt = URL::signedRoute('pos.sales.receipt', $sale);
+        $this->actingAs(User::factory()->create(['role' => 'quimico']))
+            ->from($receipt)->post(route('pos.sales.void', $sale), ['reason' => 'No'])
+            ->assertRedirect($receipt)->assertSessionHasErrors('reason');
+
+        $this->get($receipt)->assertOk()->assertSee('No</textarea>', false)
+            ->assertSee('id="void-reason-error"', false);
+        $this->assertSame(SaleStatus::confirmed, $sale->fresh()->status);
     }
 
     public function test_voiding_without_a_reason_changes_nothing(): void
@@ -189,7 +222,7 @@ final class VoidSaleTest extends TestCase
 
         app(VoidSaleService::class)->void($sale, 'Producto equivocado');
 
-        $response = $this->get(route('pos.sales.receipt', $sale));
+        $response = $this->get(URL::signedRoute('pos.sales.receipt', $sale));
 
         $response->assertOk();
         $response->assertSee('ANULADA');

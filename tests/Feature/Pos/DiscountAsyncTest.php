@@ -39,6 +39,7 @@ final class DiscountAsyncTest extends TestCase
             'discount_type' => 'percent',
             'discount_value' => 5,
             'discount_reason' => 'Promoción de lanzamiento',
+            ...$this->discountCredentials(),
         ]);
 
         $response->assertOk();
@@ -76,8 +77,7 @@ final class DiscountAsyncTest extends TestCase
             'discount_type' => 'percent',
             'discount_value' => 20,
             'discount_reason' => 'Autorizado por supervisor',
-            'supervisor_email' => $supervisor->email,
-            'supervisor_password' => 'password',
+            ...$this->discountCredentials(supervisor: $supervisor),
         ]);
 
         $response->assertOk();
@@ -95,6 +95,7 @@ final class DiscountAsyncTest extends TestCase
             'discount_type' => 'percent',
             'discount_value' => 5,
             'discount_reason' => 'Promoción',
+            ...$this->discountCredentials(),
         ]);
 
         $response = $this->deleteJson('/pos/discount');
@@ -116,6 +117,7 @@ final class DiscountAsyncTest extends TestCase
             'line_type' => 'percent',
             'line_value' => 10,
             'line_reason' => 'Descuento de línea',
+            ...$this->discountCredentials(true),
         ]);
 
         $response->assertOk();
@@ -133,6 +135,7 @@ final class DiscountAsyncTest extends TestCase
             'line_type' => 'percent',
             'line_value' => 10,
             'line_reason' => 'Descuento de línea',
+            ...$this->discountCredentials(true),
         ]);
 
         $response = $this->deleteJson("/pos/cart/{$product->id}/discount");
@@ -169,6 +172,7 @@ final class DiscountAsyncTest extends TestCase
             'discount_type' => 'percent',
             'discount_value' => 5,
             'discount_reason' => 'Promoción',
+            ...$this->discountCredentials(),
         ]);
         $response = $this->getJson('/pos');
 

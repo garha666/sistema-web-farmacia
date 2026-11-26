@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\AuditController;
 use App\Http\Controllers\Admin\ControlledRegisterController;
 use App\Http\Controllers\Admin\ConventionController;
+use App\Http\Controllers\Admin\MembershipImportController;
 use App\Http\Controllers\Admin\DocumentController;
 use App\Http\Controllers\Admin\ReportesController;
 use App\Http\Controllers\Admin\SaleController;
@@ -16,6 +17,7 @@ use App\Http\Controllers\Dashboard\WarehouseDashboardController;
 use App\Http\Controllers\Inventory\ProductController;
 use App\Http\Controllers\Inventory\StockAdjustmentController;
 use App\Http\Controllers\Inventory\StockMovementController;
+use App\Http\Controllers\Inventory\StockReceiptController;
 use App\Http\Controllers\PosController;
 use Illuminate\Support\Facades\Route;
 
@@ -28,6 +30,16 @@ Route::post('/logout', [LoginController::class, 'destroy'])
 
 // T11 - RF-41: la raíz y /panel llevan a cada rol a su panel.
 Route::middleware('auth')->group(function (): void {
+    Route::get('/cuenta/autorizacion-pos', [\App\Http\Controllers\Auth\PosAuthorizationController::class, 'edit'])
+        ->middleware('role:quimico,admin')->name('account.pos-authorization.edit');
+    Route::put('/cuenta/pin-quimico', [\App\Http\Controllers\Auth\PosAuthorizationController::class, 'updatePin'])
+        ->middleware(['role:quimico,admin', 'throttle:5,1'])->name('account.pharmacist-pin.update');
+    Route::post('/panel/quimico/recetas/{review}/approve', [\App\Http\Controllers\Dashboard\ChemistDashboardController::class, 'approve'])
+        ->middleware('role:quimico')->name('dashboard.quimico.prescriptions.approve');
+    Route::get('/panel/quimico/recetas/pendientes', [ChemistDashboardController::class, 'pending'])
+        ->middleware('role:quimico')->name('dashboard.quimico.prescriptions.pending');
+    Route::get('/panel/quimico/libro-controlados', [ControlledRegisterController::class, 'clinical'])
+        ->middleware('role:quimico')->name('dashboard.quimico.clinical-register');
     Route::get('/', [DashboardController::class, 'home'])->name('dashboard.home');
     Route::get('/panel', [DashboardController::class, 'home'])->name('dashboard.index');
 
@@ -47,6 +59,9 @@ Route::middleware('auth')->group(function (): void {
 });
 
 // T12 - RF-58, RF-59: apertura, cierre y arqueo del turno del Técnico.
+Route::get('/cash-registers/{cashRegister}/report', [CashRegisterController::class, 'report'])
+    ->middleware(['auth', 'role:tecnico,admin'])->name('cash.report');
+
 Route::prefix('cash-registers')->name('cash.')->middleware(['auth', 'role:tecnico'])->group(function (): void {
     Route::post('/', [CashRegisterController::class, 'open'])->name('open');
     Route::get('/close', [CashRegisterController::class, 'showClose'])->name('close.show');
@@ -64,6 +79,10 @@ Route::prefix('inventory/products')->name('inventory.products.')->middleware('au
 
 // T17 - RF-65, RF-66, RF-73, RF-74: ajuste de stock y libro de movimientos.
 Route::prefix('inventory')->name('inventory.')->middleware('auth')->group(function (): void {
+    Route::get('/receipts', [StockReceiptController::class, 'index'])->middleware('role:bodeguero,quimico')->name('receipts.index');
+    Route::post('/receipts', [StockReceiptController::class, 'store'])->middleware('role:bodeguero')->name('receipts.store');
+    Route::patch('/receipts/{receipt}', [StockReceiptController::class, 'update'])->middleware('role:quimico')->name('receipts.update');
+    Route::get('/receipts/{receipt}/photo', [StockReceiptController::class, 'photo'])->middleware('role:bodeguero,quimico')->name('receipts.photo');
     Route::get('/movements', [StockMovementController::class, 'index'])
         ->middleware('role:admin,bodeguero')
         ->name('movements.index');
@@ -80,6 +99,9 @@ Route::prefix('pos')->name('pos.')->middleware(['auth', 'role:tecnico,quimico,ad
     Route::delete('/cart/{product}', [PosController::class, 'remove'])->name('cart.remove');
 
     Route::get('/checkout', [PosController::class, 'checkout'])->name('checkout');
+    Route::post('/checkout/benefit', [PosController::class, 'lookupBenefit'])->middleware('throttle:20,1')->name('checkout.benefit');
+    Route::post('/checkout/membership', [PosController::class, 'registerMembership'])->middleware('role:tecnico')->name('checkout.membership');
+    Route::post('/checkout/preview', [PosController::class, 'previewCheckout'])->middleware('throttle:30,1')->name('checkout.preview');
     Route::post('/checkout', [PosController::class, 'store'])->name('checkout.store');
 
     Route::post('/discount', [PosController::class, 'applyDiscount'])->name('discount.apply');
@@ -88,7 +110,7 @@ Route::prefix('pos')->name('pos.')->middleware(['auth', 'role:tecnico,quimico,ad
     Route::post('/cart/{product}/discount', [PosController::class, 'applyLineDiscount'])->name('cart.discount');
     Route::delete('/cart/{product}/discount', [PosController::class, 'removeLineDiscount'])->name('cart.discount.remove');
 
-    Route::get('/sales/{sale}/receipt', [PosController::class, 'receipt'])->name('sales.receipt');
+    Route::get('/sales/{sale}/receipt', [PosController::class, 'receipt'])->middleware('signed')->name('sales.receipt');
 
     // RF-88: sondeo ligero del stock de productos del carrito (sin recargar la página).
     Route::get('/stock', [PosController::class, 'stock'])->name('stock');
@@ -100,6 +122,11 @@ Route::prefix('pos')->name('pos.')->middleware(['auth', 'role:tecnico,quimico,ad
 });
 
 Route::prefix('admin')->name('admin.')->middleware('auth')->group(function (): void {
+    Route::middleware('role:admin')->group(function (): void {
+        Route::get('/users', [\App\Http\Controllers\Admin\UserManagementController::class, 'index'])->name('users.index');
+        Route::post('/users', [\App\Http\Controllers\Admin\UserManagementController::class, 'store'])->name('users.store');
+        Route::patch('/users/{user}/deactivate', [\App\Http\Controllers\Admin\UserManagementController::class, 'deactivate'])->name('users.deactivate');
+    });
     // Lectura compartida: Químico (supervisor) y Admin.
     Route::middleware('role:quimico,admin')->group(function (): void {
         Route::get('/conventions', [ConventionController::class, 'index'])->name('conventions.index');
@@ -109,6 +136,9 @@ Route::prefix('admin')->name('admin.')->middleware('auth')->group(function (): v
     // Gestión completa: sólo Admin.
     Route::middleware('role:admin')->group(function (): void {
         Route::get('/conventions/create', [ConventionController::class, 'create'])->name('conventions.create');
+        Route::get('/conventions/import', [MembershipImportController::class, 'create'])->name('conventions.import');
+        Route::post('/conventions/import', [MembershipImportController::class, 'store'])->name('conventions.import.store');
+        Route::get('/conventions/import/template', [MembershipImportController::class, 'template'])->name('conventions.import.template');
         Route::post('/conventions', [ConventionController::class, 'store'])->name('conventions.store');
         Route::get('/conventions/{convention}/edit', [ConventionController::class, 'edit'])->name('conventions.edit');
         Route::patch('/conventions/{convention}', [ConventionController::class, 'update'])->name('conventions.update');

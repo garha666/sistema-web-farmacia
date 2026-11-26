@@ -1,16 +1,16 @@
 @extends('layouts.admin')
 
-@section('title', __('pos.admin.controlled.title'))
+@section('title', __($clinical ? 'pos.nav.clinical_register' : 'pos.admin.controlled.title'))
 
 @section('content')
     <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-            <h2 class="text-lg font-semibold">{{ __('pos.admin.controlled.heading') }}</h2>
+            <h2 class="text-lg font-semibold">{{ __($clinical ? 'pos.nav.clinical_register' : 'pos.admin.controlled.heading') }}</h2>
             <p class="text-sm text-slate-500">{{ __('pos.admin.controlled.subtitle') }}</p>
         </div>
 
         <div class="flex flex-wrap items-end gap-2">
-            <form method="GET" action="{{ route('admin.controlled-register.index') }}" class="flex flex-wrap items-end gap-2">
+            <form method="GET" action="{{ route($clinical ? 'dashboard.quimico.clinical-register' : 'admin.controlled-register.index') }}" class="flex flex-wrap items-end gap-2">
                 <div>
                     <label for="from" class="text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('pos.admin.controlled.from') }}</label>
                     <input id="from" name="from" type="date" value="{{ $filters['from'] ?? '' }}"
@@ -82,4 +82,26 @@
     <div class="mt-4">
         {{ $entries->links() }}
     </div>
+
+    @if ($clinical)
+        <section class="mt-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm" aria-labelledby="approved-prescriptions">
+            <h2 id="approved-prescriptions" class="text-lg font-semibold">{{ __('pos.rx_review.history_title') }}</h2>
+            <p class="mt-1 text-sm text-slate-600">{{ __('pos.rx_review.rejections_unavailable') }}</p>
+
+            @foreach ([['reviews_approved', $approvedReviews], ['sales_approved', $dispensedApprovals]] as [$label, $approvals])
+                <h3 class="mt-4 font-semibold">{{ __('pos.rx_review.'.$label) }}</h3>
+                <ul class="mt-2 divide-y divide-slate-200 break-words text-sm">
+                    @forelse ($approvals as $approval)
+                        <li class="flex flex-wrap justify-between gap-2 py-2">
+                            <span>{{ __('pos.checkout.prescription_number') }}: {{ $label === 'reviews_approved' ? ($approval->snapshot['prescription']['prescription_number'] ?? __('pos.common.none')) : ($approval->auditable?->prescription?->number ?? __('pos.common.none')) }}</span>
+                            <span class="text-slate-600">{{ ($label === 'reviews_approved' ? $approval->updated_at : $approval->created_at)->format('d-m-Y H:i') }}</span>
+                        </li>
+                    @empty
+                        <li class="py-2 text-slate-600">{{ __('pos.rx_review.history_empty') }}</li>
+                    @endforelse
+                </ul>
+                {{ $approvals->links() }}
+            @endforeach
+        </section>
+    @endif
 @endsection

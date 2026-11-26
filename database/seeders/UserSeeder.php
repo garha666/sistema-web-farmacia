@@ -6,6 +6,7 @@ namespace Database\Seeders;
 
 use App\Models\User;
 use Illuminate\Database\Seeder;
+use LogicException;
 
 /**
  * T11 - RF-41: un usuario por rol para la demo manual (criterio de
@@ -19,6 +20,10 @@ final class UserSeeder extends Seeder
 {
     public function run(): void
     {
+        if (! app()->environment('local', 'testing')) {
+            throw new LogicException('Demo users can only be seeded in local and testing environments.');
+        }
+
         $users = [
             ['name' => 'Administrador de farmacia', 'email' => 'admin@farmacia.test', 'role' => User::ROLE_ADMIN],
             ['name' => 'Químico supervisor', 'email' => 'quimico@farmacia.test', 'role' => User::ROLE_QUIMICO],

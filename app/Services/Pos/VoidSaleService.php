@@ -12,6 +12,7 @@ use App\Pos\Enum\DocumentType;
 use App\Pos\Enum\SaleStatus;
 use App\Pos\Enum\StockMovementType;
 use App\Pos\Policy\VoidPolicy;
+use App\Services\Inventory\LotStock;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -28,6 +29,7 @@ final class VoidSaleService
         private readonly VoidPolicy $policy,
         private readonly AuditService $audit,
         private readonly DocumentService $documents,
+        private readonly LotStock $lots,
     ) {}
 
     public function void(Sale $sale, string $reason, ?int $userId = null): Sale
@@ -56,6 +58,7 @@ final class VoidSaleService
                 ->keyBy('id');
 
             foreach ($lines as $line) {
+                $this->lots->restore($line);
                 // RF-74: la existencia resultante se toma de la fila bloqueada.
                 $resultingStock = (int) $lockedProducts->get($line->product_id)?->stock + $line->quantity;
 

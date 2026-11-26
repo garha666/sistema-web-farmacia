@@ -9,6 +9,7 @@ use App\Models\Sale;
 use App\Models\User;
 use App\Pos\Enum\DiscountOrigin;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\URL;
 use Tests\TestCase;
 
 /**
@@ -30,7 +31,14 @@ final class ManualDiscountTest extends TestCase
         $this->openCashRegister($this->cashier);
     }
 
-    public function test_a_manual_percent_discount_within_the_cap_is_applied_without_supervisor(): void
+    public function test_a_manual_discount_within_the_cap_requires_a_supervisor(): void
+    {
+        $this->addProduct(10000);
+        $this->post('/pos/discount', ['discount_type' => 'percent', 'discount_value' => 5, 'discount_reason' => 'Prueba'])
+            ->assertSessionHasErrors('discount_supervisor');
+    }
+
+    public function test_a_manual_percent_discount_within_the_cap_is_applied_with_supervisor(): void
     {
         $this->addProduct(price: 10_000);
 
@@ -38,6 +46,7 @@ final class ManualDiscountTest extends TestCase
             'discount_type' => 'percent',
             'discount_value' => '10',
             'discount_reason' => 'Promoción de mostrador',
+            ...($credentials = $this->discountCredentials()),
         ])->assertSessionHasNoErrors();
 
         $this->get('/pos')
@@ -54,9 +63,9 @@ final class ManualDiscountTest extends TestCase
         $this->assertSame(9_000, $sale->total);
         $this->assertSame(DiscountOrigin::manual, $sale->discount_origin);
         $this->assertSame('Promoción de mostrador', $sale->discount_reason);
-        $this->assertNull($sale->discount_authorized_by);
+        $this->assertSame($credentials['supervisor_email'], $sale->discountAuthorizedBy->email);
 
-        $this->get(route('pos.sales.receipt', $sale))
+        $this->get(URL::signedRoute('pos.sales.receipt', $sale))
             ->assertOk()
             ->assertSee('Promoción de mostrador');
     }
@@ -69,6 +78,7 @@ final class ManualDiscountTest extends TestCase
             'discount_type' => 'amount',
             'discount_value' => '500',
             'discount_reason' => 'Ajuste de precio',
+            ...$this->discountCredentials(),
         ])->assertSessionHasNoErrors();
 
         $this->post('/pos/checkout', ['payment_method' => 'debit'])
@@ -132,7 +142,7 @@ final class ManualDiscountTest extends TestCase
             'discount_reason' => 'Cliente frecuente',
             'supervisor_email' => $this->cashier->email,
             'supervisor_password' => 'password',
-        ])->assertSessionHasErrors('supervisor_email');
+        ])->assertSessionHasErrors('discount_supervisor');
 
         $this->assertNull(session('pos.manual_discount'));
 
@@ -142,8 +152,7 @@ final class ManualDiscountTest extends TestCase
             'discount_type' => 'percent',
             'discount_value' => '15',
             'discount_reason' => 'Cliente frecuente',
-            'supervisor_email' => $supervisor->email,
-            'supervisor_password' => 'password',
+            ...$this->discountCredentials(supervisor: $supervisor),
         ])->assertSessionHasNoErrors();
 
         $this->post('/pos/checkout', ['payment_method' => 'debit'])
@@ -163,7 +172,7 @@ final class ManualDiscountTest extends TestCase
             'user_id' => $supervisor->id,
         ]);
 
-        $this->get(route('pos.sales.receipt', $sale))
+        $this->get(URL::signedRoute('pos.sales.receipt', $sale))
             ->assertOk()
             ->assertSee('Cliente frecuente')
             ->assertSee($supervisor->name);
@@ -177,6 +186,7 @@ final class ManualDiscountTest extends TestCase
             'discount_type' => 'percent',
             'discount_value' => '5',
             'discount_reason' => 'Descuento temporal',
+            ...$this->discountCredentials(),
         ])->assertSessionHasNoErrors();
 
         $this->delete('/pos/discount')->assertSessionHasNoErrors();

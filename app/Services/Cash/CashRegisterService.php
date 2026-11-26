@@ -18,6 +18,7 @@ use DateTimeImmutable;
 use DateTimeZone;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Apertura, resumen y cierre del turno de caja (RF-58, RF-59, RF-61).
@@ -55,6 +56,9 @@ final class CashRegisterService
         $at = $this->localTime($now);
 
         return DB::transaction(function () use ($cashier, $openingAmount, $at): CashRegister {
+            $account = User::query()->lockForUpdate()->findOrFail($cashier->id);
+            abort_if($account->disabled_at !== null, 403);
+
             if ($this->openFor($cashier) !== null) {
                 throw new CashRegisterAlreadyOpen(__('pos.cash_register.error.already_open'));
             }
@@ -169,10 +173,11 @@ final class CashRegisterService
         CashRegister $register,
         int $declaredAmount,
         ?DateTimeImmutable $now = null,
+        ?string $reason = null,
     ): CashRegister {
         $at = $this->localTime($now);
 
-        return DB::transaction(function () use ($register, $declaredAmount, $at): CashRegister {
+        return DB::transaction(function () use ($register, $declaredAmount, $at, $reason): CashRegister {
             /** @var CashRegister $locked */
             $locked = CashRegister::query()
                 ->whereKey($register->getKey())
@@ -189,6 +194,10 @@ final class CashRegisterService
                 $declaredAmount,
             );
 
+            if ($arqueo->difference() !== 0 && blank($reason)) {
+                throw ValidationException::withMessages(['reason' => __('pos.cash_register.reason_required')]);
+            }
+
             $locked->update([
                 'closed_at' => $at->format('Y-m-d H:i:s'),
                 'total_sales' => $summary->totalSales(),
@@ -198,6 +207,11 @@ final class CashRegisterService
                 'expected_cash' => $arqueo->expected(),
                 'declared_cash' => $arqueo->declared(),
                 'difference' => $arqueo->difference(),
+                'close_reason' => $reason,
+                'closed_payment_breakdown' => array_column(array_map(
+                    static fn (PaymentBreakdown $row): array => ['method' => $row->method()->value, 'amount' => $row->amount()],
+                    $summary->breakdown(),
+                ), 'amount', 'method'),
             ]);
 
             return $locked->refresh();

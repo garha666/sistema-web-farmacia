@@ -65,7 +65,7 @@
                         <option value="">{{ __('pos.panel.bodeguero.form_product_placeholder') }}</option>
                         @foreach ($products as $product)
                             <option value="{{ $product->id }}" @selected((string) old('product_id') === (string) $product->id)>
-                                {{ $product->name }} — {{ $product->stock }} {{ __('pos.inventory.unit') }}
+                                {{ $product->name }} ({{ __('pos.panel.bodeguero.option_stock', ['stock' => $product->stock]) }})
                             </option>
                         @endforeach
                     </select>
@@ -101,9 +101,15 @@
                         type="text"
                         maxlength="500"
                         required
+                        list="reason-suggestions"
                         value="{{ old('reason') }}"
                         class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
                     >
+                    <datalist id="reason-suggestions">
+                        @foreach (__('pos.panel.bodeguero.form_reason_suggestions') as $suggestion)
+                            <option value="{{ $suggestion }}"></option>
+                        @endforeach
+                    </datalist>
                 </div>
 
                 <div class="lg:col-span-2">
@@ -186,19 +192,5 @@
             </div>
         </section>
 
-        {{-- RF-67: catálogo y libro de controlados en modo lectura. --}}
-        <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm" aria-labelledby="warehouse-accesses">
-            <h2 id="warehouse-accesses" class="text-lg font-semibold text-slate-900">{{ __('pos.panel.bodeguero.accesses_heading') }}</h2>
-            <p class="text-sm text-slate-500">{{ __('pos.panel.bodeguero.accesses_lead') }}</p>
-
-            <div class="mt-3 flex flex-wrap gap-3">
-                <a href="{{ route('inventory.products.index') }}" class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2">
-                    {{ __('pos.panel.bodeguero.catalog_link') }}
-                </a>
-                <a href="{{ route('admin.controlled-register.index') }}" class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2">
-                    {{ __('pos.panel.bodeguero.controlled_link') }}
-                </a>
-            </div>
-        </section>
     </div>
 @endsection

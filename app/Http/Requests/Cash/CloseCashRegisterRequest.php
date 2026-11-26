@@ -14,6 +14,8 @@ use Illuminate\Foundation\Http\FormRequest;
  */
 final class CloseCashRegisterRequest extends FormRequest
 {
+    public const DENOMINATIONS = [20000, 10000, 5000, 2000, 1000, 500, 100, 50, 10];
+
     public function authorize(): bool
     {
         return true;
@@ -25,8 +27,27 @@ final class CloseCashRegisterRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'declared_amount' => ['required', 'integer', 'min:0'],
+            'declared_amount' => ['required_without:denominations', 'prohibits:denominations', 'integer', 'min:0', 'max:2147483647'],
+            'denominations' => ['array:'.implode(',', self::DENOMINATIONS)],
+            'denominations.*' => ['nullable', 'integer', 'min:0', 'max:10000'],
+            'reason' => ['nullable', 'string', 'max:500'],
         ];
+    }
+
+    public function declaredAmount(): int
+    {
+        $counts = $this->validated('denominations');
+
+        if ($counts === null) {
+            return (int) $this->validated('declared_amount');
+        }
+
+        $total = 0;
+        foreach ($counts as $denomination => $quantity) {
+            $total += $denomination * (int) $quantity;
+        }
+
+        return $total;
     }
 
     /**
@@ -48,6 +69,9 @@ final class CloseCashRegisterRequest extends FormRequest
     {
         return [
             'declared_amount' => __('pos.cash_register.declared_amount'),
+            'denominations' => __('pos.cash_register.denominations'),
+            'denominations.*' => __('pos.cash_register.quantity'),
+            'reason' => __('pos.cash_register.close_reason'),
         ];
     }
 }

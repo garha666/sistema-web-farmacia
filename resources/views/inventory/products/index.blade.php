@@ -3,6 +3,10 @@
 @section('title', __('pos.inventory.products.title'))
 
 @section('content')
+    @php
+        $canEditProducts = auth()->user()->role === 'admin';
+    @endphp
+
     <div class="space-y-4">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
@@ -10,7 +14,7 @@
                 <p class="text-sm text-slate-500">{{ __('pos.inventory.products.subtitle') }}</p>
             </div>
 
-            @if (auth()->user()->role === 'admin')
+            @if ($canEditProducts)
                 <a href="{{ route('inventory.products.create') }}" class="inline-flex items-center justify-center rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2">
                     {{ __('pos.inventory.products.create') }}
                 </a>
@@ -49,7 +53,9 @@
                         <th scope="col" class="px-4 py-3 text-right">{{ __('pos.inventory.products.min_stock') }}</th>
                         <th scope="col" class="px-4 py-3">{{ __('pos.inventory.products.sellable') }}</th>
                         <th scope="col" class="px-4 py-3">{{ __('pos.inventory.products.status') }}</th>
-                        <th scope="col" class="px-4 py-3 text-right">{{ __('pos.inventory.products.actions') }}</th>
+                        @if ($canEditProducts)
+                            <th scope="col" class="px-4 py-3 text-right">{{ __('pos.inventory.products.actions') }}</th>
+                        @endif
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
@@ -86,17 +92,17 @@
                                     </span>
                                 @endif
                             </td>
-                            <td class="px-4 py-3 text-right">
-                                @if (auth()->user()->role === 'admin')
+                            @if ($canEditProducts)
+                                <td class="px-4 py-3 text-right">
                                     <a href="{{ route('inventory.products.edit', $product) }}" class="rounded text-sm font-semibold text-emerald-700 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2">
                                         {{ __('pos.inventory.products.edit') }}
                                     </a>
-                                @endif
-                            </td>
+                                </td>
+                            @endif
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8" class="px-4 py-8 text-center text-slate-500">{{ __('pos.inventory.products.empty') }}</td>
+                            <td colspan="{{ $canEditProducts ? 8 : 7 }}" class="px-4 py-8 text-center text-slate-500">{{ __('pos.inventory.products.empty') }}</td>
                         </tr>
                     @endforelse
                 </tbody>

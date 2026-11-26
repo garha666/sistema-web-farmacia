@@ -36,6 +36,9 @@
         >
     </div>
 
+    <input type="hidden" name="applies_to_controlled" value="0">
+    <label class="block"><input type="checkbox" name="applies_to_controlled" value="1" @checked(old('applies_to_controlled', $convention?->applies_to_controlled))> {{ __('benefits.controlled') }}</label>
+
     <div class="grid gap-4 sm:grid-cols-2">
         <div>
             <label for="valid_from" class="text-sm font-semibold text-slate-700">{{ __('pos.admin.conventions.form_valid_from') }}</label>

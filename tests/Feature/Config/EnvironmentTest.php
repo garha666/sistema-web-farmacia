@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Config;
 
+use Illuminate\Support\Env;
 use Tests\TestCase;
 
 /**
@@ -53,6 +54,34 @@ final class EnvironmentTest extends TestCase
             $this->sampleEnvironment(),
             'La sesión vive en la base: si el ejemplo usa el driver por archivos, la sesión no se comparte entre procesos.',
         );
+    }
+
+    public function test_postgresql_tls_can_verify_the_server_using_the_configured_ca(): void
+    {
+        $environment = Env::getRepository();
+        $settings = ['DB_SSLMODE' => 'verify-full', 'DB_SSLROOTCERT' => '/run/certs/rds-ca.pem'];
+        $previous = [];
+
+        foreach ($settings as $key => $value) {
+            $previous[$key] = $environment->get($key);
+            $environment->clear($key);
+            $environment->set($key, $value);
+        }
+
+        try {
+            $connection = (require config_path('database.php'))['connections']['pgsql'];
+
+            $this->assertSame('verify-full', $connection['sslmode']);
+            $this->assertSame('/run/certs/rds-ca.pem', $connection['sslrootcert']);
+        } finally {
+            foreach ($previous as $key => $value) {
+                $environment->clear($key);
+
+                if ($value !== null) {
+                    $environment->set($key, $value);
+                }
+            }
+        }
     }
 
     /**

@@ -94,4 +94,19 @@ final class RoleLandingTest extends TestCase
 
         $this->assertSame(['admin', 'bodeguero', 'quimico', 'tecnico'], $roles);
     }
+
+    public function test_the_demo_user_seeder_refuses_production_without_writing_users(): void
+    {
+        $this->app->instance('env', 'production');
+
+        try {
+            $this->artisan('db:seed', ['--class' => UserSeeder::class, '--force' => true])->run();
+            $this->fail('Demo user seeding should refuse production.');
+        } catch (\LogicException $exception) {
+            $this->assertSame('Demo users can only be seeded in local and testing environments.', $exception->getMessage());
+            $this->assertDatabaseCount('users', 0);
+        } finally {
+            $this->app->instance('env', 'testing');
+        }
+    }
 }

@@ -28,6 +28,12 @@
             </p>
         @endif
 
+        @if (session('closed_register_id'))
+            <a class="inline-block text-sm font-semibold text-emerald-800 underline" href="{{ route('cash.report', session('closed_register_id')) }}">
+                {{ __('pos.cash_register.report_title') }}
+            </a>
+        @endif
+
         @if ($register === null)
             @include('dashboard.partials.open-cash-form')
         @else

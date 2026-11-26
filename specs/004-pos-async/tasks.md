@@ -2,7 +2,7 @@
 
 **Spec:** `specs/004-pos-async/spec.md` v1.0 (aprobada) · **Plan:** `specs/004-pos-async/plan.md`
 **Metodología:** TDD — test rojo primero, código después, `php artisan test` en verde.
-**Estado:** T31, T33, T34 y T35 cerradas; T32 con pendiente parcial (API JSON hecha, interfaz de descuentos pendiente).
+**Estado:** T31–T35 cerradas. La validación visual de T32 se hizo a 375 px.
 
 ---
 
@@ -14,11 +14,11 @@
   - *Hecho cuando:* agregar, cambiar cantidad y quitar una línea del carrito no recargan la página; la búsqueda con debounce devuelve coincidencias sin recargar; ante cualquier fallo el carrito se conserva y se muestra el motivo; sin JavaScript el POS sigue funcionando con recargas completas.
   - *Cierre:* **pendiente parcial** (2026-11-19). Hecho: API JSON en `PosController` (`expectsJson()` en `index`, `add`, `update` y `remove`, que devuelve carrito, totales y resultados) y pruebas `CartAsyncTest` en verde (**9 tests, 43 aserciones**; test previo en rojo: 6 failed, 3 passed). Pendiente: `resources/js/pos/cart.js` no existe, así que agregar, cambiar o quitar líneas sigue recargando la página; la búsqueda sin recargar y el aviso con el motivo del fallo no están en la interfaz. **Cierre final (2026-11-19):** interfaz hecha. `resources/js/pos/cart.js` intercepta los formularios con `data-pos-async` (agregar, cambiar cantidad, quitar y búsqueda con debounce de 300 ms); el servidor devuelve los fragmentos Blade `cart` y `results` (`@fragment`) y el cliente sólo los pinta; ante un fallo el carrito no se toca y se muestra el motivo en `#pos-alert` (`role="alert"`); 419 renueva el token y reintenta una vez; 401 lleva al login. Textos en `pos.async` de `lang/es/pos.php`. Contrato nuevo: `scan=0` en la búsqueda al teclear (nunca agrega) y 422 con `errors.barcode` para un código rechazado por JSON. `CartAsyncTest` pasó de 9 a 33 tests. Verificado en Chrome DevTools a 375 px (sin desborde, doble clic, fallo de stock, sin red, 419, sesión vencida).
 
-- [ ] **T32. Descuentos asíncronos.** RF-87 (spec 004)
+- [x] **T32. Descuentos asíncronos.** RF-87 (spec 004)
   - *Depende de:* T31
   - *Alcance:* aplicar y quitar descuento global y de línea por AJAX, incluida la autorización de supervisor (tope de 10% de spec 001, RF-14 a RF-16) sin recargar.
   - *Hecho cuando:* descuentos globales y de línea se reflejan en los totales sin recargar; una autorización de supervisor pendiente no se pierde entre operaciones del carrito.
-  - *Cierre:* **pendiente parcial** (2026-11-19). Hecho: `applyDiscount`, `removeDiscount`, `applyLineDiscount` y `removeLineDiscount` responden JSON con `cartPayload()` cuando `expectsJson()`, y sobre el tope (10%) piden credenciales de supervisor en la misma petición (RF-83); pruebas `DiscountAsyncTest` en verde (**8 tests, 27 aserciones**; test previo en rojo: 5 failed, 3 passed). Pendiente: la interfaz todavía aplica descuentos con recarga completa, porque `resources/js/pos/cart.js` no existe; los totales no se actualizan sin recargar.
+  - *Cierre (2026-11-24):* los cuatro formularios actualizan los totales con el fragmento devuelto por el servidor, sin recargar. El diálogo de supervisor está fuera del fragmento del carrito y mantiene la solicitud pendiente aunque se vuelva a dibujar el carrito. Los formularios HTML siguen disponibles sin JavaScript. `DiscountAsyncTest` y `DiscountAsyncFormsTest` pasan dentro de la suite completa (542 pruebas, 3700 aserciones). En Chrome a 375 px se aplicaron y quitaron descuentos globales y de línea, con autorización del Químico y sin recarga.
 
 - [x] **T33. Stock vigente (sondeo).** RF-88 (spec 004)
   - *Depende de:* T31
@@ -65,9 +65,8 @@
 | Plan 004 | ✅ Completo (`specs/004-pos-async/plan.md`) |
 | Tasks 004 | ✅ Definidas (T31–T35) |
 | T31, T33 | ✅ Cerradas · interfaz JS (`cart.js`, `stock.js`) y pruebas de contrato |
-| T32 | ⏳ Pendiente parcial · API JSON hecha; la interfaz de descuentos sigue con recarga completa |
+| T32 | ✅ Cerrada · API JSON, formularios y autorización asíncronos |
 | T34–T35 | ✅ Cerradas |
-| Verificación visual 375 px | ⏳ Pendiente (se valida al cerrar cada tarea con interfaz) |
+| Verificación visual 375 px | ✅ POS y autorización verificados al cerrar T32 |
 
 ---
-

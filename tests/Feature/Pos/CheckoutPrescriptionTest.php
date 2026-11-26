@@ -67,7 +67,7 @@ final class CheckoutPrescriptionTest extends TestCase
         $product = $this->controlledProduct();
         $this->post('/pos/cart', ['product_id' => $product->id]);
 
-        $this->post('/pos/checkout', $this->payload(now()->subDays(30)))
+        $this->post('/pos/checkout', $this->payload(now()->subDays(30)) + $this->pharmacistCredentials())
             ->assertSessionHasNoErrors();
 
         $sale = Sale::query()->firstOrFail();
@@ -103,16 +103,13 @@ final class CheckoutPrescriptionTest extends TestCase
         $payload = $this->payload(now()->subDays(5));
 
         $this->post('/pos/checkout', $payload)
-            ->assertSessionHasErrors('prescription_reuse');
+            ->assertSessionHasErrors('prescription_approval');
 
         $this->assertSame(0, Sale::query()->count());
 
         $supervisor = User::factory()->create(['role' => 'quimico']);
 
-        $this->post('/pos/checkout', $payload + [
-            'supervisor_email' => $supervisor->email,
-            'supervisor_password' => 'password',
-        ])->assertSessionHasNoErrors();
+        $this->post('/pos/checkout', $payload + $this->pharmacistCredentials($supervisor))->assertSessionHasNoErrors();
 
         $sale = Sale::query()->firstOrFail();
 
@@ -137,6 +134,28 @@ final class CheckoutPrescriptionTest extends TestCase
         $this->assertNull($sale->prescription_id);
     }
 
+    public function test_a_reused_prescription_with_different_details_cannot_be_requested_or_charged(): void
+    {
+        $today = now(config('pos.timezone'));
+        Prescription::query()->create([
+            'number' => 'REC-100', 'prescriber_name' => 'Dra. Ana Pérez', 'prescriber_rut' => '9.876.543-2',
+            'issued_on' => $today->copy()->subDay()->toDateString(),
+        ]);
+        $product = $this->controlledProduct();
+        $this->post('/pos/cart', ['product_id' => $product->id]);
+
+        $payload = $this->payload($today);
+        $this->post('/pos/checkout', $payload + ['request_review' => '1'])->assertSessionHasErrors('prescription_issued_at');
+        $this->assertDatabaseCount('prescription_reviews', 0);
+        $credentials = $this->pharmacistCredentials();
+        $this->post('/pos/checkout', $payload + $credentials)->assertSessionHasErrors('prescription_issued_at');
+        $this->post('/pos/checkout', array_replace($this->payload($today->copy()->subDay()), [
+            'prescription_prescriber_name' => 'Otro profesional',
+        ]) + $credentials)->assertSessionHasErrors('prescription_prescriber_name');
+        $this->assertDatabaseCount('sales', 0);
+        $this->assertSame(5, $product->fresh()->stock);
+    }
+
     private function controlledProduct(): Product
     {
         return Product::factory()->controlled()->create([
@@ -144,6 +163,68 @@ final class CheckoutPrescriptionTest extends TestCase
             'price' => 5000,
             'stock' => 5,
         ]);
+    }
+
+    public function test_a_valid_controlled_prescription_does_not_allow_checkout_without_a_chemist(): void
+    {
+        $product = $this->controlledProduct();
+        $this->post('/pos/cart', ['product_id' => $product->id]);
+        $this->post('/pos/checkout', $this->payload(now(config('pos.timezone'))))
+            ->assertSessionHasErrors('prescription_approval');
+        $this->assertDatabaseCount('sales', 0);
+        $this->assertSame(5, $product->fresh()->stock);
+    }
+
+    public function test_the_chemist_reviews_a_prescription_and_only_the_approved_basket_can_be_charged(): void
+    {
+        $product = Product::factory()->create(['sale_category' => 'prescription', 'stock' => 5]);
+        $chemist = User::factory()->quimico()->create();
+        $payload = $this->payload(now(config('pos.timezone')));
+        $this->post('/pos/cart', ['product_id' => $product->id]);
+        $this->post('/pos/checkout', $payload + ['request_review' => '1'])->assertRedirect('/pos/checkout');
+        $this->get('/pos/checkout')->assertSee(__('pos.rx_review.pending'));
+        $this->post('/pos/checkout', $payload)->assertSessionHasErrors('prescription_approval');
+
+        $panel = $this->actingAs($chemist)->get('/panel/quimico')->assertOk()
+            ->assertSee('REC-100')->assertSee('Dra. Ana Pérez')->assertSee($product->name)->getContent();
+        preg_match('~action="([^" ]+/recetas/\d+/approve)"~', $panel, $action);
+        preg_match('~name="fingerprint" value="([a-f0-9]{64})"~', $panel, $version);
+        $this->assertNotEmpty($action);
+        $this->assertNotEmpty($version);
+        $this->actingAs($this->cashier)->post($action[1], ['fingerprint' => $version[1]])->assertForbidden();
+        $this->actingAs($chemist)->post($action[1], ['fingerprint' => $version[1]])->assertSessionHas('prescription_approved');
+        $this->assertDatabaseCount('sales', 0);
+
+        $this->actingAs($this->cashier)->get('/pos/checkout')->assertSee(__('pos.rx_review.approved'));
+        $this->post('/pos/checkout', array_replace($payload, ['prescription_number' => 'REC-DIFERENTE']))
+            ->assertSessionHasErrors('prescription_approval');
+        $this->patch(route('pos.cart.update', $product), ['quantity' => 2]);
+        $this->get('/pos/checkout')->assertDontSee(__('pos.rx_review.approved'))->assertSee(__('pos.rx_review.checkout_waiting'));
+        $this->post('/pos/checkout', $payload)->assertSessionHasErrors('prescription_approval');
+        $this->patch(route('pos.cart.update', $product), ['quantity' => 1]);
+        $this->post('/pos/checkout', $payload)->assertSessionHasNoErrors();
+
+        $sale = Sale::query()->sole();
+        $this->assertDatabaseHas('audit_logs', ['action' => 'sale.prescription_approved', 'auditable_id' => $sale->id, 'user_id' => $chemist->id]);
+        $this->assertDatabaseCount('prescription_reviews', 0);
+    }
+
+    public function test_a_chemist_can_configure_a_numeric_pin_that_only_their_role_can_use(): void
+    {
+        $chemist = User::factory()->quimico()->create();
+        $route = route('account.pharmacist-pin.update');
+        $data = ['current_password' => 'password', 'pharmacist_pin' => '0843719205', 'pharmacist_pin_confirmation' => '0843719205'];
+        $this->put($route, $data)->assertForbidden();
+        $this->actingAs($chemist)->put($route, $data)->assertSessionHas('pharmacist_pin_updated');
+
+        $product = $this->controlledProduct();
+        $this->actingAs($this->cashier)->post('/pos/cart', ['product_id' => $product->id]);
+        $payload = $this->payload(now(config('pos.timezone')));
+        $this->post('/pos/checkout', $payload + ['chemist_email' => $chemist->email, 'pharmacist_pin' => '12345678'])
+            ->assertSessionHasErrors('prescription_approval')->assertSessionMissing('_old_input.pharmacist_pin');
+        $this->post('/pos/checkout', $payload + ['chemist_email' => $chemist->email, 'pharmacist_pin' => '0843719205'])
+            ->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('audit_logs', ['action' => 'sale.prescription_approved', 'user_id' => $chemist->id]);
     }
 
     /**

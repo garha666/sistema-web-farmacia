@@ -4,7 +4,21 @@
 
 @section('content')
     <div class="space-y-6">
-        @include('dashboard.partials.intro', ['role' => 'quimico'])
+        @include('dashboard.partials.intro', ['role' => 'quimico', 'pinConfigured' => filled(auth()->user()->pharmacist_pin_hash)])
+
+    <section class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm sm:p-5" aria-labelledby="rx-reviews-title"
+        data-prescription-queue="{{ route('dashboard.quimico.prescriptions.pending') }}">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+            <h2 id="rx-reviews-title" class="text-lg font-semibold">{{ __('pos.rx_review.panel') }}</h2>
+            <output data-queue-count aria-label="{{ __('pos.rx_review.total') }}" class="rounded-full bg-emerald-100 px-3 py-1 text-sm font-bold tabular-nums text-emerald-900">{{ $prescriptionReviews->total() }}</output>
+        </div>
+        @if (session('prescription_approved'))<p role="status" class="mt-2 text-emerald-800">{{ __('pos.rx_review.approved_notice') }}</p>@endif
+        @error('review')<p role="alert" class="mt-2 text-rose-800">{{ $message }}</p>@enderror
+        <p data-queue-error role="status" class="mt-2 text-sm text-amber-900" hidden>{{ __('pos.rx_review.refresh_failed') }}</p>
+        <div data-queue-list>
+            @include('dashboard.partials.pending-prescriptions')
+        </div>
+    </section>
 
         {{-- RF-52: ventas del día con el mismo desglose que el panel del Administrador. --}}
         <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm" aria-labelledby="chemist-day-sales">
@@ -39,18 +53,5 @@
         {{-- RF-54: anulaciones de hoy con motivo y autor. --}}
         @include('dashboard.partials.voids-table', ['voids' => $voids])
 
-        {{-- RF-55: salidas de lectura; el Químico no administra convenios ni auditoría. --}}
-        <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm" aria-labelledby="chemist-read-only">
-            <h2 id="chemist-read-only" class="text-lg font-semibold text-slate-900">{{ __('pos.panel.quimico.read_only_heading') }}</h2>
-
-            <div class="mt-3 flex flex-wrap gap-3">
-                <a href="{{ route('admin.conventions.index') }}" class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2">
-                    {{ __('pos.panel.quimico.conventions_link') }}
-                </a>
-                <a href="{{ route('admin.audit.index') }}" class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2">
-                    {{ __('pos.panel.quimico.audit_link') }}
-                </a>
-            </div>
-        </section>
     </div>
 @endsection

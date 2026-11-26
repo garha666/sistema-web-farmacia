@@ -75,7 +75,7 @@ final class CashierPanelTest extends TestCase
     {
         $register = $this->openCashRegister($this->cashier, 50000);
 
-        $this->patch(route('cash.close', $register), ['declared_amount' => 47000])
+        $this->patch(route('cash.close', $register), ['declared_amount' => 47000, 'reason' => 'Faltante tras el recuento'])
             ->assertRedirect(route('dashboard.tecnico'));
 
         $this->get(route('dashboard.tecnico'))

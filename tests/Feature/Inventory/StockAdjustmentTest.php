@@ -135,6 +135,96 @@ final class StockAdjustmentTest extends TestCase
         $response->assertSee(route('admin.controlled-register.index'), false);
     }
 
+    public function test_the_panel_no_longer_repeats_the_access_card_and_lists_the_receipts_in_the_menu(): void
+    {
+        $response = $this->get(route('dashboard.bodeguero'));
+
+        $response->assertOk();
+        $response->assertDontSee('id="warehouse-accesses"', false);
+        $response->assertDontSeeText('Ver catálogo de productos');
+        $response->assertDontSeeText('Ver libro de controlados');
+        $response->assertSee('href="'.route('inventory.receipts.index').'"', false);
+        $response->assertSeeText(__('pos.nav.warehouse_receipts'));
+    }
+
+    public function test_the_product_selector_shows_the_current_stock_next_to_the_name(): void
+    {
+        Product::factory()->create(['name' => 'Paracetamol 500 mg', 'stock' => 119, 'min_stock' => 5, 'active' => true]);
+
+        $response = $this->get(route('dashboard.bodeguero'));
+
+        $response->assertOk();
+        $response->assertSeeText('Paracetamol 500 mg (Stock actual: 119 unidades)');
+    }
+
+    public function test_the_reason_field_suggests_the_usual_pharmacy_causes_without_blocking_free_text(): void
+    {
+        $response = $this->get(route('dashboard.bodeguero'));
+
+        $response->assertOk();
+        $response->assertSee('list="reason-suggestions"', false);
+        $response->assertSee('<datalist id="reason-suggestions">', false);
+
+        foreach (['Reposición de proveedor', 'Merma por vencimiento', 'Envase dañado / rotura', 'Ajuste por inventario físico'] as $cause) {
+            $response->assertSee('<option value="'.$cause.'">', false);
+        }
+
+        $html = $response->getContent();
+        $this->assertMatchesRegularExpression('/<input\b[^>]*id="reason"[^>]*maxlength="500"/', $html);
+    }
+
+    public function test_the_movements_can_be_filtered_by_type_and_the_filter_defaults_to_all(): void
+    {
+        $product = Product::factory()->create(['name' => 'Amoxicilina', 'stock' => 20, 'min_stock' => 2]);
+
+        $movements = [
+            [StockMovementType::in, 'Entrada registrada'],
+            [StockMovementType::out, 'Salida registrada'],
+            [StockMovementType::sale, 'Venta registrada'],
+            [StockMovementType::void, 'Anulación registrada'],
+        ];
+
+        foreach ($movements as [$type, $note]) {
+            StockMovement::query()->create([
+                'product_id' => $product->id,
+                'user_id' => $this->bodeguero->id,
+                'type' => $type,
+                'quantity' => $type->sign(),
+                'resulting_stock' => 20,
+                'note' => $note,
+            ]);
+        }
+
+        $this->get(route('inventory.movements.index'))
+            ->assertOk()
+            ->assertSeeText('Entrada registrada')
+            ->assertSeeText('Salida registrada')
+            ->assertSeeText('Venta registrada')
+            ->assertSeeText('Anulación registrada')
+            ->assertSeeText('Todos')
+            ->assertSeeText('Entrada')
+            ->assertSeeText('Salida')
+            ->assertSeeText('Venta')
+            ->assertSeeText('Anulación');
+
+        $this->get(route('inventory.movements.index', ['type' => 'in']))
+            ->assertOk()
+            ->assertSeeText('Entrada registrada')
+            ->assertDontSeeText('Salida registrada')
+            ->assertDontSeeText('Venta registrada')
+            ->assertDontSeeText('Anulación registrada');
+
+        $this->get(route('inventory.movements.index', ['type' => 'void']))
+            ->assertOk()
+            ->assertSeeText('Anulación registrada')
+            ->assertDontSeeText('Entrada registrada');
+
+        $this->get(route('inventory.movements.index', ['type' => 'no-existe']))
+            ->assertOk()
+            ->assertSeeText('Entrada registrada')
+            ->assertSeeText('Anulación registrada');
+    }
+
     public function test_the_bodeguero_can_read_the_controlled_register(): void
     {
         $this->get(route('admin.controlled-register.index'))

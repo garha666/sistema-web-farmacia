@@ -6,6 +6,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 final class SaleLine extends Model
 {
@@ -35,6 +36,11 @@ final class SaleLine extends Model
     /**
      * @return BelongsTo<Sale, $this>
      */
+    public function lots(): BelongsToMany
+    {
+        return $this->belongsToMany(StockReceipt::class, 'sale_line_lots')->withPivot('quantity');
+    }
+
     public function sale(): BelongsTo
     {
         return $this->belongsTo(Sale::class);

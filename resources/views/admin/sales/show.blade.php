@@ -23,7 +23,7 @@
             <a href="{{ route('admin.sales.index') }}" class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 focus-visible:ring-offset-2">
                 {{ __('pos.admin.sale.back') }}
             </a>
-            <a href="{{ route('pos.sales.receipt', $sale) }}" class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2">
+            <a href="{{ \Illuminate\Support\Facades\URL::signedRoute('pos.sales.receipt', $sale) }}" class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2">
                 {{ __('pos.admin.sale.receipt') }}
             </a>
         </div>
@@ -47,7 +47,14 @@
                     <tbody class="divide-y divide-slate-100">
                         @foreach ($sale->lines as $line)
                             <tr>
-                                <td class="py-2 font-medium">{{ $line->name }}</td>
+                                <td class="py-2 font-medium">
+                                    {{ $line->name }}
+                                    @foreach ($line->lots as $lot)
+                                        <span class="block break-words text-xs font-normal text-slate-600">
+                                            {{ __('receipts.sale_lot', ['lot' => $lot->lot, 'quantity' => $lot->pivot->quantity]) }}
+                                        </span>
+                                    @endforeach
+                                </td>
                                 <td class="py-2 text-right tabular-nums">{{ $line->quantity }}</td>
                                 <td class="py-2 text-right tabular-nums">{{ $money($line->unit_price) }}</td>
                                 <td class="py-2 text-right tabular-nums">{{ $money($line->discount_amount) }}</td>

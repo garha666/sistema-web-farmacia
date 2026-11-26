@@ -29,17 +29,20 @@ final class SupervisorAuthorizationTest extends TestCase
 
     private User $supervisor;
 
+    private Product $product;
+
     protected function setUp(): void
     {
         parent::setUp();
 
         $this->cashier = User::factory()->tecnico()->create();
         $this->supervisor = User::factory()->quimico()->create(['email' => 'supervisor@farmacia.test']);
+        $this->discountCredentials(supervisor: $this->supervisor);
 
         $this->actingAs($this->cashier);
 
-        $product = Product::factory()->create(['stock' => 10, 'price' => 10000]);
-        $this->post('/pos/cart', ['product_id' => $product->id]);
+        $this->product = Product::factory()->create(['stock' => 10, 'price' => 10000]);
+        $this->post('/pos/cart', ['product_id' => $this->product->id]);
     }
 
     /**
@@ -60,15 +63,15 @@ final class SupervisorAuthorizationTest extends TestCase
     {
         for ($attempt = 0; $attempt < 5; $attempt++) {
             $this->askAboveTheCap('clave-equivocada')
-                ->assertSessionHasErrors(['supervisor_email' => __('pos.errors.supervisor_invalid')]);
+                ->assertSessionHasErrors(['discount_supervisor' => __('pos.errors.supervisor_invalid')]);
         }
 
         // Con la contraseña correcta, el intento ya está frenado.
-        $this->askAboveTheCap('password')->assertSessionHasErrors('supervisor_email');
+        $this->askAboveTheCap('843719205')->assertSessionHasErrors('discount_supervisor');
 
         $this->assertNotSame(
             __('pos.errors.supervisor_invalid'),
-            (string) session('errors')->first('supervisor_email'),
+            (string) session('errors')->first('discount_supervisor'),
             'El freno debe dar un mensaje distinto al de credenciales inválidas.',
         );
 
@@ -81,12 +84,12 @@ final class SupervisorAuthorizationTest extends TestCase
             $this->askAboveTheCap('clave-equivocada');
         }
 
-        $this->askAboveTheCap('password')->assertSessionHasNoErrors();
+        $this->askAboveTheCap('843719205')->assertSessionHasNoErrors();
         $this->assertNotNull(session('pos.manual_discount'));
 
         // El contador volvió a cero: el siguiente error es el normal, no el freno.
         $this->askAboveTheCap('clave-equivocada')
-            ->assertSessionHasErrors(['supervisor_email' => __('pos.errors.supervisor_invalid')]);
+            ->assertSessionHasErrors(['discount_supervisor' => __('pos.errors.supervisor_invalid')]);
     }
 
     public function test_the_throttle_does_not_change_the_session_or_the_role(): void
@@ -111,9 +114,7 @@ final class SupervisorAuthorizationTest extends TestCase
                 'discount_value' => '25',
                 'discount_reason' => 'Convenio especial',
             ])->assertSessionHasErrors([
-                'discount_supervisor' => __('pos.errors.discount_above_cap', [
-                    'cap' => (int) config('pos.discount.general_cap_percent'),
-                ]),
+                'discount_supervisor' => __('pos.authorization.required'),
             ]);
         }
 
@@ -122,21 +123,43 @@ final class SupervisorAuthorizationTest extends TestCase
 
     public function test_the_checkout_path_is_also_throttled(): void
     {
-        // RF-83 cubre las tres vías: aquí la tercera, confirmar el cobro.
-        $supervisor = $this->supervisor->email;
+        $this->product->forceFill(['sale_category' => 'controlled'])->save();
+        $payload = ['payment_method' => 'debit', 'chemist_email' => $this->supervisor->email];
 
         for ($attempt = 0; $attempt < 5; $attempt++) {
-            $this->post('/pos/checkout', [
-                'payment_method' => 'debit',
-                'supervisor_email' => $supervisor,
-                'supervisor_password' => 'clave-equivocada',
-            ])->assertSessionHasErrors('supervisor_email');
+            $this->post('/pos/checkout', $payload + ['pharmacist_pin' => '99999999'])
+                ->assertSessionHasErrors(['prescription_approval' => __('pos.errors.supervisor_invalid')]);
         }
 
+        $this->post('/pos/checkout', $payload + ['pharmacist_pin' => '843719205'])
+            ->assertSessionHasErrors('prescription_approval');
+        $this->assertNotSame(__('pos.errors.supervisor_invalid'), session('errors')->first('prescription_approval'));
+    }
+
+    public function test_supervisor_passwords_are_excluded_from_old_input(): void
+    {
+        $this->askAboveTheCap('invalid-test-password')
+            ->assertSessionHasErrors('discount_supervisor')
+            ->assertSessionHas('_old_input.discount_value', '25')
+            ->assertSessionMissing('_old_input.supervisor_password');
+
+        $this->post('/pos/cart/'.$this->product->id.'/discount', [
+            'line_type' => 'percent',
+            'line_value' => '25',
+            'line_reason' => 'Convenio especial',
+            'line_supervisor_email' => $this->supervisor->email,
+            'line_supervisor_password' => 'invalid-test-password',
+        ])->assertSessionHasErrors('line_discount_supervisor')
+            ->assertSessionHas('_old_input.line_value', '25')
+            ->assertSessionMissing('_old_input.line_supervisor_password');
+
+        $this->product->forceFill(['sale_category' => 'controlled'])->save();
         $this->post('/pos/checkout', [
             'payment_method' => 'debit',
-            'supervisor_email' => $supervisor,
-            'supervisor_password' => 'password',
-        ])->assertSessionHasErrors('supervisor_email');
+            'chemist_email' => $this->supervisor->email,
+            'pharmacist_pin' => '99999999',
+        ])->assertSessionHasErrors('prescription_approval')
+            ->assertSessionHas('_old_input.payment_method', 'debit')
+            ->assertSessionMissing('_old_input.pharmacist_pin');
     }
 }

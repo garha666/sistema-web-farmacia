@@ -5,8 +5,12 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use App\Models\ControlledRegisterEntry;
+use App\Models\PrescriptionReview;
+use App\Models\Sale;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -18,8 +22,16 @@ final class ControlledRegisterController extends Controller
 {
     public function index(Request $request): View
     {
-        $filters = $this->filters($request);
+        return $this->register($this->filters($request));
+    }
 
+    public function clinical(Request $request): View
+    {
+        return $this->register($this->filters($request), clinical: true);
+    }
+
+    private function register(array $filters, bool $clinical = false): View
+    {
         $entries = $this->query($filters)
             ->with(['prescription', 'sale'])
             ->latest('sold_at')
@@ -30,6 +42,16 @@ final class ControlledRegisterController extends Controller
         return view('admin.controlled-register.index', [
             'entries' => $entries,
             'filters' => $filters,
+            'clinical' => $clinical,
+            'approvedReviews' => $clinical ? $this->filterDates(
+                PrescriptionReview::query()->whereNotNull('pharmacist_id'), $filters, 'updated_at'
+            )->latest('updated_at')->latest('id')->paginate(15, ['*'], 'reviews_page')->withQueryString() : null,
+            'dispensedApprovals' => $clinical ? $this->filterDates(
+                AuditLog::query()->with(['auditable' => fn (MorphTo $relation) => $relation->morphWith([Sale::class => ['prescription']])])
+                    ->where('action', 'sale.prescription_approved')
+                    ->whereHasMorph('auditable', [Sale::class], fn (Builder $query) => $query->whereHas('prescription')),
+                $filters, 'created_at'
+            )->latest('id')->paginate(15, ['*'], 'approvals_page')->withQueryString() : null,
         ]);
     }
 
@@ -80,14 +102,19 @@ final class ControlledRegisterController extends Controller
      */
     private function query(array $filters): Builder
     {
-        return ControlledRegisterEntry::query()
+        return $this->filterDates(ControlledRegisterEntry::query(), $filters, 'sold_at');
+    }
+
+    private function filterDates(Builder $query, array $filters, string $column): Builder
+    {
+        return $query
             ->when(
                 ! empty($filters['from']),
-                fn (Builder $query) => $query->whereDate('sold_at', '>=', $filters['from']),
+                fn (Builder $query) => $query->whereDate($column, '>=', $filters['from']),
             )
             ->when(
                 ! empty($filters['to']),
-                fn (Builder $query) => $query->whereDate('sold_at', '<=', $filters['to']),
+                fn (Builder $query) => $query->whereDate($column, '<=', $filters['to']),
             );
     }
 }

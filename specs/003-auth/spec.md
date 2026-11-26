@@ -23,7 +23,7 @@ La regla que lo ordena: **un usuario entra con su cuenta y llega al panel de su 
 | **Bodeguero** | Bodeguero | Inicia sesión y aterriza en el panel del Bodeguero. |
 | **Invitado** | — | Ve la pantalla de inicio de sesión y ningún panel. |
 
-> **Alcance del alta de usuarios.** Esta spec define **cómo se entra** al sistema, no cómo se crean las cuentas: el alta, la asignación de roles y el cambio de contraseña siguen fuera de alcance (spec 002 §7) y se provisionan por seed o por base de datos.
+> **Alcance de la gestión de cuentas.** El administrador puede crear y desactivar cuentas operativas según RF-99 y RF-100. La edición de roles y el cambio de contraseña quedan fuera de esta entrega.
 
 ## 3. Historias de usuario
 
@@ -76,10 +76,16 @@ Numeración continua con la spec 002.
   - *Criterio:* La política no deberá romper la interfaz: los estilos compilados por Vite, las fuentes y las imágenes del propio sitio deberán cargarse sin errores de consola.
   - *Criterio:* Ninguna cabecera de seguridad deberá depender de que el proxy o el servidor web las añada por su cuenta.
 - **RNF-28 — Rol no asignable en masa.** El rol de una cuenta no deberá asignarse en masa desde datos de entrada; deberá provisionarse mediante una operación explícita.
-  - *Criterio:* Un alta o edición que reciba `role` en el cuerpo de la petición no deberá cambiar el rol de la cuenta.
+  - *Criterio:* El sistema debe ignorar `role` en operaciones genéricas. Solo el alta administrativa de RF-99 puede aceptar un rol operativo validado y asignarlo de forma explícita.
   - *Criterio:* La provisión de cuentas de demostración y de pruebas deberá seguir fijando el rol de forma explícita.
 
 ## 6. Casos límite
+
+- **RNF-27, protección de credenciales:** CUANDO falle la validación de un formulario HTML de autorización de supervisor, ENTONCES el sistema deberá excluir `supervisor_password` y `line_supervisor_password` de los datos anteriores guardados en sesión. La protección aplica a descuentos globales, descuentos de línea y cobro, sin perder los datos no sensibles del formulario.
+- **Cuentas de demostración:** SI el entorno no es local ni de pruebas, ENTONCES el seeder de usuarios de demostración deberá rechazar la ejecución antes de escribir o modificar cuentas. Las cuentas de un piloto desplegado se aprovisionarán por separado con credenciales únicas.
+- **Actualización de seguridad del piloto:** Laravel 12, PHPUnit 11 y Collision 8 compatibles con PHP 8.2; Vite 8 y laravel-vite-plugin 3 con Node 22.12 o superior de la rama 22. Los cambios no modifican el esquema ni el contrato de autenticación. El cierre exige auditorías de dependencias, compilación y suite completa.
+- **Despliegue del piloto:** el piloto solo usa datos ficticios. Docker Compose ejecuta Nginx (raíz `public`), PHP-FPM y PostgreSQL 16, sin publicar los puertos de PHP ni PostgreSQL. Por defecto Nginx se enlaza solo a loopback para una prueba privada; antes de habilitar acceso a alumnos se requiere un punto de entrada HTTPS aprobado. Las sesiones usan cookies seguras; los secretos se suministran fuera de Git y el volumen de PostgreSQL debe respaldarse y restaurarse en una instancia de prueba.
+- **Base administrada:** SI el piloto usa RDS, ENTONCES el despliegue no deberá iniciar una base local y la aplicación deberá conectarse al endpoint DNS privado de RDS por TLS con `verify-full` y el certificado CA oficial de AWS. El modo local seguirá funcionando sin esa CA. No se cambiará la base del piloto hasta verificar la restauración de prueba.
 
 1. Credenciales válidas de cada uno de los cuatro roles: cada uno aterriza en su panel.
 2. Contraseña incorrecta con un correo que existe.
@@ -94,9 +100,14 @@ Numeración continua con la spec 002.
 11. Muchos intentos fallidos de autorización de supervisor seguidos: se frena y se indica cuándo reintentar.
 12. Autorización de supervisor correcta después de varios intentos fallidos: se limpia el contador.
 
+## Alta operativa
+
+- **RF-99 — Alta de cuentas por rol.** Cuando un administrador registra una cuenta con nombre, correo único y contraseña de al menos 12 caracteres confirmada, el sistema deberá crearla como técnico, bodeguero o químico, según el rol operativo seleccionado. El correo se normaliza a minúsculas. Ningún otro rol accede a este módulo y desde aquí no se crean administradores. La contraseña solo se almacena como hash y no se muestra en el listado.
+- **RF-100 — Desactivación de cuentas.** Cuando un administrador desactiva una cuenta operativa, el sistema deberá conservar la cuenta y su historial, registrar quién realizó la acción e impedir que la cuenta inicie sesión, siga usando una sesión existente o autorice operaciones como supervisor. No se podrá desactivar una cuenta administrativa ni un técnico con caja abierta; primero debe cerrarse el turno.
+
 ## 7. Fuera de alcance
 
-- Alta de usuarios, asignación y edición de roles, y desactivación de cuentas.
+- Edición de roles y reactivación de cuentas.
 - Cambio de contraseña, recuperación por correo, verificación de correo y segundo factor.
 - «Recordarme» y sesiones recordadas de larga duración.
 - Inicio de sesión con proveedores externos (SSO, OAuth, directorio corporativo).

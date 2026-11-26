@@ -127,6 +127,17 @@ final class NavigationTest extends TestCase
         $response->assertDontSee(route('admin.conventions.index'), false);
     }
 
+    public function test_the_chemist_navigation_contains_only_clinical_links(): void
+    {
+        $this->actingAs(User::factory()->quimico()->create())
+            ->get('/panel/quimico/libro-controlados')->assertOk()
+            ->assertSeeTextInOrder(['Inicio', 'Recepciones controladas', 'Libro de controlados / Autorizaciones', 'PIN del POS'])
+            ->assertDontSee(route('admin.conventions.index'), false)
+            ->assertDontSee(route('admin.audit.index'), false)
+            ->assertDontSee(route('admin.controlled-register.export'), false)
+            ->assertDontSee(route('pos.index'), false);
+    }
+
     public function test_the_navigation_renders_once_per_variant_and_marks_the_current_page(): void
     {
         $user = User::factory()->create(['role' => 'admin']);

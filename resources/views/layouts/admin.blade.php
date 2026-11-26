@@ -29,7 +29,7 @@
         </nav>
 
         <div class="border-t border-white/10 p-3">
-            @unless (auth()->user()?->isBodeguero())
+            @unless (auth()->user()?->isBodeguero() || auth()->user()?->isQuimico())
                 <a
                     href="{{ route('pos.index') }}"
                     class="mb-2 flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-3 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
@@ -73,7 +73,7 @@
                 </div>
 
                 <div class="flex shrink-0 items-center gap-2">
-                    @unless (auth()->user()?->isBodeguero())
+                    @unless (auth()->user()?->isBodeguero() || auth()->user()?->isQuimico())
                         <a href="{{ route('pos.index') }}" class="shrink-0 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300">
                             {{ __('pos.nav.pos') }}
                         </a>

@@ -55,6 +55,16 @@ final class Product extends Model
         $query->where('active', true);
     }
 
+    public function scopeWithPosStock(Builder $query, string $date): void
+    {
+        if ($query->getQuery()->columns === null) {
+            $query->select('products.*');
+        }
+
+        $query->selectRaw('GREATEST(0, products.stock - COALESCE((SELECT SUM(remaining_quantity)
+            FROM stock_receipts WHERE product_id = products.id AND expires_on < ?), 0)) AS pos_stock', [$date]);
+    }
+
     /**
      * Existencia menor o igual al mínimo (S-11, RF-48, RF-64).
      *

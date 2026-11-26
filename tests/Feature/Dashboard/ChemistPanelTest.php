@@ -32,6 +32,32 @@ final class ChemistPanelTest extends TestCase
         $this->actingAs($this->chemist);
     }
 
+    public function test_pending_feed_counts_all_active_reviews_and_is_restricted_to_the_chemist(): void
+    {
+        $cashier = User::factory()->tecnico()->create();
+
+        for ($i = 0; $i < 22; $i++) {
+            \App\Models\PrescriptionReview::query()->forceCreate([
+                'cashier_id' => $cashier->id,
+                'checkout_token' => (string) Str::uuid(),
+                'fingerprint' => str_repeat('a', 64),
+                'expires_at' => $i === 21 ? now()->subMinute() : now()->addMinutes(5),
+                'snapshot' => ['prescription' => [
+                    'prescription_number' => 'RX-DEMO-'.$i,
+                    'prescription_prescriber_name' => 'Profesional Demo',
+                    'prescription_prescriber_rut' => '1-9',
+                    'prescription_issued_at' => '2026-11-25',
+                ], 'products' => []],
+            ]);
+        }
+
+        $url = '/panel/quimico/recetas/pendientes';
+        $response = $this->getJson($url)->assertOk()->assertJsonPath('count', 21);
+        $this->assertStringContainsString('RX-DEMO-0<', $response->json('html'));
+        $this->assertStringNotContainsString('RX-DEMO-21<', $response->json('html'));
+        $this->actingAs($cashier)->getJson($url)->assertForbidden();
+    }
+
     public function test_the_panel_shows_the_days_sales_and_payment_breakdown(): void
     {
         $this->saleOf(12000, 'cash');
@@ -48,6 +74,17 @@ final class ChemistPanelTest extends TestCase
         $response->assertDontSee('$5.000');
         $response->assertSeeText(__('pos.payment_method.cash'));
         $response->assertSeeText(__('pos.payment_method.debit'));
+    }
+
+    public function test_the_header_precedes_the_queue_and_reflects_the_pin_status(): void
+    {
+        $this->get(route('dashboard.quimico'))->assertOk()->assertSeeTextInOrder([
+            'Panel del Químico', 'Pendiente de configurar', 'Recetas pendientes de revisión',
+        ]);
+
+        $this->chemist->forceFill(['pharmacist_pin_hash' => bcrypt('12345678')])->save();
+        $this->get(route('dashboard.quimico'))->assertSeeText('Configurado')
+            ->assertDontSeeText('Pendiente de configurar');
     }
 
     /**
@@ -163,16 +200,20 @@ final class ChemistPanelTest extends TestCase
         $response->assertDontSeeText('Anulación de ayer.');
     }
 
-    public function test_the_panel_only_offers_read_only_links(): void
+    public function test_the_panel_omits_administrative_links_but_keeps_direct_read_access(): void
     {
         $response = $this->get(route('dashboard.quimico'));
 
         $response->assertOk();
-        $response->assertSee(route('admin.conventions.index'), false);
-        $response->assertSee(route('admin.audit.index'), false);
-        $response->assertSeeText(__('pos.panel.quimico.conventions_link'));
-        $response->assertSeeText(__('pos.panel.quimico.audit_link'));
+        $response->assertDontSee(route('admin.conventions.index'), false);
+        $response->assertDontSee(route('admin.audit.index'), false);
+        $response->assertDontSeeText('Consultas de sólo lectura');
+        $response->assertDontSeeText('Ver convenios');
+        $response->assertDontSeeText('Ver auditoría');
         $response->assertDontSee(route('admin.conventions.create'), false);
+        $this->get(route('admin.conventions.index'))->assertOk();
+        $this->get(route('admin.audit.index'))->assertOk();
+        $this->get(route('admin.conventions.create'))->assertForbidden();
         // RF-55: el panel no ofrece acciones de escritura sobre datos. Los
         // únicos formularios son los de cerrar sesión (spec 003, RF-81), que no
         // escriben nada del negocio.

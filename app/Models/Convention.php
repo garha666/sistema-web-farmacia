@@ -24,6 +24,7 @@ final class Convention extends Model
         'valid_from',
         'valid_until',
         'active',
+        'applies_to_controlled',
     ];
 
     /**
@@ -36,6 +37,7 @@ final class Convention extends Model
             'valid_from' => 'date',
             'valid_until' => 'date',
             'active' => 'boolean',
+            'applies_to_controlled' => 'boolean',
         ];
     }
 

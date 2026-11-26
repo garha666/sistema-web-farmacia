@@ -41,6 +41,7 @@ class User extends Authenticatable
      */
     protected $hidden = [
         'password',
+        'pharmacist_pin_hash',
         'remember_token',
     ];
 
@@ -53,6 +54,7 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'disabled_at' => 'datetime',
             'password' => 'hashed',
         ];
     }
