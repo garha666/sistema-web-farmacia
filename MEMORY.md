@@ -5,6 +5,8 @@
 
 ## Estado actual
 
+- **Pulido UX del Administrador (2026-11-26):** el menú empieza por «Inicio» (`/panel/admin`); la tabla de convenios muestra «Afiliados» (`memberships_count` por subconsulta en `ConventionService::all`, porque `convention_memberships` no tiene modelo) y «Importar afiliados» es un botón secundario junto a «Nuevo convenio»; se quitaron los códigos `RF-` de los subtítulos de Historial y Documentos; la Auditoría tiene filtro rápido `?q=` por acción (código o etiqueta) o autor (`AuditLog::scopeSearch`). Se recompiló `public/build`. Verificado a 1440 y 375 px sin desbordamiento horizontal. Sin cambios de permisos ni de lógica de negocio. Suite completa: 581 pruebas y 4240 aserciones.
+- **Panel del Administrador (2026-11-25):** el total vendido queda destacado y el desglose de pagos y las alertas de inventario aparecen junto al resumen en escritorio. La vista Blade con datos de prueba se verificó en Brave a 1536 y 375 px, sin desbordamiento horizontal. No se modificaron cálculos ni permisos. La suite completa pasó: 566 pruebas y 4043 aserciones.
 - **Constitución:** `docs/constitution.md` v1.0, vigente (6 principios).
 - **Spec 001 POS:** `specs/001-pos/spec.md` v1.1, **aprobada**, 40 RF y 13 RNF, sin dudas abiertas. Las cinco enmiendas de v1.1 (mapeo de roles, RF-20 y RF-22 con la caja abierta como precondición, §7 y D-3 apuntando a la spec 002) están aplicadas.
 - **Plan 001 POS:** `specs/001-pos/plan.md`, completo (arquitectura, funciones puras, pseudocódigo, UI, decisiones, tests).
@@ -552,4 +554,154 @@ Cola de mejora (informes de revisión y de seguridad), en `specs/003-auth/tasks.
 
 - **T40.** ✅ Cerrada: auditoría de exportaciones y solo lectura (RF-97, RF-98, RNF-39). `AuditLog::recordExport()` (usuario, tipo, rango, marca de tiempo); los cuatro reportes exportan a CSV con el permiso de su pantalla; casos límite 2, 4, 5, 6 y 7 con test y reportes sin escritura fuera de `audit_logs`. D-29: sin fechas el registro queda «sin rango» (arqueo y descuentos). Suite: **501 tests, 3519 aserciones**. Pendiente: verificación a 375 px de los reportes de la spec 004-reportes.
 
-Pendientes de mayor alcance (fuera de la cola actual): los archivos de despliegue (Docker, Nginx, SSL) que `AGENTS.md` declara como stack y que no están en el repositorio.
+### Cierre de entrega local (2026-11-24)
+
+- T32 cerrada en `specs/004-pos-async/tasks.md`: aplicación, retiro y autorización de descuentos sin recarga. El diálogo no se reemplaza al actualizar el fragmento del carrito y se mantiene el respaldo HTML.
+- Suite completa: **542 pruebas, 3700 aserciones, 0 fallos**. `npm run build` correcto.
+- Chrome a 375 px: descuento global y de línea, autorización del Químico, venta simulada por $990, comprobante y cierre de caja sin diferencia. Los cuatro reportes abrieron sin desborde horizontal de página y sus cuatro exportaciones devolvieron CSV.
+- `README.md` documenta instalación local, datos de demostración y pruebas. El cierre se verificó usando PostgreSQL 18 local; PostgreSQL 16 sigue siendo la versión objetivo.
+
+Pendientes de producción: revisión y actualización de dependencias, despliegue reproducible con Docker/Nginx/HTTPS, y prueba de respaldo y restauración de PostgreSQL.
+
+### Preparación del piloto en AWS Academy (2026-11-24)
+
+- El piloto es un simulador académico con datos ficticios, no un sistema de dispensación ni facturación real.
+- Los formularios HTML de descuento global, descuento de línea y cobro ya no guardan contraseñas de supervisor como entradas anteriores. El seeder de usuarios de demostración rechaza entornos distintos de `local` y `testing`, incluso con `--force`.
+- Pruebas enfocadas: **14 aprobadas, 93 aserciones**; Pint aprobó en los cuatro archivos PHP modificados.
+- AWS CLI instalada, sin sesión de laboratorio configurada. No se crearon recursos. Quedan por confirmar saldo y vigencia del laboratorio, opción HTTPS y actualización de dependencias.
+- La suite completa previa a la actualización pasó: **544 pruebas y 3714 aserciones**. La actualización autorizada resolvió Laravel **12.73.0** y Vite **8.3.8**; `composer audit --locked` y `npm audit` no reportaron avisos y la compilación de Vite pasó. Docker Compose incorpora PHP-FPM, Nginx y PostgreSQL 16 sin exponer la base ni PHP. La validación de la instalación actualizada y el punto de entrada HTTPS se comprueban por separado.
+- Laravel 12 inicia tras regenerar el autoload de Composer. En la primera suite posterior a la actualización, 542 pruebas pasaron y dos del libro de controlados fallaron con `SQLSTATE[53100]` (disco lleno). La unidad `C:` tenía menos de 100 MiB libres durante las validaciones; aún no se acredita una pasada completa en verde ni el arranque de Compose.
+- Al repetir por separado `ControlledRegisterTest` con Laravel 12, pasaron las tres pruebas (13 aserciones), incluidas las dos afectadas por el disco lleno.
+- La suite completa posterior a la actualización pasó con **544 pruebas y 3714 aserciones**. Compose validó Nginx publicado solo en loopback, PHP y PostgreSQL sin puertos publicados y red interna de base de datos. El arranque completo de los contenedores queda por verificar.
+- Piloto AWS Academy (`us-east-1`): EC2 temporal `farmacia-pilot-temporal` (`i-0894baf406fdd4464`), EBS cifrado, IMDSv2 obligatorio, grupo de seguridad sin reglas de entrada y Session Manager en línea. Se transfirió y verificó el ZIP fuente sin archivos de entorno. Despliegue por SSM `e1b1c68f-d88e-4e34-a418-f7e574a0ea21`; no hay URL pública ni cuentas de alumnos aprovisionadas.
+- RF-25: enlaces firmados para comprobantes, además del permiso de dueño o supervisor. La prueba nueva falló antes del cambio (200 al cambiar el ID) y pasó tras aplicar la firma. Suite local: **545 pruebas, 3718 aserciones**. Los endpoints `/up` y `/login` del piloto inicial respondieron 200 internamente. La conexión a RDS y el HTTPS público siguen pendientes.
+- La actualización de comprobantes terminó correctamente en la EC2 privada. La ruta reporta el middleware `signed` y `/up` y `/login` responden HTTP 200. La prueba funcional de manipulación del enlace se ejecutó localmente, no en AWS. `farmacia-grupoa.duckdns.org` no resuelve; no se abrió acceso público ni se crearon RDS o ALB.
+- Preparación RDS: `compose.rds.yaml` validado con solo PHP-FPM y Nginx enlazado a loopback por defecto; la conexión exige `verify-full` y monta la CA de RDS en solo lectura. En la EC2, `pg_dump` y restauración en una base temporal tuvieron éxito; coincidieron los conteos de migraciones, usuarios, productos, ventas y movimientos. El respaldo comprobado sigue en el disco de la EC2, no fuera del laboratorio. No se ha migrado a RDS.
+- Suite tras parametrizar TLS de PostgreSQL: **546 pruebas, 3720 aserciones**.
+
+### Piloto en producción con RDS y HTTPS (2026-11-24)
+
+- **RDS PostgreSQL 16:** `farmacia-pilot-db.c54iga0kkden.us-east-1.rds.amazonaws.com:5432`, sin acceso público, almacenamiento cifrado, respaldos de 7 días, CA `rds-ca-rsa2048-g1`. Conexión desde la app con `DB_SSLMODE=verify-full` y `DB_SSLROOTCERT=/run/certs/rds-ca.pem` (montada solo lectura). Cuenta de aplicación `farmacia_app` (nosuperuser, nocreatedb, nocreaterole, noreplication), contraseña generada aleatoriamente. Base `farmacia_pos` restaurada desde respaldo verificado (conteos coincidentes: 24 migraciones, usuarios, productos, ventas, movimientos).
+- **ALB con HTTPS:** `farmacia-pilot-alb-1829115730.us-east-1.elb.amazonaws.com`, listener 443 HTTPS + redirect 80→443, grupo objetivo en puerto 8081 (Nginx en la EC2). Grupo de seguridad de la EC2 solo permite 8081 desde el SG del ALB; sin reglas de entrada directas.
+- **Certificado ACM:** `arn:aws:acm:us-east-1:975049917753:certificate/1a31b158-7def-48e6-8db6-ade356cf267a` para `www.farmacia-grupoa.dynv6.net`, estado ISSUED, validado por DNS CNAME en dynv6.
+- **Dominio público:** `https://www.farmacia-grupoa.dynv6.net` (CNAME al ALB en dynv6.net). DuckDNS (`farmacia-grupoa.duckdns.org`) no resuelve y requiere reCAPTCHA; no se usó.
+- **Seguridad TLS:** HSTS `max-age=31536000; includeSubDomains`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, CSP con nonce, `X-Powered-By` ocultado, sesión cookie `secure; httponly; samesite=lax`. HTTP redirige a HTTPS (301).
+- **Comprobantes firmados (RF-25):** ruta `pos.sales.receipt` con middleware `signed`; `URL::signedRoute()` en controlador, vista admin y pruebas. Cambiar el ID en la URL devuelve 403 incluso para boletas del mismo cajero. `ReceiptPolicy` preservada (dueño o Químico/Admin). En el piloto la firma fallaba por el esquema HTTP visto tras el ALB; ver «Diagnóstico del login y de la firma en el piloto».
+- **Cuentas de demostración (contraseñas fijas, restablecidas el 2026-11-24 para poder entregarlas):**
+  - `admin@farmacia.test` (Administrador)
+  - `quimico@farmacia.test` (Químico supervisor)
+  - `tecnico@farmacia.test` (Cajero de turno)
+  - `bodeguero@farmacia.test` (Bodeguero)
+  Las contraseñas se fijaron con `Hash::make` vía `php artisan tinker` y se verificaron con `Hash::check` (SI en las cuatro). `UserSeeder` rechaza entornos fuera de `local`/`testing`.
+- **Despliegue:** `compose.rds.yaml` (sin PostgreSQL local, solo app + web), `.env.rds` con `APP_URL=https://www.farmacia-grupoa.dynv6.net`, `WEB_BIND_IP=0.0.0.0`, `TRUSTED_PROXIES=*`, `WEB_PORT=8081`. Nginx con `server_tokens off` y `fastcgi_hide_header X-Powered-By`.
+- **Estado del laboratorio AWS Academy:** cuenta 975049917753, región us-east-1, presupuesto $50 (uso $0), restante ~2 h. EC2 `i-0894baf406fdd4464` con Session Manager, sin SSH público.
+- **Suite completa:** **546 pruebas, 3720 aserciones, 0 fallos**. Pint aprobado.
+- **Acceso para el profesor:** https://www.farmacia-grupoa.dynv6.net/login (cuentas de prueba arriba). El piloto es un simulador académico con datos ficticios; no contiene datos reales de pacientes, recetas ni impuestos.
+
+### Diagnóstico del login y de la firma en el piloto (2026-11-24)
+
+- **Síntoma reportado.** Ninguna de las cuatro cuentas demo permitía iniciar sesión. La causa fue que las contraseñas se habían generado con `bin2hex(random_bytes(6))` y sólo se mostraron los hashes; nadie conocía el texto plano. No era un fallo de autenticación.
+- **Corrección.** Se restablecieron las cuatro contraseñas de demostración, se verificaron con `Hash::check` y se limpiaron 25 sesiones de `sessions` en RDS. No se guardan contraseñas en esta bitácora.
+- **Verificación con cliente HTTP real.** `curl` con cookie jar: `GET /login` entrega `XSRF-TOKEN` y `farmacia_grupo_a_session`, y `POST /login` responde `302` al panel del rol correspondiente; las cuatro cuentas llegan a `200` en `/panel/admin`, `/panel/quimico`, `/panel/tecnico` y `/panel/bodeguero`.
+- **Verificación en navegador.** Login con `admin@farmacia.test` a 375 px (emulación móvil): entra al Panel del Administrador, `scrollWidth == innerWidth`, sin errores de consola. POS con `tecnico@farmacia.test`: apertura de caja con $10.000, carrito asíncrono y cobro de una boleta.
+- **Falsa alarma de 419 (CSRF).** El diagnóstico por script comparaba el token con la cookie `farmacia_grupoa_session`, pero el nombre real es `farmacia_grupo_a_session` (deriva de `APP_NAME`). Al no enviar sesión, Laravel respondía 419. Con el nombre correcto el login funciona; el `APP_KEY` era correcto desde el principio.
+- **Defecto real encontrado: comprobante firmado devolvía 403 en producción.** Tras cobrar, la URL `https://www.farmacia-grupoa.dynv6.net/pos/sales/1/receipt?signature=...` respondía `403 INVALID SIGNATURE`.
+  - Causa: el ALB termina TLS y `deploy/nginx.conf` no reenviaba encabezados de proxy; PHP-FPM no recibía `X-Forwarded-Proto` y `HTTPS` quedaba vacío, así que Laravel veía la petición como HTTP. `URL::forceScheme('https')` firmaba la URL en **https**, pero `ValidateSignature` la validaba contra `Request::url()` en **http**, y el HMAC no coincidía.
+  - Corrección final en `deploy/nginx.conf`: `fastcgi_param HTTPS on;` en el bloque interno de `/index.php`. El listener HTTP del ALB redirige a HTTPS. Se conservaron las reglas de rutas y los bloqueos originales de Nginx.
+  - Requiere reconstruir la imagen `web` (`COPY deploy/nginx.conf` es en build time): `docker compose -p farmacia-rds --env-file .env.rds -f compose.rds.yaml up -d --build web`.
+  - Estado: **desplegado en la EC2 vía Session Manager**. Se verificó la directiva en la imagen reconstruida y se recreó solo `web`. Prueba HTTPS: `/up` respondió 200; el comprobante original autenticado respondió 200 y cambiar el ID sin cambiar la firma devolvió 403.
+- **Acceso al laboratorio.** La sesión anterior rechazó `ssm:SendCommand`. Tras renovar el laboratorio se pudo acceder vía EC2 → Conectar → Session Manager; no se habilitó SSH público.
+- **Verificación final.** `/login` y `/up` respondieron 200 por HTTPS después del despliegue. `php artisan test`: 546 pruebas y 3720 aserciones, sin fallos.
+
+### Mejora local: cierre de caja (RF-59)
+
+- La pantalla de cierre solicita cantidades por denominación en CLP sin mostrar efectivo esperado ni totales del turno. El servidor calcula el efectivo contado; si hay diferencia, exige justificación sin perder el conteo.
+- El acta muestra importes registrados al cierre, incluido el desglose por medio de pago para los cierres nuevos. El técnico titular y el administrador acceden al acta desde el reporte de arqueo. El CSV se descarga; el PDF se puede guardar desde la opción de impresión del navegador.
+- Se aplicó la migración solo a PostgreSQL local. En el navegador se verificó un conteo de $48.000 sobre $50.000, el rechazo inicial sin justificación y el CSV con una diferencia de −$2.000. La suite completa pasó con 548 pruebas y 3740 aserciones. No se desplegó en AWS.
+
+### Mejora local: gestión de cuentas (RF-99 y RF-100)
+
+- Desde «Gestión de usuarios», un administrador puede crear técnicos, bodegueros y químicos y desactivar cuentas operativas sin borrar su historial. La desactivación queda en auditoría, bloquea el acceso y no permite dejar un turno de caja abierto.
+- Se aplicó la migración en PostgreSQL local. La suite completa pasó en una base de pruebas aislada: 550 pruebas y 3784 aserciones. No se desplegó en AWS.
+- **Convenios por RUT ficticio (RF-101):** en el cobro local a 375 px, `1-9` ofreció «Convenio Académico Demo (10%)» y `2-7` mostró el aviso sin coincidencias y solo «Sin convenio». Ningún resultado desbordó horizontalmente. La suite previa a esta comprobación pasó con 551 pruebas y 3817 aserciones. No se generó una venta en esta comprobación ni se desplegó en AWS.
+
+### Mejora local: recepción de mercadería (RF-102 y RF-103)
+
+- Bodega registra lote, vencimiento, unidades esperadas y recibidas, y foto privada. El historial muestra la diferencia y la entrada al inventario se calcula con las unidades recibidas.
+- Las recepciones de controlados esperan revisión. La bandeja del químico registra quién aprobó o rechazó, cuándo y por qué. El stock no aumenta si se rechaza o si la aprobación se repite; un lote vencido no puede aprobarse.
+- Se aplicó la migración a PostgreSQL local. La suite pasó en una base de pruebas aislada: 554 pruebas y 3872 aserciones. Se verificó el formulario de bodega y la bandeja vacía del químico en Chrome a 375 px, sin desplazamiento horizontal. No se desplegó en AWS.
+
+### Mejora local: venta por lote (RF-104 y RF-105)
+
+- El POS excluye lotes vencidos y usa primero los vigentes que vencen antes. Una venta puede repartir unidades entre lotes; el detalle muestra la asignación y una anulación devuelve unidades a sus lotes originales sin habilitar la venta de los vencidos.
+- Se migró PostgreSQL local sin inferir saldos históricos. Existencias previas y entradas manuales se conservan sin lote; las nuevas recepciones ingresadas o aprobadas sí llevan saldo por lote.
+- La suite aislada pasó con 555 pruebas y 3899 aserciones. El catálogo POS cargó a 375 px sin desplazamiento horizontal. No se desplegó en AWS.
+
+### Validación local del ciclo de lotes controlados (2026-11-24)
+
+- Se agregó una prueba de integración HTTP en `StockReceptionTest`: bodega recibe dos lotes controlados de dos unidades, el stock permanece en cero hasta que el químico aprueba ambos, el técnico vende tres unidades con receta (dos del lote que vence primero y una del siguiente) y el químico anula la venta; los saldos vuelven a dos unidades por lote.
+- La prueba específica pasó con 18 aserciones. La suite completa pasó con **557 pruebas y 3926 aserciones**. Los datos se crearon únicamente en la base aislada de pruebas (`RefreshDatabase` y almacenamiento simulado); no se desplegó ni se modificó AWS. Queda pendiente la verificación interactiva del recorrido y la preparación de la entrega.
+- En Chrome a 375 px se completaron la recepción con foto, la aprobación y el cobro con receta ficticia. El stock pasó de 0 a 4 tras aprobar; el detalle mostró dos unidades del lote que vencía primero y una del otro. Las pantallas revisadas no desbordaron horizontalmente. No se encontró una acción de anulación en la interfaz: se verificó la ruta existente con sesión de químico y se confirmó la nota de crédito simulada y la reposición de dos unidades por lote. Se eliminaron la base y las fotos temporales. Antes de preparar la entrega queda pendiente habilitar y probar la anulación desde la interfaz (RF-32).
+
+### Interfaz de anulación en comprobante (2026-11-25)
+
+- En el comprobante firmado de una venta confirmada se muestra a Químico y Admin un formulario de anulación con motivo obligatorio y advertencia de irreversibilidad; el Técnico no lo ve. Una venta anulada no vuelve a ofrecer el formulario. Los errores de validación conservan el motivo escrito. La sección queda fuera de la impresión del ticket y reutiliza el POST existente de RF-32, sin ampliar permisos de historial.
+- Dos pruebas nuevas se escribieron primero en rojo y pasaron con 21 aserciones. Se compiló Vite y pasó la suite completa: **559 pruebas, 3947 aserciones**. En Chrome móvil 375 px el comprobante y el formulario mostraron `scrollWidth=375`, sin desbordamiento; se eliminó la base temporal de la prueba visual. No se desplegó a AWS. El químico necesita el enlace firmado del comprobante para abrir una venta ajena; no se añadió acceso al historial reservado al Admin.
+
+### Actualización del piloto AWS (2026-11-25)
+
+- Se desplegó la versión en el proyecto Compose `farmacia-rds`, desde `/opt/farmacia-release-20261125`, conservando la configuración y la clave de aplicación. Se añadió el volumen privado `receipt-evidence` y se verificó que la aplicación puede escribir en él.
+- Se restauró el respaldo previo en PostgreSQL aislado y se ensayaron las cinco migraciones nuevas: se conservaron 3 ventas y 3 movimientos, y el historial de migraciones pasó de 24 a 29. Durante el corte se guardó un respaldo final restringido en `/var/tmp/farmacia-rds-final.j90lI5vk/db.dump`; se conservaron las imágenes anteriores con la etiqueta `rollback-20261125`. No se restauró la base del piloto ni se cargaron datos de prueba.
+- Las cinco migraciones figuran aplicadas en RDS. `/up` y `/login` respondieron 200 por HTTPS. Con la sesión de Técnico se abrió un comprobante firmado existente, se comprobó que no muestra el formulario de anulación y que no tiene acceso a recepción. Queda pendiente repetir el flujo completo en AWS con los roles operativos. Se eliminó el almacenamiento temporal usado para transferir el paquete en S3 y CloudShell.
+
+### Ensayo de presentación en AWS (2026-11-25)
+
+- Se verificaron los cuatro paneles con cuentas temporales. Bodega recibió dos lotes ficticios con foto; mientras estaban pendientes no se podían agregar al carrito. El Químico pudo abrir las fotos privadas y aprobar ambos lotes. El stock disponible pasó a cuatro unidades.
+- El Técnico vendió tres unidades con receta ficticia. El detalle de la venta 4 mostró dos del lote que vencía primero y una del siguiente. El Técnico no vio el formulario de anulación; el Químico abrió el comprobante mediante su enlace firmado y anuló desde el formulario. Se emitió la nota de crédito simulada y se verificó en RDS la reposición de dos unidades por lote.
+- Se cerró la caja del ensayo y se desactivaron las cuatro cuentas temporales. Se conservó la venta ficticia anulada como evidencia. Las cuentas que se usarán en la exposición deben comprobarse antes de presentar, con el laboratorio AWS Academy activo.
+
+- Datos para la exposición cargados desde los formularios de los cuatro roles en AWS: Admin creó los productos «DEMO PROFESOR», Bodega recibió seis unidades por lote con imágenes ficticias, y el Químico aprobó `PROF-DEMO-PRONTO` y dejó `PROF-DEMO-TARDE` pendiente. El Técnico registró la venta simulada 5 con receta ficticia; el detalle confirmó una unidad del lote aprobado y el catálogo mostró cinco disponibles. La venta quedó confirmada para demostrar la anulación.
+- Se preparó en el Escritorio `Guion_farmacia_para_dos_con_capturas.docx`, un guion de aproximadamente siete minutos con cinco capturas del piloto. Las capturas más recientes muestran ambos lotes aprobados; el guion indica mostrar el estado efectivo de la bandeja y verificar la venta 5 antes de anularla en vivo.
+
+- Se corrigió un error 500 en recepción de productos no controlados: el formulario enviaba las cantidades como texto y el servicio de stock exige enteros. `StockReceipt` convierte las cantidades a enteros y la prueba de recepción usa valores de formulario. La suite pasó con 559 pruebas y 3947 aserciones. Se desplegó solo el contenedor de aplicación en AWS, sin migraciones ni reenvío de la recepción del usuario; la página de recepción volvió a responder 200.
+
+- Implementación local de RF-14 y RF-107: todos los descuentos manuales requieren la clave particular del Químico o Admin. Se configura desde su panel y se guarda solo su hash. Desde el cobro, el Técnico puede registrar un cliente ficticio y vincularlo a un convenio vigente previa autorización; el descuento se elige aparte. Se verificaron el formulario de afiliación y el aviso de autorización a 375 px, sin desbordamiento. Vite compiló y la suite pasó con 561 pruebas y 3972 aserciones. No se desplegó a AWS.
+
+- RF-108 y unificación de credenciales del POS en local: un solo PIN numérico de 8 a 12 dígitos por Químico o Admin, sin valor predeterminado, para descuentos manuales y afiliaciones. Solo el Químico puede autorizar ventas con receta o controlados: con ese mismo PIN en caja o desde la bandeja de su panel, donde ve los datos de la receta y el carrito. La aprobación del panel vence a los 15 minutos y solo sirve para la receta y cantidades revisadas. Se probaron ambos recorridos de receta en Brave a 375 px antes de unificar las credenciales; la versión unificada compiló y pasó con 564 pruebas y 4026 aserciones. No se desplegó a AWS.
+- Vista local en Brave (`127.0.0.1:8801`) con base aislada `farmacia_vista_8801`: comprobado el cobro del Técnico con receta ficticia pendiente, la bandeja del Químico y el formulario de PIN único del Admin. Se dejó la solicitud sin aprobar ni cobrar para la demostración. No se modificó AWS.
+
+- Revisión local del flujo de PIN y recetas: 564 pruebas y 4026 aserciones en verde; las tres pantallas revisadas en Brave a 375 px no desbordaron. Se detectó que el botón de confirmar sigue activo antes de contar con autorización (el servidor sí bloquea la venta), y mediante lectura se identificaron inconsistencias posibles en el historial de recetas reutilizadas y en la auditoría al sustituir un descuento manual por convenio. Se recomendaron correcciones antes de desplegar; no se modificó código ni AWS en esta revisión.
+
+- Correcciones de la revisión anterior (RF-11, RF-15, RF-108) en local: con JavaScript, el botón de confirmar queda deshabilitado mientras falte aprobación vigente o correo y PIN válidos del Químico, y el aviso indica el paso pendiente; sin JavaScript el formulario sigue disponible y el servidor valida. Una receta ya registrada con el mismo número y RUT del prescriptor se rechaza si difieren el nombre o la fecha de emisión, tanto al solicitar la revisión como al cobrar. Si un convenio reemplaza al descuento manual global, la venta no atribuye al supervisor el descuento descartado ni genera el registro de autorización. La cláusula de alta de cliente desde caja quedó como RF-107 para no duplicar RF-106. Verificado en Brave a 375 px: pendiente bloqueado, PIN habilita, limpiar vuelve a bloquear, sin desbordamiento (`scrollWidth` 375). Suite completa en verde con 566 pruebas y 4043 aserciones. No se desplegó a AWS.
+
+### Despliegue del PIN y las recetas en el piloto AWS (2026-11-25)
+
+- Se publicó la versión con PIN único del POS y autorización de recetas en `/opt/farmacia-release-20261125b`, proyecto Compose `farmacia-rds`, reutilizando `.env.rds` y la CA de RDS. Las imágenes `farmacia-rds-app` y `farmacia-rds-web` se reconstruyeron dentro de la EC2; las anteriores quedaron como `rollback-20261125b` (se conserva además `rollback-20261125`).
+- Antes de migrar se guardó un respaldo restringido de RDS en `/var/tmp/farmacia-rds-backup.TC29rUUX/db.dump` (74.187 bytes). Las migraciones `2026_11_25_000006` (clientes POS y autorizador de afiliaciones) y `2026_11_25_000007` (PIN del Químico y revisiones de receta) quedaron aplicadas en el lote 3.
+- Verificación: `/up` y `/login` responden 200 por HTTPS; `/cuenta/autorizacion-pos` y `/panel/quimico` redirigen a login sin sesión (302); `Schema` confirma `pharmacist_pin_hash`, `pos_clients` y `prescription_reviews`; el volumen `receipt-evidence` sigue escribible; ambos contenedores arriba y sin errores de aplicación en el registro.
+- Se usó una cuenta temporal de Químico para iniciar sesión, abrir el panel y el formulario de PIN a 375 px (`scrollWidth` 375, sin desbordamiento), guardar un PIN y comprobar el hash en RDS. La cuenta se eliminó junto con su sesión; quedan 8 usuarios y ninguno tiene PIN configurado. El ZIP de transferencia, el bucket S3 temporal y el directorio temporal de la EC2 se eliminaron.
+- **Pendiente para la exposición:** cada Químico y Administrador debe entrar a «Mi panel → PIN del POS» y definir su PIN; sin PIN no se autorizan descuentos, afiliaciones ni ventas con receta. La aprobación de recetas desde el panel del Químico sigue disponible como alternativa al PIN en caja.
+
+### Reestructuración UX/UI del cobro `/pos/checkout` (2026-11-26)
+
+- Verificación final: `php artisan test` en una sola ejecución, 569 pruebas aprobadas y 4107 aserciones; `npm run build` correcto. En Brave, el HTML renderizado a 1440 y 375 px confirmó el resumen lateral fijo al desplazar en escritorio y una columna sin desbordamiento en móvil. Con una respuesta de convenio simulada, el total pasó de $15.000 a $14.000 y el vuelto de $0 a $1.000. El POST de factura rechaza un dígito verificador inválido.
+
+- `php artisan test`: 568 pruebas aprobadas, 4102 aserciones, 0 fallos. No se alteró lógica de negocio, seguridad, roles, nombres de inputs ni selectores `data-*` que validan las pruebas.
+- Layout de dos columnas en escritorio (`lg:grid-cols-12`, `lg:col-span-8` operativo + `lg:col-span-4 lg:sticky lg:top-6` resumen) y una sola columna a 375 px sin desplazamiento horizontal (`scrollWidth: 375`, `client: 375`). Capturas: `checkout-final-375.png`, `import-final-375.png`.
+- RUT unificado: un solo input `customer_rut` (`RUT del cliente / paciente`) sirve para consultar convenio y emitir factura. Si se elige Factura y el RUT está vacío o inválido, aviso claro; el backend recibe el mismo valor.
+- Vuelto en tiempo real para Efectivo: `Vuelto a entregar` (verde) o `Faltan` (ámbar) bajo el monto recibido, recalculado al cambiar convenio o total.
+- Autorización del Químico: `<select>` con químicos activos (nombre + correo) dentro de `<details>` desplegable (`Autorizar aquí en caja con PIN de Químico`); visible por defecto el botón «Enviar receta al panel del Químico».
+- Textos realistas: se eliminaron «RUT ficticio», «Nombre ficticio», «RUT de demostración» y «datos ficticios del simulador». Queda un badge discreto `Simulador Académico INACAP`.
+- Selector de convenio reubicado en la tarjeta de cliente; texto actualizado a «Se preselecciona automáticamente al consultar un RUT con convenio único vigente.»
+
+### Beneficios por RUT — verificación del 26-11-2026
+
+- Carga local autorizada: se aplicaron las tres migraciones pendientes en PostgreSQL local y se verificaron tres clientes nuevos afiliados al Convenio Académico Demo (10 %). Se omitieron siete filas con RUT inválido. No se tocó el entorno desplegado.
+
+- `php artisan test`: 568 pruebas aprobadas, 4102 aserciones, 91,16 s. En Brave DevTools, las vistas Blade de importación y cobro renderizadas con datos ficticios midieron 375 px de ancho de documento en un viewport de 375 × 812, sin controles fuera del borde derecho. Esta revisión de presentación no fue una sesión de cobro en vivo. Hallazgo de texto: el selector de convenio de la importación es obligatorio pero su etiqueta dice «opcional».
+
+### Panel clínico del Químico — verificación del 26-11-2026
+
+- La cabecera muestra el estado del PIN; la bandeja cuenta las solicitudes vigentes y se actualiza cada ocho segundos. El menú reúne las funciones clínicas y deja Convenios y Auditoría al pie del panel. El libro separa dispensaciones y aprobaciones de la auditoría administrativa. El flujo no registra rechazos y no se modificó la lógica de aprobación ni de cobro.
+- Se retiró la tarjeta «Consultas de sólo lectura» del panel; las rutas de convenios y auditoría conservan sus permisos y `ChemistPanelTest` verifica el acceso directo.
+- `php artisan test`: 573 pruebas aprobadas, 4143 aserciones. El panel no presentó desplazamiento horizontal a 1440 px ni a 375 px; el libro también se verificó a 375 px. En Brave DevTools se observaron respuestas HTTP 200 de la bandeja con una separación de aproximadamente ocho segundos, usando los assets compilados.
